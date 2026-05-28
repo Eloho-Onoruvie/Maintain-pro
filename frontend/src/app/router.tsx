@@ -1,229 +1,139 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 
-import { MainLayout } from "@/components/layout/MainLayout";
-import { AuthLayout } from "@/components/layout/AuthLayout";
+import { MainLayout } from '@/components/layout/MainLayout'
+import { AuthLayout } from '@/components/layout/AuthLayout'
 
-import ProtectedRoute from "@/app/router/ProtectedRoute";
-import RoleRoute from "@/app/router/RoleRoute";
+import ProtectedRoute from '@/app/router/ProtectedRoute'
+import GuestRoute from '@/app/router/GuestRoute'
+import PortalRoute, {
+  LegacyAssetDetailRedirect,
+  LegacyPortalRedirect,
+  LegacyWorkOrderDetailRedirect,
+} from '@/app/router/PortalRoute'
+import { orgPortalRoutes, techPortalRoutes, vendorPortalRoutes } from '@/app/router/portalRoutes'
+import { PORTALS } from '@/app/portal.config'
 
-import { USER_ROLES } from "@/types/user.types";
+import { Login } from '@/features/auth/pages/Login'
+import { SignupHub } from '@/features/auth/pages/SignupHub'
+import { SignupOrganization } from '@/features/auth/pages/SignupOrganization'
+import { SignupTechnician } from '@/features/auth/pages/SignupTechnician'
+import { SignupVendor } from '@/features/auth/pages/SignupVendor'
+import { ForgotPassword } from '@/features/auth/pages/ForgotPassword'
+import UnauthorizedPage from '@/features/auth/pages/UnauthorizedPage'
 
-/* AUTH */
-import { Login } from "@/features/auth/pages/Login";
-import { Register } from "@/features/auth/pages/Register";
-import { ForgotPassword } from "@/features/auth/pages/ForgotPassword";
-import UnauthorizedPage from "@/features/auth/pages/UnauthorizedPage";
+import { PublicLayout } from '@/features/public/layout/PublicLayout'
+import { AboutPage } from '@/features/public/pages/AboutPage'
+import { ContactPage } from '@/features/public/pages/ContactPage'
+import { FeaturesPage } from '@/features/public/pages/FeaturesPage'
+import { PrivacyPolicyPage } from '@/features/public/pages/PrivacyPolicyPage'
+import { PublicHomeRoute } from '@/features/public/pages/PublicHomePage'
+import { TermsOfServicePage } from '@/features/public/pages/TermsOfServicePage'
 
-/* DASHBOARD */
-import DashboardPage from "@/features/dashboard/pages/DashboardPage";
+const LEGACY_SEGMENTS = [
+  'dashboard',
+  'work-orders',
+  'work-orders/new',
+  'assets',
+  'locations',
+  'preventive-maintenance',
+  'service-requests',
+  'vendors',
+  'inventory',
+  'reports',
+  'notifications',
+  'settings',
+] as const
 
-/* WORK ORDERS */
-import { WorkOrders } from "@/features/work-orders/pages/WorkOrders";
-import { WorkOrderDetails } from "@/features/work-orders/pages/WorkOrderDetails";
-import { CreateWorkOrder } from "@/features/work-orders/pages/CreateWorkOrder";
+const legacyRedirects = LEGACY_SEGMENTS.map((segment) => ({
+  path: `/${segment}`,
+  element: <LegacyPortalRedirect segment={segment} />,
+}))
 
-/* ASSETS */
-import { Assets } from "@/features/assets/pages/Assets";
-import { AssetDetails } from "@/features/assets/pages/AssetDetails";
+const legacyWorkOrderDetail = {
+  path: '/work-orders/:id',
+  element: <LegacyWorkOrderDetailRedirect />,
+}
 
-/* LOCATIONS */
-import { Locations } from "@/features/locations/pages/Locations";
-
-/* PM */
-import { PreventiveMaintenance } from "@/features/preventive-maintenance/pages/PreventiveMaintenance";
-
-/* REQUESTS */
-import { ServiceRequests } from "@/features/service-requests/pages/ServiceRequests";
-
-/* VENDORS */
-import { Vendors } from "@/features/vendors/pages/Vendors";
-
-/* INVENTORY */
-import { Inventory } from "@/features/inventory/pages/Inventory";
-
-/* REPORTS */
-import { Reports } from "@/features/reports/pages/Reports";
-
-/* NOTIFICATIONS */
-import { Notifications } from "@/features/notifications/pages/Notifications";
-
-/* SETTINGS */
-import { Settings } from "@/features/settings/pages/Settings";
+const legacyAssetDetail = {
+  path: '/assets/:id',
+  element: <LegacyAssetDetailRedirect />,
+}
 
 export const router = createBrowserRouter([
+  /* PUBLIC MARKETING ROUTES */
   {
-    path: "/",
-    element: <Navigate to="/dashboard" replace />,
-  },
-
-  /*
-   AUTH ROUTES
-  */
-  {
-    element: <AuthLayout />,
+    element: <PublicLayout />,
     children: [
-      {
-        path: "/login",
-        element: <Login />,
-      },
-
-      {
-        path: "/register",
-        element: <Register />,
-      },
-
-      {
-        path: "/forgot-password",
-        element: <ForgotPassword />,
-      },
-
-      {
-        path: "/unauthorized",
-        element: <UnauthorizedPage />,
-      },
+      { path: '/', element: <PublicHomeRoute /> },
+      { path: '/features', element: <FeaturesPage /> },
+      { path: '/about', element: <AboutPage /> },
+      { path: '/contact', element: <ContactPage /> },
+      { path: '/privacy-policy', element: <PrivacyPolicyPage /> },
+      { path: '/terms-of-service', element: <TermsOfServicePage /> },
     ],
   },
 
-  /*
-   PROTECTED APP
-  */
+  /* AUTH ROUTES */
   {
     element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
+      <GuestRoute>
+        <AuthLayout />
+      </GuestRoute>
     ),
-
     children: [
-      /*
-       DASHBOARD
-      */
-      {
-        path: "/dashboard",
-        element: <DashboardPage />,
-      },
-
-      /*
-       WORK ORDERS
-      */
-      {
-        path: "/work-orders",
-        element: <WorkOrders />,
-      },
-
-      {
-        path: "/work-orders/new",
-        element: <CreateWorkOrder />,
-      },
-
-      {
-        path: "/work-orders/:id",
-        element: <WorkOrderDetails />,
-      },
-
-      /*
-       ASSETS
-      */
-      {
-        path: "/assets",
-        element: <Assets />,
-      },
-
-      {
-        path: "/assets/:id",
-        element: <AssetDetails />,
-      },
-
-      /*
-       LOCATIONS
-      */
-      {
-        path: "/locations",
-        element: <Locations />,
-      },
-
-      /*
-       PM
-      */
-      {
-        path: "/preventive-maintenance",
-        element: <PreventiveMaintenance />,
-      },
-
-      /*
-       SERVICE REQUESTS
-      */
-      {
-        path: "/service-requests",
-        element: <ServiceRequests />,
-      },
-
-      /*
-       VENDORS
-      */
-      {
-        path: "/vendors",
-        element: <Vendors />,
-      },
-
-      /*
-       INVENTORY
-      */
-      {
-        path: "/inventory",
-
-        element: (
-          <RoleRoute
-            allowedRoles={[
-              USER_ROLES.ADMIN,
-              USER_ROLES.FACILITY_MANAGER,
-              USER_ROLES.FINANCE,
-            ]}
-          >
-            <Inventory />
-          </RoleRoute>
-        ),
-      },
-
-      /*
-       REPORTS
-      */
-      {
-        path: "/reports",
-
-        element: (
-          <RoleRoute
-            allowedRoles={[
-              USER_ROLES.ADMIN,
-              USER_ROLES.FACILITY_MANAGER,
-              USER_ROLES.FINANCE,
-            ]}
-          >
-            <Reports />
-          </RoleRoute>
-        ),
-      },
-
-      /*
-       NOTIFICATIONS
-      */
-      {
-        path: "/notifications",
-        element: <Notifications />,
-      },
-
-      /*
-       SETTINGS
-      */
-      {
-        path: "/settings",
-
-        element: (
-          <RoleRoute allowedRoles={[USER_ROLES.ADMIN]}>
-            <Settings />
-          </RoleRoute>
-        ),
-      },
+      { path: '/login', element: <Login /> },
+      { path: '/signup', element: <SignupHub /> },
+      { path: '/signup/organization', element: <SignupOrganization /> },
+      { path: '/signup/technician', element: <SignupTechnician /> },
+      { path: '/signup/vendor', element: <SignupVendor /> },
+      { path: '/register', element: <Navigate to="/signup/organization" replace /> },
+      { path: '/forgot-password', element: <ForgotPassword /> },
     ],
   },
-]);
+
+  { path: '/unauthorized', element: <UnauthorizedPage /> },
+
+  /* ORGANIZATION PORTAL */
+  {
+    path: '/app/org',
+    element: (
+      <ProtectedRoute>
+        <PortalRoute portal={PORTALS.ORG}>
+          <MainLayout portal={PORTALS.ORG} />
+        </PortalRoute>
+      </ProtectedRoute>
+    ),
+    children: orgPortalRoutes,
+  },
+
+  /* TECHNICIAN PORTAL */
+  {
+    path: '/app/tech',
+    element: (
+      <ProtectedRoute>
+        <PortalRoute portal={PORTALS.TECH}>
+          <MainLayout portal={PORTALS.TECH} />
+        </PortalRoute>
+      </ProtectedRoute>
+    ),
+    children: techPortalRoutes,
+  },
+
+  /* VENDOR PORTAL */
+  {
+    path: '/app/vendor',
+    element: (
+      <ProtectedRoute>
+        <PortalRoute portal={PORTALS.VENDOR}>
+          <MainLayout portal={PORTALS.VENDOR} />
+        </PortalRoute>
+      </ProtectedRoute>
+    ),
+    children: vendorPortalRoutes,
+  },
+
+  /* LEGACY ROUTE REDIRECTS */
+  ...legacyRedirects,
+  legacyWorkOrderDetail,
+  legacyAssetDetail,
+])

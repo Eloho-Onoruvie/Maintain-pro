@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   Plus, Search, MessageSquare, CheckCircle2, Clock, AlertTriangle,
   Star, ArrowRight, Filter, Camera, MapPin, ChevronDown
@@ -15,7 +17,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { mockServiceRequests, mockLocations } from '@/features/dashboard/services/dashboard.service'
 import { formatRelativeDate, formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
-import type { ServiceRequestStatus, WorkOrderPriority } from '@/types/common.types'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { usePortalPath } from '@/hooks/usePortal'
+import { ViewServiceRequestDialog } from '@/features/service-requests/components/ViewServiceRequestDialog'
+import type { ServiceRequest, ServiceRequestStatus, WorkOrderPriority } from '@/types/common.types'
 
 const SERVICE_CATEGORIES = ['Electrical','Plumbing','HVAC','Cleaning','Pest Control','Fire Safety','Elevators','Security','Gas','Sewage','General Repairs']
 
@@ -49,8 +54,12 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
 }
 
 export function ServiceRequests() {
+  const navigate = useNavigate()
+  const newWorkOrderPath = usePortalPath('work-orders/new')
   const [showSubmit, setShowSubmit] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [showRate, setShowRate] = useState<string | null>(null)
+  const [viewRequest, setViewRequest] = useState<ServiceRequest | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [ratingValue, setRatingValue] = useState(0)
@@ -78,8 +87,21 @@ export function ServiceRequests() {
   }
 
   const handleSubmit = () => {
+    toast.success('Service request submitted')
     setShowSubmit(false)
     setForm({ title: '', category: '', description: '', priority: 'medium', locationId: '', isGuest: false, guestContact: '' })
+  }
+
+  const handleConvert = (reqId: string, title: string) => {
+    toast.success(`Converting ${reqId} to work order`)
+    navigate(`${newWorkOrderPath}?from=${encodeURIComponent(reqId)}&title=${encodeURIComponent(title)}`)
+  }
+
+  const handleRateSubmit = () => {
+    toast.success('Thank you for your feedback')
+    setShowRate(null)
+    setRatingValue(0)
+    setRatingComment('')
   }
 
   return (
@@ -129,7 +151,9 @@ export function ServiceRequests() {
               {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon"><Filter className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" aria-label="Open advanced service request filters">
+            <Filter className="h-4 w-4" aria-hidden />
+          </Button>
         </div>
 
         {/* Requests */}
@@ -167,12 +191,23 @@ export function ServiceRequests() {
                         </Button>
                       )}
                       {canConvert && (
-                        <Button size="sm" className="gap-1.5 h-8 text-xs">
+                        <Button
+                          size="sm"
+                          className="gap-1.5 h-8 text-xs"
+                          onClick={() => handleConvert(req.id, req.title)}
+                        >
                           <ArrowRight className="h-3.5 w-3.5" />Convert to WO
                         </Button>
                       )}
                       {!canConvert && !canRate && (
-                        <Button size="sm" variant="ghost" className="h-8 text-xs">View</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-xs"
+                          onClick={() => setViewRequest(req)}
+                        >
+                          View
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -181,13 +216,13 @@ export function ServiceRequests() {
             )
           })}
           {filtered.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No service requests</p>
-              <Button size="sm" className="mt-3 gap-2" onClick={() => setShowSubmit(true)}>
-                <Plus className="h-4 w-4" />Submit First Request
-              </Button>
-            </div>
+            <EmptyState
+              icon={MessageSquare}
+              title="No service requests"
+              description={search || statusFilter !== 'all' ? 'Try adjusting your filters.' : undefined}
+              actionLabel="Submit first request"
+              onAction={() => setShowSubmit(true)}
+            />
           )}
         </div>
       </div>
@@ -233,10 +268,14 @@ export function ServiceRequests() {
               <Textarea placeholder="Describe the issue in detail — what happened, when, and any relevant context..." rows={3}
                 value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
             </div>
-            <div className="flex items-center justify-center gap-3 p-3 border border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/30 transition-colors text-muted-foreground">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-border p-3 text-muted-foreground transition-colors hover:bg-muted/30"
+              onClick={() => toast.info('Photo upload will be available when connected to the API')}
+            >
               <Camera className="h-5 w-5" />
               <span className="text-sm">Attach photos (optional)</span>
-            </div>
+            </button>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSubmit(false)}>Cancel</Button>
@@ -258,7 +297,7 @@ export function ServiceRequests() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRate(null)}>Skip</Button>
-            <Button onClick={() => setShowRate(null)} disabled={!ratingValue}>Submit Rating</Button>
+            <Button onClick={handleRateSubmit} disabled={!ratingValue}>Submit Rating</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

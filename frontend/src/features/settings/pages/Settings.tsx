@@ -58,6 +58,7 @@ import { useAuthStore } from "@/app/store";
 import { formatDate, formatRelativeDate } from "@/utils/formatDate";
 import { cn } from "@/utils/helpers";
 import type { UserRole } from "@/types/user.types";
+import { toast } from "sonner";
 
 const roleColors: Record<UserRole, string> = {
   admin: "bg-red-400/10 text-red-400 border-red-400/20",
@@ -196,12 +197,26 @@ const defaultSLA = {
   approvalThreshold: 2000,
 };
 
+const INVITABLE_ORG_ROLES: UserRole[] = ["facility_manager", "staff", "finance"];
+
+function downloadJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function Settings() {
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleDetail, setShowRoleDetail] = useState<UserRole | null>(null);
   const [inviteForm, setInviteForm] = useState({
     email: "",
-    role: "technician" as UserRole,
+    role: "facility_manager" as UserRole,
     name: "",
   });
   const user = useAuthStore((state) => state.user);
@@ -219,7 +234,8 @@ export function Settings() {
     currency: "USD",
   });
 
-  const users = mockUsers.map((u, i) => ({
+  const [users, setUsers] = useState(
+    mockUsers.map((u, i) => ({
     ...u,
     status: i < 4 ? "active" : "pending",
     lastLogin: i < 3 ? new Date(Date.now() - i * 24 * 3600000) : undefined,
@@ -230,7 +246,38 @@ export function Settings() {
       "Finance",
       "External",
     ][i % 5],
-  }));
+  })),
+  );
+  const [usersSearch, setUsersSearch] = useState("");
+  const [usersRoleFilter, setUsersRoleFilter] = useState<"all" | UserRole>("all");
+
+  const filteredUsers = users.filter((u) => {
+    const term = usersSearch.toLowerCase();
+    const matchesSearch =
+      !term ||
+      u.name.toLowerCase().includes(term) ||
+      u.email.toLowerCase().includes(term);
+    const matchesRole = usersRoleFilter === "all" || u.role === usersRoleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  const handleInvite = () => {
+    if (!inviteForm.name || !inviteForm.email) return;
+    setUsers((prev) => [
+      {
+        id: `inv-${Date.now()}`,
+        name: inviteForm.name,
+        email: inviteForm.email,
+        role: inviteForm.role,
+        status: "pending",
+        department: "Operations",
+      } as (typeof users)[number],
+      ...prev,
+    ]);
+    toast.success("Invitation sent");
+    setInviteForm({ name: "", email: "", role: "facility_manager" as UserRole });
+    setShowInvite(false);
+  };
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -472,6 +519,7 @@ export function Settings() {
                       size="sm"
                       variant="outline"
                       className="gap-2 w-full"
+                      onClick={() => toast.info("Logo upload flow coming next")}
                     >
                       <Camera className="h-4 w-4" />
                       Upload Logo
@@ -492,6 +540,13 @@ export function Settings() {
                       variant="outline"
                       size="sm"
                       className="w-full gap-2"
+                      onClick={() =>
+                        downloadJson("maintainpro-organization-export.json", {
+                          organization: orgForm,
+                          users,
+                          sla,
+                        })
+                      }
                     >
                       <Download className="h-4 w-4" />
                       Export All Data
@@ -500,6 +555,7 @@ export function Settings() {
                       variant="outline"
                       size="sm"
                       className="w-full gap-2 text-destructive hover:text-destructive"
+                      onClick={() => toast.warning("Data deletion request submitted")}
                     >
                       <Trash2 className="h-4 w-4" />
                       Request Data Deletion
@@ -514,8 +570,16 @@ export function Settings() {
           <TabsContent value="users" className="mt-0 space-y-4">
             <div className="flex justify-between items-center">
               <div className="flex gap-3">
-                <Input placeholder="Search users..." className="w-52 h-9" />
-                <Select defaultValue="all">
+                <Input
+                  placeholder="Search users..."
+                  className="w-52 h-9"
+                  value={usersSearch}
+                  onChange={(e) => setUsersSearch(e.target.value)}
+                />
+                <Select
+                  value={usersRoleFilter}
+                  onValueChange={(v) => setUsersRoleFilter(v as "all" | UserRole)}
+                >
                   <SelectTrigger className="w-[140px] h-9">
                     <SelectValue />
                   </SelectTrigger>
@@ -560,7 +624,7 @@ export function Settings() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((u) => (
+                  {filteredUsers.map((u) => (
                     <TableRow key={u.id} className="border-border">
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -618,15 +682,22 @@ export function Settings() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
+                            onClick={() => toast.info(`Edit ${u.name}`)}
+                            aria-label={`Edit user ${u.name}`}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-3.5 w-3.5" aria-hidden />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 hover:text-destructive"
+                            onClick={() => {
+                              setUsers((prev) => prev.filter((item) => item.id !== u.id));
+                              toast.success("User removed");
+                            }}
+                            aria-label={`Remove user ${u.name}`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
                           </Button>
                         </div>
                       </TableCell>
@@ -679,6 +750,10 @@ export function Settings() {
                         size="sm"
                         variant="ghost"
                         className="w-full h-7 text-xs gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowRoleDetail(role);
+                        }}
                       >
                         <Pencil className="h-3 w-3" />
                         Edit Permissions
@@ -813,7 +888,9 @@ export function Settings() {
               </CardContent>
             </Card>
             <div className="flex justify-end">
-              <Button size="sm">Save SLA Configuration</Button>
+              <Button size="sm" onClick={() => toast.success("SLA configuration saved")}>
+                Save SLA Configuration
+              </Button>
             </div>
           </TabsContent>
 
@@ -859,7 +936,12 @@ export function Settings() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Switch defaultChecked={rule.active} />
-                    <Button variant="ghost" size="sm" className="text-xs gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs gap-1"
+                      onClick={() => toast.info(`Editing rule: ${rule.name}`)}
+                    >
                       <Pencil className="h-3 w-3" />
                       Edit
                     </Button>
@@ -867,7 +949,12 @@ export function Settings() {
                 </CardContent>
               </Card>
             ))}
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => toast.info("Create workflow rule")}
+            >
               <Plus className="h-4 w-4" />
               Add Workflow Rule
             </Button>
@@ -892,7 +979,12 @@ export function Settings() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button size="sm" variant="outline" className="gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() => downloadJson("maintainpro-audit-log.json", mockAuditLog)}
+              >
                 <Download className="h-4 w-4" />
                 Export Log
               </Button>
@@ -992,15 +1084,13 @@ export function Settings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.entries(roleLabels) as [UserRole, string][]).map(
-                    ([r, l]) => (
-                      <SelectItem key={r} value={r}>
-                        <div className="flex items-center gap-2">
-                          <span>{l}</span>
-                        </div>
-                      </SelectItem>
-                    ),
-                  )}
+              {INVITABLE_ORG_ROLES.map((r) => (
+                <SelectItem key={r} value={r}>
+                  <div className="flex items-center gap-2">
+                    <span>{roleLabels[r]}</span>
+                  </div>
+                </SelectItem>
+              ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1014,7 +1104,7 @@ export function Settings() {
               Cancel
             </Button>
             <Button
-              onClick={() => setShowInvite(false)}
+              onClick={handleInvite}
               disabled={!inviteForm.name || !inviteForm.email}
             >
               Send Invitation
@@ -1056,7 +1146,9 @@ export function Settings() {
               <Button variant="outline" onClick={() => setShowRoleDetail(null)}>
                 Close
               </Button>
-              <Button>Edit Permissions</Button>
+              <Button onClick={() => toast.info("Permissions editor coming next")}>
+                Edit Permissions
+              </Button>
             </DialogFooter>
           </DialogContent>
         )}

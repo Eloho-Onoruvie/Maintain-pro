@@ -1,7 +1,9 @@
 
 
 
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import {AppHeader as Navbar } from '@/components/navigation/Navbar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +40,9 @@ import {
 import { mockWorkOrders, mockUsers } from '../services/workOrders.service'
 import { WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
+import { usePortalPath } from '@/hooks/usePortal'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
+import { useWorkOrderModals } from '@/features/work-orders/hooks/useWorkOrderModals'
 
 const priorityStyles: Record<WorkOrderPriority, string> = {
   critical: 'bg-status-critical/10 text-status-critical border-status-critical/20',
@@ -51,6 +56,7 @@ const statusStyles: Record<WorkOrderStatus, string> = {
   in_progress: 'bg-status-pending/10 text-status-pending',
   assigned: 'bg-status-active/10 text-status-active',
   verified: 'bg-status-completed/10 text-status-completed',
+  pending: 'bg-status-high/10 text-status-high',
   closed: 'bg-muted text-muted-foreground',
   completed: 'bg-status-completed/10 text-status-completed',
   cancelled: 'bg-muted text-muted-foreground',
@@ -61,6 +67,7 @@ const statusLabels: Record<WorkOrderStatus, string> = {
   in_progress: "In Progress",
   assigned: "Assigned",
   verified: "Verified",
+  pending: "Pending",
   closed: "Closed",
   completed: "Completed",
   cancelled: "Cancelled",
@@ -71,8 +78,12 @@ interface PageProps {
 }
 
 export function WorkOrderDetails() {
-  // id comes from useParams in react-router
   const { id } = useParams()
+  const workOrdersPath = usePortalPath('work-orders')
+  const assetsPath = usePortalPath('assets')
+  const { isMaintenanceReadOnly } = useRoleAccess()
+  const { openEdit, openAssign, openDelete, modals } = useWorkOrderModals()
+  const [comment, setComment] = useState('')
   const workOrder = mockWorkOrders.find(wo => wo.id === id) || mockWorkOrders[0]
 
   const activities = [
@@ -101,27 +112,36 @@ export function WorkOrderDetails() {
 
   return (
     <>
-      <Navbar 
+      {modals}
+      <Navbar
         title={workOrder.id}
         subtitle={workOrder.title}
+        hideQuickCreate
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          </div>
+          !isMaintenanceReadOnly ? (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => openEdit(workOrder)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => openDelete(workOrder)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </div>
+          ) : undefined
         }
       />
       
       <div className="p-4 lg:p-6">
         {/* Back Link */}
         <Link 
-          to="/work-orders" 
+          to={workOrdersPath} 
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -162,7 +182,11 @@ export function WorkOrderDetails() {
                       )}
                     </div>
                   </div>
-                  <Select defaultValue={workOrder.status}>
+                  <Select
+                    defaultValue={workOrder.status}
+                    disabled={isMaintenanceReadOnly}
+                    onValueChange={(value) => toast.success(`Status updated to ${value.replace('_', ' ')}`)}
+                  >
                     <SelectTrigger className="w-[160px]">
                       <SelectValue placeholder="Update Status" />
                     </SelectTrigger>
@@ -193,7 +217,11 @@ export function WorkOrderDetails() {
             <Card className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Photos & Attachments</CardTitle>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast.info('Photo upload will be available when connected to the API')}
+                >
                   <Camera className="mr-2 h-4 w-4" />
                   Add Photo
                 </Button>
@@ -222,12 +250,21 @@ export function WorkOrderDetails() {
                     <AvatarFallback className="bg-primary/20 text-primary text-xs">SC</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-2">
-                    <Textarea 
+                    <Textarea
                       placeholder="Add a comment..."
                       className="min-h-[80px] bg-secondary resize-none"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
                     />
                     <div className="flex justify-end">
-                      <Button size="sm">
+                      <Button
+                        size="sm"
+                        disabled={!comment.trim()}
+                        onClick={() => {
+                          toast.success('Comment posted')
+                          setComment('')
+                        }}
+                      >
                         <Send className="mr-2 h-4 w-4" />
                         Send
                       </Button>
@@ -286,7 +323,12 @@ export function WorkOrderDetails() {
                       <span className="text-sm font-medium">{workOrder.assigneeName}</span>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" className="h-auto p-0 text-primary">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-primary"
+                      onClick={() => openAssign(workOrder)}
+                    >
                       Assign
                     </Button>
                   )}
@@ -352,8 +394,8 @@ export function WorkOrderDetails() {
                   <CardTitle className="text-base">Related Asset</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Link 
-                    to={`/assets/${workOrder.assetId}`}
+                  <Link
+                    to={`${assetsPath}/${workOrder.assetId}`}
                     className="block rounded-lg border border-border p-3 transition-colors hover:bg-accent/50"
                   >
                     <div className="flex items-center gap-3">
@@ -376,9 +418,10 @@ export function WorkOrderDetails() {
                 <CardTitle className="text-base">Location</CardTitle>
               </CardHeader>
               <CardContent>
-                <Link 
-                  to={`/locations/${workOrder.locationId}`}
-                  className="block rounded-lg border border-border p-3 transition-colors hover:bg-accent/50"
+                <button
+                  type="button"
+                  className="block w-full rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent/50"
+                  onClick={() => toast.info(`Location: ${workOrder.locationName}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-primary/10 p-2">
@@ -389,7 +432,7 @@ export function WorkOrderDetails() {
                       <p className="text-xs text-muted-foreground">View location details</p>
                     </div>
                   </div>
-                </Link>
+                </button>
               </CardContent>
             </Card>
           </div>

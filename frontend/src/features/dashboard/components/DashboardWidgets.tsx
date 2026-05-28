@@ -34,12 +34,17 @@ function ChartCard({ title, children }: ChartCardProps) {
   )
 }
 
-export function WorkOrderTrendChart() {
+type TrendPoint = { month: string; created: number; completed: number }
+type CategoryPoint = { name: string; value: number; fill: string }
+type CostPoint = { month: string; cost: number }
+
+export function WorkOrderTrendChart({ data }: { data?: TrendPoint[] }) {
+  const chartData = data?.length ? data : workOrderTrendData
   return (
     <ChartCard title="Work Order Trends">
       <div className="h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={workOrderTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
@@ -98,14 +103,15 @@ export function WorkOrderTrendChart() {
   )
 }
 
-export function CategoryBreakdownChart() {
+export function CategoryBreakdownChart({ data }: { data?: CategoryPoint[] }) {
+  const chartData = data?.length ? data : categoryBreakdownData
   return (
     <ChartCard title="Work Orders by Category">
       <div className="h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={categoryBreakdownData}
+              data={chartData}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -113,7 +119,7 @@ export function CategoryBreakdownChart() {
               paddingAngle={2}
               dataKey="value"
             >
-              {categoryBreakdownData.map((entry, index) => (
+              {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </Pie>
@@ -125,7 +131,7 @@ export function CategoryBreakdownChart() {
                 borderRadius: '8px',
                 color: 'var(--foreground)',
               }}
-              formatter={(value: number) => [`${value}%`, 'Share']}
+              formatter={(value: number) => [`${value}`, 'Work orders']}
             />
             <Legend
               verticalAlign="bottom"
@@ -139,12 +145,13 @@ export function CategoryBreakdownChart() {
   )
 }
 
-export function CostTrendChart() {
+export function CostTrendChart({ data }: { data?: CostPoint[] }) {
+  const chartData = data?.length ? data : costByMonthData
   return (
-    <ChartCard title="Monthly Maintenance Cost">
+    <ChartCard title="Maintenance cost in range">
       <div className="h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={costByMonthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis 
               dataKey="month" 

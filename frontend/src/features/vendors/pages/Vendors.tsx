@@ -15,10 +15,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { EditVendorDialog } from '@/features/vendors/components/EditVendorDialog'
+import { ViewVendorDialog } from '@/features/vendors/components/ViewVendorDialog'
 import { mockVendors } from '@/features/dashboard/services/dashboard.service'
+import type { Vendor } from '@/types/common.types'
 import { formatDate, getDaysUntil } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import type { VendorStatus } from '@/types/common.types'
+import { toast } from 'sonner'
 
 const SERVICE_CATEGORIES = ['Electrical','Plumbing','HVAC','Cleaning','Pest Control','Fire Safety','Elevator','Security','Gas','Sewage','General']
 
@@ -45,6 +50,11 @@ export function Vendors() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [activeTab, setActiveTab] = useState('grid')
+  const [viewVendor, setViewVendor] = useState<Vendor | null>(null)
+  const [editVendor, setEditVendor] = useState<Vendor | null>(null)
+  const [renewVendor, setRenewVendor] = useState<Vendor | null>(null)
+  const [deactivateVendor, setDeactivateVendor] = useState<Vendor | null>(null)
+
   const [form, setForm] = useState({
     name: '', category: '', serviceCategories: [] as string[], email: '', phone: '',
     address: '', contactPerson: '', contractStart: '', contractEnd: '', contractValue: '',
@@ -68,6 +78,41 @@ export function Vendors() {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <ViewVendorDialog
+        vendor={viewVendor}
+        open={!!viewVendor}
+        onOpenChange={(o) => !o && setViewVendor(null)}
+        onEdit={() => {
+          if (viewVendor) {
+            setEditVendor(viewVendor)
+            setViewVendor(null)
+          }
+        }}
+      />
+      <EditVendorDialog vendor={editVendor} open={!!editVendor} onOpenChange={(o) => !o && setEditVendor(null)} />
+      <ConfirmDialog
+        open={!!renewVendor}
+        onOpenChange={(o) => !o && setRenewVendor(null)}
+        title="Renew contract?"
+        description={renewVendor ? `Start renewal workflow for ${renewVendor.name}?` : ''}
+        confirmLabel="Start renewal"
+        onConfirm={() => {
+          if (renewVendor) toast.success(`Renewal workflow started for ${renewVendor.name}`)
+          setRenewVendor(null)
+        }}
+      />
+      <ConfirmDialog
+        open={!!deactivateVendor}
+        onOpenChange={(o) => !o && setDeactivateVendor(null)}
+        title="Deactivate vendor?"
+        description={deactivateVendor ? `${deactivateVendor.name} will be marked inactive.` : ''}
+        confirmLabel="Deactivate"
+        destructive
+        onConfirm={() => {
+          if (deactivateVendor) toast.success(`${deactivateVendor.name} deactivation requested`)
+          setDeactivateVendor(null)
+        }}
+      />
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -154,14 +199,21 @@ export function Vendors() {
                           <Badge variant="outline" className={cn('text-xs capitalize', statusColors[v.status as VendorStatus])}>{v.status}</Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                aria-label={`Actions for vendor ${v.name}`}
+                              >
+                                <MoreVertical className="h-3.5 w-3.5" aria-hidden />
+                              </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem>View Invoices</DropdownMenuItem>
-                              <DropdownMenuItem>Renew Contract</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setViewVendor(v)}>View Details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEditVendor(v)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => toast.info(`Invoices for ${v.name} — coming soon`)}>View Invoices</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setRenewVendor(v)}>Renew Contract</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeactivateVendor(v)}>Deactivate</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -252,13 +304,20 @@ export function Vendors() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label={`Actions for vendor ${v.name}`}
+                              >
+                                <MoreVertical className="h-4 w-4" aria-hidden />
+                              </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem>Renew Contract</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setViewVendor(v)}>View Details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEditVendor(v)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setRenewVendor(v)}>Renew Contract</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeactivateVendor(v)}>Deactivate</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -350,7 +409,15 @@ export function Vendors() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => setShowCreate(false)} disabled={!form.name || !form.email || !form.phone}>Add Vendor</Button>
+            <Button
+              onClick={() => {
+                setShowCreate(false)
+                toast.success('Vendor added')
+              }}
+              disabled={!form.name || !form.email || !form.phone}
+            >
+              Add Vendor
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

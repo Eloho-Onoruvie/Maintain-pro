@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { formatRelativeDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import type { NotificationType, WorkOrderPriority } from '@/types/common.types'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 const mockNotifications = [
   { id: '1', type: 'work_order' as NotificationType, title: 'Work Order Assigned', message: 'WO-2024-089 "HVAC Compressor Repair" has been assigned to you', isRead: false, createdAt: new Date(Date.now() - 5 * 60000), priority: 'high' as const, actionUrl: '/work-orders/WO-2024-089' },
@@ -60,6 +62,7 @@ const mockEscalationRules = [
 ]
 
 export function Notifications() {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState(mockNotifications)
   const [prefs, setPrefs] = useState(defaultPrefs)
   const [filterType, setFilterType] = useState<'all' | 'unread'>('all')
@@ -128,23 +131,29 @@ export function Notifications() {
                 const cfg = typeConfig[n.type]
                 const Icon = cfg.icon
                 return (
-                  <Card key={n.id}
-                    className={cn('bg-card border-border transition-colors cursor-pointer hover:border-primary/30 group', !n.isRead && 'border-primary/20 bg-primary/[0.02]')}>
+                  <Card
+                    key={n.id}
+                    className={cn('bg-card border-border transition-colors cursor-pointer hover:border-primary/30 group', !n.isRead && 'border-primary/20 bg-primary/2')}
+                    onClick={() => {
+                      if (!n.isRead) markRead(n.id)
+                      if (n.actionUrl) navigate(n.actionUrl)
+                    }}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0', cfg.color)}>
-                          <Icon className="h-4.5 w-4.5 h-4 w-4" />
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', cfg.color)}>
+                          <Icon className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={cn('text-sm font-medium', !n.isRead ? 'text-foreground' : 'text-muted-foreground')}>{n.title}</span>
-                              {!n.isRead && <div className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />}
+                              {!n.isRead && <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
                               {n.priority === 'high' && (
                                 <Badge variant="outline" className="text-[10px] text-red-400 border-red-400/20 bg-red-400/10">Urgent</Badge>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{formatRelativeDate(n.createdAt)}</span>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{formatRelativeDate(n.createdAt)}</span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
                           {n.actionUrl && (
@@ -153,16 +162,26 @@ export function Notifications() {
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                           {!n.isRead && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); markRead(n.id) }}
-                              title="Mark as read">
-                              <Check className="h-3.5 w-3.5" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={e => { e.stopPropagation(); markRead(n.id) }}
+                              aria-label={`Mark notification "${n.title}" as read`}
+                            >
+                              <Check className="h-3.5 w-3.5" aria-hidden />
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive" onClick={e => { e.stopPropagation(); deleteNotif(n.id) }}
-                            title="Delete">
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 hover:text-destructive"
+                            onClick={e => { e.stopPropagation(); deleteNotif(n.id) }}
+                            aria-label={`Delete notification "${n.title}"`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
                           </Button>
                         </div>
                       </div>
@@ -302,7 +321,7 @@ export function Notifications() {
                       </div>
                       <div className="flex items-center gap-3">
                         <Switch checked={rule.isActive} />
-                        <Button variant="ghost" size="sm" className="text-xs">Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => toast.info(`Edit rule: ${rule.name}`)}>Edit</Button>
                       </div>
                     </div>
                   </CardContent>
@@ -367,7 +386,15 @@ export function Notifications() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEscalationCreate(false)}>Cancel</Button>
-            <Button onClick={() => setShowEscalationCreate(false)} disabled={!newRule.name || !newRule.escalateTo}>Create Rule</Button>
+            <Button
+              onClick={() => {
+                setShowEscalationCreate(false)
+                toast.success('Escalation rule created')
+              }}
+              disabled={!newRule.name || !newRule.escalateTo}
+            >
+              Create Rule
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

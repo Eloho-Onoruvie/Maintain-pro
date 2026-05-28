@@ -3,6 +3,7 @@ import { MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/utils/helpers'
+import { usePortalPath } from '@/hooks/usePortal'
 import type { WorkOrder, WorkOrderPriority } from '@/types/common.types'
 
 const priorityStyles: Record<WorkOrderPriority, string> = {
@@ -15,9 +16,11 @@ const priorityStyles: Record<WorkOrderPriority, string> = {
 interface Props { order: WorkOrder }
 
 export function WorkOrderCard({ order }: Props) {
+  const workOrdersPath = usePortalPath('work-orders')
+
   return (
     <Link
-      to={`/work-orders/${order.id}`}
+      to={`${workOrdersPath}/${order.id}`}
       className="block rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50"
     >
       <div className="flex items-start justify-between gap-2">

@@ -1,10 +1,18 @@
 export type { Asset, AssetStatus, AssetDocument, AssetMaintenanceRecord } from '@/types/common.types'
 
+export type AssetWarrantyFilter = 'active' | 'expired' | 'none'
+export type AssetMaintenanceDueFilter = 'overdue' | 'due_soon' | 'none'
+
 export interface AssetFilters {
   search?: string
   status?: string
   category?: string
   locationId?: string
+  manufacturer?: string
+  installDateFrom?: string
+  installDateTo?: string
+  warrantyStatus?: AssetWarrantyFilter
+  maintenanceDue?: AssetMaintenanceDueFilter
 }
 
 export interface CreateAssetPayload {

@@ -1,12 +1,16 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export function useAuthRedirect(isAuthenticated: boolean, redirectTo = '/dashboard') {
+import { getDefaultPathForRole } from '@/app/portal.config'
+import { useAuthStore } from '@/app/store'
+
+export function useAuthRedirect(isAuthenticated: boolean) {
   const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(redirectTo, { replace: true })
+    if (isAuthenticated && user) {
+      navigate(getDefaultPathForRole(user.role), { replace: true })
     }
-  }, [isAuthenticated, navigate, redirectTo])
+  }, [isAuthenticated, navigate, user])
 }

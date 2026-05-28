@@ -41,9 +41,12 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/utils/helpers";
 import { useAuthStore } from "@/app/store";
+import { usePortalPath } from "@/hooks/usePortal";
+import { toast } from "sonner";
 
 export function CreateWorkOrder() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
+  const workOrdersPath = usePortalPath('work-orders')
   const [isLoading, setIsLoading] = useState(false);
   const [dueDate, setDueDate] = useState<Date>();
   const user = useAuthStore((state) => state.user);
@@ -64,8 +67,9 @@ export function CreateWorkOrder() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    navigate("/work-orders");
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    toast.success('Work order created successfully')
+    navigate(workOrdersPath)
   };
 
   const categories = [
@@ -86,11 +90,12 @@ export function CreateWorkOrder() {
       <Navbar
         title="New Work Order"
         subtitle="Create a new maintenance work order"
+        hideQuickCreate
       />
 
       <div className="p-4 lg:p-6">
         <Link
-          to="/work-orders"
+          to={workOrdersPath}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -382,7 +387,7 @@ export function CreateWorkOrder() {
                     type="button"
                     variant="outline"
                     className="w-full"
-                    onClick={() => navigate("/work-orders")}
+                    onClick={() => navigate(workOrdersPath)}
                   >
                     Cancel
                   </Button>

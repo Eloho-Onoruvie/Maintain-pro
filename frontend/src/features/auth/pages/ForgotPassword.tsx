@@ -1,30 +1,42 @@
-
-
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Wrench, Loader2, ArrowLeft, CheckCircle2, Mail } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Wrench, Loader2, ArrowLeft, CheckCircle2, Mail } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { authService } from '@/features/auth/services/auth.service'
 
 export function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [email, setEmail] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsLoading(false)
-    setIsSubmitted(true)
+    setError(null)
+
+    try {
+      await authService.forgotPassword(email)
+      setIsSubmitted(true)
+    } catch (err: unknown) {
+      if (import.meta.env.DEV) {
+        setIsSubmitted(true)
+        return
+      }
+      setError((err as { message?: string })?.message ?? 'Unable to send reset email. Try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="mb-8 flex items-center justify-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <Wrench className="h-5 w-5 text-primary-foreground" />
@@ -38,10 +50,16 @@ export function ForgotPassword() {
               <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl">Reset your password</CardTitle>
                 <CardDescription>
-                  {"Enter your email address and we'll send you a link to reset your password."}
+                  Enter your email address and we&apos;ll send you a link to reset your password.
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {error && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -68,8 +86,8 @@ export function ForgotPassword() {
                 </form>
 
                 <div className="mt-6">
-                  <Link 
-                    to="/login" 
+                  <Link
+                    to="/login"
                     className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -88,16 +106,16 @@ export function ForgotPassword() {
                 </div>
                 <CardTitle className="text-2xl">Check your email</CardTitle>
                 <CardDescription className="text-pretty">
-                  {"We've sent a password reset link to "}
+                  We&apos;ve sent a password reset link to{' '}
                   <span className="font-medium text-foreground">{email}</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-center text-sm text-muted-foreground">
-                  {"Didn't receive the email? Check your spam folder or"}
+                  Didn&apos;t receive the email? Check your spam folder or
                 </p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={() => {
                     setIsSubmitted(false)
@@ -107,8 +125,8 @@ export function ForgotPassword() {
                   Try another email
                 </Button>
                 <div className="pt-2">
-                  <Link 
-                    to="/login" 
+                  <Link
+                    to="/login"
                     className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="h-4 w-4" />

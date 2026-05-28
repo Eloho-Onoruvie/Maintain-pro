@@ -1,10 +1,14 @@
 import { ShieldAlert } from 'lucide-react'
-
 import { Link } from 'react-router-dom'
 
+import { getDefaultPathForRole } from '@/app/portal.config'
+import { useAuthStore } from '@/app/store'
 import { Button } from '@/components/ui/button'
 
 export default function UnauthorizedPage() {
+  const user = useAuthStore((state) => state.user)
+  const dashboardPath = user ? getDefaultPathForRole(user.role) : '/login'
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
@@ -14,9 +18,7 @@ export default function UnauthorizedPage() {
           </div>
         </div>
 
-        <h1 className="mb-2 text-3xl font-bold">
-          Access Denied
-        </h1>
+        <h1 className="mb-2 text-3xl font-bold">Access Denied</h1>
 
         <p className="mb-6 text-sm text-muted-foreground">
           You do not have permission to access this page.
@@ -24,18 +26,11 @@ export default function UnauthorizedPage() {
 
         <div className="flex justify-center gap-3">
           <Button asChild>
-            <Link to="/dashboard">
-              Back to Dashboard
-            </Link>
+            <Link to={dashboardPath}>Back to Dashboard</Link>
           </Button>
 
-          <Button
-            asChild
-            variant="outline"
-          >
-            <Link to="/login">
-              Login Again
-            </Link>
+          <Button asChild variant="outline">
+            <Link to="/login">Login Again</Link>
           </Button>
         </div>
       </div>

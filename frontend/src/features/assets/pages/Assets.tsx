@@ -1,12 +1,17 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { PageError } from "@/components/feedback/PageError";
+import { PageLoader } from "@/components/feedback/PageLoader";
+import { usePortalPath } from "@/hooks/usePortal";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 import {
   Plus,
   Search,
   Filter,
   QrCode,
-  Download,
-  Upload,
+  FileDown,
+  FileUp,
   Cpu,
   CheckCircle2,
   AlertTriangle,
@@ -48,11 +53,19 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
+import { AssetHistoryDialog } from "@/features/assets/components/AssetHistoryDialog";
+import { EditAssetDialog } from "@/features/assets/components/EditAssetDialog";
+import { ExportAssetsDialog } from "@/features/assets/components/ExportAssetsDialog";
+import { ImportAssetsDialog } from "@/features/assets/components/ImportAssetsDialog";
+import { AssetAdvancedFiltersSheet } from "@/features/assets/components/AssetAdvancedFiltersSheet";
 import { useAssets } from "../hooks/useAssets";
-import { mockLocations } from "../services/assets.service";
+import type { Asset } from "@/types/common.types";
+import { mockAssets, mockLocations } from "../services/assets.service";
 import type { AssetStatus } from "@/types/common.types";
 import { cn } from "@/utils/helpers";
 import { formatDate } from "@/utils/formatDate";
+import { toast } from "sonner";
 
 const SERVICE_CATEGORIES = [
   "HVAC",
@@ -97,8 +110,33 @@ const statusConfig: Record<
 };
 
 export function Assets() {
-  const { assets, stats, filters, setFilters } = useAssets();
+  const [searchParams] = useSearchParams();
+  const assetsPath = usePortalPath("assets");
+  const { isMaintenanceReadOnly } = useRoleAccess();
+  const locationFromQuery = searchParams.get("location");
+  const { assets, stats, filters, setFilters, isLoading, error, refetch } = useAssets(
+    locationFromQuery ? { locationId: locationFromQuery } : {},
+  );
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const manufacturers = useMemo(
+    () =>
+      [...new Set(mockAssets.map((a) => a.manufacturer).filter(Boolean) as string[])].sort(),
+    [],
+  );
+  const advancedFilterCount = [
+    filters.locationId,
+    filters.manufacturer,
+    filters.installDateFrom,
+    filters.installDateTo,
+    filters.warrantyStatus,
+    filters.maintenanceDue,
+  ].filter(Boolean).length;
   const [showCreate, setShowCreate] = useState(false);
+  const [editAsset, setEditAsset] = useState<Asset | null>(null);
+  const [historyAsset, setHistoryAsset] = useState<Asset | null>(null);
+  const [deleteAsset, setDeleteAsset] = useState<Asset | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -115,6 +153,7 @@ export function Assets() {
 
   const handleSave = () => {
     // In production: call assetsService.create(form)
+    toast.success("Asset registered");
     setShowCreate(false);
     setForm({
       name: "",
@@ -133,6 +172,38 @@ export function Assets() {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <EditAssetDialog asset={editAsset} open={!!editAsset} onOpenChange={(o) => !o && setEditAsset(null)} />
+      <AssetHistoryDialog asset={historyAsset} open={!!historyAsset} onOpenChange={(o) => !o && setHistoryAsset(null)} />
+      <ImportAssetsDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImported={() => refetch()}
+      />
+      <ExportAssetsDialog
+        open={showExport}
+        onOpenChange={setShowExport}
+        filteredAssets={assets}
+        allAssets={mockAssets}
+      />
+      <AssetAdvancedFiltersSheet
+        open={showAdvancedFilters}
+        onOpenChange={setShowAdvancedFilters}
+        filters={filters}
+        manufacturers={manufacturers}
+        onApply={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+      />
+      <ConfirmDialog
+        open={!!deleteAsset}
+        onOpenChange={(o) => !o && setDeleteAsset(null)}
+        title="Decommission asset?"
+        description={deleteAsset ? `Submit decommission request for ${deleteAsset.name}?` : ''}
+        confirmLabel="Decommission"
+        destructive
+        onConfirm={() => {
+          if (deleteAsset) toast.success(`Decommission request created for ${deleteAsset.name}`);
+          setDeleteAsset(null);
+        }}
+      />
       {/* Header */}
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
@@ -143,23 +214,44 @@ export function Assets() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Upload className="h-4 w-4" /> Import CSV
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Download className="h-4 w-4" /> Export
-            </Button>
+            {!isMaintenanceReadOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowImport(true)}
+              >
+                <FileDown className="h-4 w-4" />
+                Import
+              </Button>
+            )}
             <Button
+              variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => setShowCreate(true)}
+              onClick={() => setShowExport(true)}
             >
-              <Plus className="h-4 w-4" /> Add Asset
+              <FileUp className="h-4 w-4" />
+              Export
             </Button>
+            {!isMaintenanceReadOnly && (
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowCreate(true)}
+              >
+                <Plus className="h-4 w-4" /> Add Asset
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
+      {isLoading ? (
+        <PageLoader label="Loading assets…" />
+      ) : error ? (
+        <PageError message={error.message} onRetry={refetch} />
+      ) : (
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -257,8 +349,23 @@ export function Assets() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative"
+            onClick={() => setShowAdvancedFilters(true)}
+            aria-label={
+              advancedFilterCount > 0
+                ? `Advanced filters, ${advancedFilterCount} active`
+                : 'Open advanced asset filters'
+            }
+          >
+            <Filter className="h-4 w-4" aria-hidden />
+            {advancedFilterCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                {advancedFilterCount}
+              </span>
+            )}
           </Button>
         </div>
 
@@ -290,8 +397,8 @@ export function Assets() {
                   <TableRow key={asset.id} className="border-border group">
                     <TableCell>
                       <Link
-                        to={`/assets/${asset.id}`}
-                        className="block group-hover:text-primary transition-colors"
+                        to={`${assetsPath}/${asset.id}`}
+                        className="block transition-colors hover:opacity-90"
                       >
                         <p className="font-medium text-foreground">
                           {asset.name}
@@ -355,23 +462,35 @@ export function Assets() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
+                            aria-label={`Actions for asset ${asset.name}`}
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <MoreVertical className="h-4 w-4" aria-hidden />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link to={`/assets/${asset.id}`}>View Details</Link>
+                            <Link to={`${assetsPath}/${asset.id}`}>View Details</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Edit Asset</DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <QrCode className="h-4 w-4" />
-                            Generate QR
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>View History</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            Decommission
-                          </DropdownMenuItem>
+                          {!isMaintenanceReadOnly && (
+                            <>
+                              <DropdownMenuItem onClick={() => setEditAsset(asset)}>
+                                Edit Asset
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="gap-2"
+                                onClick={() => toast.success(`QR generated for ${asset.name}`)}
+                              >
+                                <QrCode className="h-4 w-4" />
+                                Generate QR
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setHistoryAsset(asset)}>
+                                View History
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteAsset(asset)}>
+                                Decommission
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -381,14 +500,17 @@ export function Assets() {
             </TableBody>
           </Table>
           {assets.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <Cpu className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No assets found</p>
-              <p className="text-sm mt-1">Adjust filters or add a new asset</p>
-            </div>
+            <EmptyState
+              icon={Cpu}
+              title="No assets found"
+              description="Adjust filters or register a new asset."
+              actionLabel={!isMaintenanceReadOnly ? "Add asset" : undefined}
+              onAction={!isMaintenanceReadOnly ? () => setShowCreate(true) : undefined}
+            />
           )}
         </Card>
       </div>
+      )}
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

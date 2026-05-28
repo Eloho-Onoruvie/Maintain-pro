@@ -14,9 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Progress } from '@/components/ui/progress'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { EditInventoryItemDialog } from '@/features/inventory/components/EditInventoryItemDialog'
 import { mockInventory } from '@/features/dashboard/services/dashboard.service'
+import type { InventoryItem } from '@/types/common.types'
 import { formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
+import { toast } from 'sonner'
 
 const CATEGORIES = ['HVAC','Electrical','Plumbing','Fire Safety','Elevator','General','Cleaning','Security']
 
@@ -35,6 +39,8 @@ export function Inventory() {
   const [form, setForm] = useState({ name: '', sku: '', category: '', description: '', quantity: '', minStock: '', maxStock: '', unitPrice: '', unit: '', locationId: '', supplier: '' })
   const [receiveForm, setReceiveForm] = useState({ quantity: '', unitPrice: '', supplier: '', invoiceNumber: '' })
   const [prForm, setPRForm] = useState({ itemId: '', quantity: '', notes: '' })
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null)
+  const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null)
 
   const items = useMemo(() => mockInventory.filter(i => {
     if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
@@ -63,6 +69,19 @@ export function Inventory() {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <EditInventoryItemDialog item={editItem} open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)} />
+      <ConfirmDialog
+        open={!!deleteItem}
+        onOpenChange={(o) => !o && setDeleteItem(null)}
+        title="Delete inventory item?"
+        description={deleteItem ? `Remove ${deleteItem.name} (${deleteItem.sku}) from inventory?` : ''}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteItem) toast.success(`Delete request created for ${deleteItem.name}`)
+          setDeleteItem(null)
+        }}
+      />
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -70,8 +89,33 @@ export function Inventory() {
             <p className="text-sm text-muted-foreground mt-0.5">Spare parts, supplies & stock management</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2"><Upload className="h-4 w-4" />Import</Button>
-            <Button variant="outline" size="sm" className="gap-2"><Download className="h-4 w-4" />Export</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => toast.info('Import flow coming next')}
+            >
+              <Upload className="h-4 w-4" />Import
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'inventory-export.json'
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+                URL.revokeObjectURL(url)
+                toast.success('Inventory exported')
+              }}
+            >
+              <Download className="h-4 w-4" />Export
+            </Button>
             <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" />Add Item
             </Button>
@@ -182,7 +226,14 @@ export function Inventory() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label={`Actions for inventory item ${item.name}`}
+                              >
+                                <MoreVertical className="h-4 w-4" aria-hidden />
+                              </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem className="gap-2" onClick={() => setShowReceive(item.id)}>
@@ -191,8 +242,8 @@ export function Inventory() {
                               <DropdownMenuItem className="gap-2" onClick={() => { setPRForm(p => ({ ...p, itemId: item.id })); setShowPR(true) }}>
                                 <ShoppingCart className="h-4 w-4" />Create Purchase Request
                               </DropdownMenuItem>
-                              <DropdownMenuItem>Edit Item</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEditItem(item)}>Edit Item</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteItem(item)}>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -243,10 +294,19 @@ export function Inventory() {
                     </div>
                     {pr.status === 'pending' && (
                       <div className="flex gap-2">
-                        <Button size="sm" className="gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700">
+                        <Button
+                          size="sm"
+                          className="gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => toast.success(`${pr.id} approved`)}
+                        >
                           <CheckCircle2 className="h-3.5 w-3.5" />Approve
                         </Button>
-                        <Button size="sm" variant="outline" className="gap-1.5 h-8 text-destructive border-destructive/30">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 h-8 text-destructive border-destructive/30"
+                          onClick={() => toast.error(`${pr.id} rejected`)}
+                        >
                           Reject
                         </Button>
                       </div>
@@ -291,7 +351,15 @@ export function Inventory() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => setShowCreate(false)} disabled={!form.name || !form.sku || !form.category}>Add Item</Button>
+            <Button
+              onClick={() => {
+                setShowCreate(false)
+                toast.success('Inventory item added')
+              }}
+              disabled={!form.name || !form.sku || !form.category}
+            >
+              Add Item
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -320,7 +388,15 @@ export function Inventory() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReceive(null)}>Cancel</Button>
-            <Button onClick={() => setShowReceive(null)} disabled={!receiveForm.quantity}>Confirm Receipt</Button>
+            <Button
+              onClick={() => {
+                setShowReceive(null)
+                toast.success('Stock receipt recorded')
+              }}
+              disabled={!receiveForm.quantity}
+            >
+              Confirm Receipt
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -354,7 +430,15 @@ export function Inventory() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPR(false)}>Cancel</Button>
-            <Button onClick={() => setShowPR(false)} disabled={!prForm.itemId || !prForm.quantity}>Submit Request</Button>
+            <Button
+              onClick={() => {
+                setShowPR(false)
+                toast.success('Purchase request submitted')
+              }}
+              disabled={!prForm.itemId || !prForm.quantity}
+            >
+              Submit Request
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

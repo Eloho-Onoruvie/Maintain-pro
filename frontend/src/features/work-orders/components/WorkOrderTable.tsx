@@ -11,6 +11,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/utils/helpers'
+import { usePortalPath } from '@/hooks/usePortal'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
 import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 
 const priorityStyles: Record<WorkOrderPriority, string> = {
@@ -34,9 +36,17 @@ const statusLabels: Record<WorkOrderStatus, string> = {
   completed: 'Completed', verified: 'Verified', closed: 'Closed', cancelled: 'Cancelled',
 }
 
-interface Props { orders: WorkOrder[] }
+interface Props {
+  orders: WorkOrder[]
+  onEdit?: (order: WorkOrder) => void
+  onAssign?: (order: WorkOrder) => void
+  onDelete?: (order: WorkOrder) => void
+}
 
-export function WorkOrderTable({ orders }: Props) {
+export function WorkOrderTable({ orders, onEdit, onAssign, onDelete }: Props) {
+  const workOrdersPath = usePortalPath('work-orders')
+  const { isMaintenanceReadOnly } = useRoleAccess()
+
   return (
     <Card className="bg-card border-border">
       <Table>
@@ -55,8 +65,8 @@ export function WorkOrderTable({ orders }: Props) {
           {orders.map((order) => (
             <TableRow key={order.id} className="border-border">
               <TableCell>
-                <Link to={`/work-orders/${order.id}`} className="block group">
-                  <p className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1">{order.title}</p>
+                <Link to={`${workOrdersPath}/${order.id}`} className="block group">
+                  <p className="font-medium text-foreground transition-colors line-clamp-1 group-hover:text-foreground/90">{order.title}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                     <span className="font-mono">{order.id}</span>
                     <span>•</span>
@@ -103,15 +113,24 @@ export function WorkOrderTable({ orders }: Props) {
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label={`Actions for work order ${order.id}`}
+                    >
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild><Link to={`/work-orders/${order.id}`}>View Details</Link></DropdownMenuItem>
-                    <DropdownMenuItem>Edit</DropdownMenuItem>
-                    <DropdownMenuItem>Assign</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link to={`${workOrdersPath}/${order.id}`}>View Details</Link></DropdownMenuItem>
+                    {!isMaintenanceReadOnly && (
+                      <>
+                        <DropdownMenuItem onClick={() => onEdit?.(order)}>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAssign?.(order)}>Assign</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(order)}>Delete</DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

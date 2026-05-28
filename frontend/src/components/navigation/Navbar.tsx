@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Bell, Search, Plus, Menu } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,8 @@ import { cn } from "@/utils/helpers";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 import { AppSidebar as Sidebar } from "@/components/navigation/Sidebar";
+import { usePortal, usePortalPath } from "@/hooks/usePortal";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 import { useAuthStore } from "@/app/store";
 
@@ -33,14 +37,53 @@ interface AppHeaderProps {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
+  /** Hide global Create dropdown (e.g. when the page has its own primary create action) */
+  hideQuickCreate?: boolean;
 }
 
-export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
+export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }: AppHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { pathname } = useLocation();
+  const portal = usePortal();
+  const navigate = useNavigate();
+  const isDashboard = /\/dashboard\/?$/.test(pathname);
+  const isWorkOrdersSection = /\/work-orders(\/|$)/.test(pathname);
+  const showSearch = !isDashboard && !isWorkOrdersSection;
+  const showQuickCreate = !hideQuickCreate && !isDashboard;
+  const workOrdersPath = usePortalPath("work-orders");
+  const newWorkOrderPath = usePortalPath("work-orders/new");
+  const serviceRequestsPath = usePortalPath("service-requests");
+  const assetsPath = usePortalPath("assets");
+  const vendorsPath = usePortalPath("vendors");
+  const pmPath = usePortalPath("preventive-maintenance");
+  const notificationsPath = usePortalPath("notifications");
+  const loginPath = "/login";
+  const signupPath = "/signup";
 
-  const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
+  const [notifications, setNotifications] = useState(mockNotifications);
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications],
+  );
 
   const user = useAuthStore((state) => state.user);
+  const {
+    canCreateWorkOrder,
+    canSubmitServiceRequest,
+    canManageAssets,
+    canManageVendors,
+    canManagePm,
+  } = useRoleAccess();
+
+  const runSearch = () => {
+    const term = searchQuery.trim();
+    if (!term) {
+      toast.info("Type something to search");
+      return;
+    }
+    navigate(`${workOrdersPath}?q=${encodeURIComponent(term)}`);
+  };
 
   return (
     <header className="sticky top-0 z-40 flex h-18 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
@@ -49,14 +92,18 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
         {/* Mobile Sidebar */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle navigation</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
             </Button>
           </SheetTrigger>
 
           <SheetContent side="left" className="w-64 p-0">
-            <Sidebar />
+            <Sidebar portal={portal} />
           </SheetContent>
         </Sheet>
 
@@ -73,33 +120,45 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
       {/* RIGHT */}
       <div className="flex items-center gap-2">
         {/* SEARCH */}
-        <div
-          className={cn(
-            "hidden items-center md:flex",
-            searchOpen ? "w-64" : "w-auto",
-          )}
-        >
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {showSearch && (
+          <>
+            <div
+              className={cn(
+                "hidden items-center md:flex",
+                searchOpen ? "w-64" : "w-auto",
+              )}
+            >
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
-            <Input
-              placeholder="Search work orders, assets..."
-              className="w-64 bg-secondary pl-9"
-              onFocus={() => setSearchOpen(true)}
-              onBlur={() => setSearchOpen(false)}
-            />
-          </div>
-        </div>
+                <Input
+                  placeholder="Search work orders, assets..."
+                  className="w-64 bg-secondary pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchOpen(true)}
+                  onBlur={() => setSearchOpen(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runSearch();
+                  }}
+                />
+              </div>
+            </div>
 
-        {/* Mobile Search */}
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Search className="h-5 w-5" />
-
-          <span className="sr-only">Search</span>
-        </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={runSearch}
+              aria-label="Search work orders and assets"
+            >
+              <Search className="h-5 w-5" aria-hidden />
+            </Button>
+          </>
+        )}
 
         {/* QUICK CREATE */}
-        {user && (
+        {user && showQuickCreate && (
           <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -110,25 +169,53 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem>Work Order</DropdownMenuItem>
+                {canCreateWorkOrder && (
+                  <DropdownMenuItem onClick={() => navigate(newWorkOrderPath)}>
+                    Work Order
+                  </DropdownMenuItem>
+                )}
 
-                <DropdownMenuItem>Service Request</DropdownMenuItem>
+                {canSubmitServiceRequest && (
+                  <DropdownMenuItem onClick={() => navigate(serviceRequestsPath)}>
+                    Service Request
+                  </DropdownMenuItem>
+                )}
 
-                <DropdownMenuItem>Asset</DropdownMenuItem>
+                {canManageAssets && (
+                  <DropdownMenuItem onClick={() => navigate(assetsPath)}>
+                    Asset
+                  </DropdownMenuItem>
+                )}
 
-                <DropdownMenuItem>Vendor</DropdownMenuItem>
+                {canManageVendors && (
+                  <DropdownMenuItem onClick={() => navigate(vendorsPath)}>
+                    Vendor
+                  </DropdownMenuItem>
+                )}
 
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem>PM Schedule</DropdownMenuItem>
+                {canManagePm && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate(pmPath)}>
+                      PM Schedule
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Mobile Create */}
-            <Button size="icon" className="sm:hidden">
-              <Plus className="h-4 w-4" />
-
-              <span className="sr-only">Create</span>
+            <Button
+              size="icon"
+              className="sm:hidden"
+              aria-label="Quick create menu"
+              onClick={() => {
+                if (canCreateWorkOrder) navigate(newWorkOrderPath)
+                else if (canSubmitServiceRequest) navigate(serviceRequestsPath)
+                else toast.info('No quick-create actions for this portal')
+              }}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
             </Button>
           </>
         )}
@@ -143,8 +230,13 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+              >
+                <Bell className="h-5 w-5" aria-hidden />
 
                 {unreadCount > 0 && (
                   <Badge className="absolute -right-1 -top-1 h-5 w-5 justify-center p-0 text-xs">
@@ -152,7 +244,6 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
                   </Badge>
                 )}
 
-                <span className="sr-only">Notifications</span>
               </Button>
             </DropdownMenuTrigger>
 
@@ -163,6 +254,11 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
                   variant="ghost"
                   size="sm"
                   className="h-auto p-0 text-xs text-primary"
+                  onClick={() =>
+                    setNotifications((prev) =>
+                      prev.map((n) => ({ ...n, isRead: true })),
+                    )
+                  }
                 >
                   Mark all read
                 </Button>
@@ -170,10 +266,11 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
 
               <DropdownMenuSeparator />
 
-              {mockNotifications.slice(0, 4).map((notification) => (
+              {notifications.slice(0, 4).map((notification) => (
                 <DropdownMenuItem
                   key={notification.id}
                   className="flex flex-col items-start gap-1 py-3"
+                  onClick={() => navigate(notificationsPath)}
                 >
                   <div className="flex w-full items-start justify-between gap-2">
                     <span
@@ -198,18 +295,25 @@ export function AppHeader({ title, subtitle, actions }: AppHeaderProps) {
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem className="justify-center text-primary">
+              <DropdownMenuItem
+                className="justify-center text-primary"
+                onClick={() => navigate(notificationsPath)}
+              >
                 View all notifications
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <div className="hidden items-center gap-2 sm:flex">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" asChild>
+              <Link to={loginPath}>
               Login
+              </Link>
             </Button>
 
-            <Button size="sm">Sign Up</Button>
+            <Button size="sm" asChild>
+              <Link to={signupPath}>Sign Up</Link>
+            </Button>
           </div>
         )}
       </div>

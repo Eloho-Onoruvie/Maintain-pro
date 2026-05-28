@@ -1,8 +1,14 @@
 
 
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppHeader as Navbar } from '@/components/navigation/Navbar'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { PageError } from '@/components/feedback/PageError'
+import { PageLoader } from '@/components/feedback/PageLoader'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
+import { useWorkOrders } from '../hooks/useWorkOrders'
+import { useWorkOrderModals } from '../hooks/useWorkOrderModals'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -45,9 +51,9 @@ import {
   AlertCircle,
   ArrowUpRight,
 } from 'lucide-react'
-import { mockWorkOrders } from '../services/workOrders.service'
 import { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
+import { usePortalPath } from '@/hooks/usePortal'
 
 const priorityStyles: Record<WorkOrderPriority, string> = {
   critical: 'bg-status-critical/10 text-status-critical border-status-critical/20',
@@ -61,7 +67,7 @@ const statusStyles: Record<WorkOrderStatus, string> = {
   assigned: 'bg-status-active/10 text-status-active',
   verified: 'bg-status-completed/10 text-status-completed',
   in_progress: 'bg-status-pending/10 text-status-pending',
-  // Removed 'pending' as it's not a valid WorkOrderStatus
+  pending: 'bg-status-high/10 text-status-high',
   closed: 'bg-muted text-muted-foreground',
   completed: 'bg-status-completed/10 text-status-completed',
   cancelled: 'bg-muted text-muted-foreground',
@@ -72,47 +78,58 @@ const statusLabels: Record<WorkOrderStatus, string> = {
   in_progress: "In Progress",
   assigned: "Assigned",
   verified: "Verified",
+  pending: "Pending",
   closed: "Closed",
   completed: "Completed",
   cancelled: "Cancelled",
 };
 
 export function WorkOrders() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const workOrdersPath = usePortalPath('work-orders')
+  const newWorkOrderPath = usePortalPath('work-orders/new')
+  const { canCreateWorkOrder, isMaintenanceReadOnly } = useRoleAccess()
+  const { openEdit, openAssign, openDelete, modals } = useWorkOrderModals()
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [priorityFilter, setPriorityFilter] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const { workOrders: filteredOrders, stats, filters, setFilters, isLoading, error, refetch } =
+    useWorkOrders({ search: searchParams.get('q') ?? '' })
 
-  const filteredOrders = mockWorkOrders.filter(order => {
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter
-    const matchesPriority = priorityFilter === 'all' || order.priority === priorityFilter
-    const matchesSearch = order.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesStatus && matchesPriority && matchesSearch
-  })
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q != null) {
+      setFilters((f) => ({ ...f, search: q }))
+    }
+  }, [searchParams, setFilters])
 
-  const stats = {
-    total: mockWorkOrders.length,
-    open: mockWorkOrders.filter(o => o.status === 'open').length,
-    inProgress: mockWorkOrders.filter(o => o.status === 'in_progress').length,
-    completed: mockWorkOrders.filter(o => o.status === 'completed').length,
-  }
+  const statusFilter = filters.status ?? 'all'
+  const priorityFilter = filters.priority ?? 'all'
+  const searchQuery = filters.search ?? ''
 
   return (
     <>
-      <Navbar 
-        title="Work Orders" 
+      {modals}
+      <Navbar
+        title="Work Orders"
         subtitle={`${stats.total} total work orders`}
+        hideQuickCreate
         actions={
-          <Button asChild>
-            <Link to="/work-orders/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Work Order
-            </Link>
-          </Button>
+          canCreateWorkOrder ? (
+            <Button asChild>
+              <Link to={newWorkOrderPath}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Work Order
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
-      
+
+      {isLoading ? (
+        <PageLoader label="Loading work orders…" />
+      ) : error ? (
+        <PageError message={error.message} onRetry={refetch} />
+      ) : (
       <div className="p-4 lg:p-6 space-y-6">
         {/* Stats Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -178,11 +195,11 @@ export function WorkOrders() {
               <Input
                 placeholder="Search work orders..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
                 className="pl-9 bg-secondary"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}>
               <SelectTrigger className="w-[140px] bg-secondary">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -197,7 +214,7 @@ export function WorkOrders() {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <Select value={priorityFilter} onValueChange={(v) => setFilters((f) => ({ ...f, priority: v }))}>
               <SelectTrigger className="w-[140px] bg-secondary">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
@@ -215,21 +232,33 @@ export function WorkOrders() {
               variant={viewMode === 'table' ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('table')}
+              aria-label="Table view"
+              aria-pressed={viewMode === 'table'}
             >
-              <List className="h-4 w-4" />
+              <List className="h-4 w-4" aria-hidden />
             </Button>
             <Button
               variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => setViewMode('kanban')}
+              aria-label="Kanban view"
+              aria-pressed={viewMode === 'kanban'}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-4 w-4" aria-hidden />
             </Button>
           </div>
         </div>
 
         {/* Content */}
-        {viewMode === 'table' ? (
+        {filteredOrders.length === 0 ? (
+          <EmptyState
+            icon={List}
+            title="No work orders found"
+            description="Try adjusting filters or create a new work order."
+            actionLabel={canCreateWorkOrder ? 'New work order' : undefined}
+            onAction={canCreateWorkOrder ? () => navigate(newWorkOrderPath) : undefined}
+          />
+        ) : viewMode === 'table' ? (
           <Card className="bg-card border-border">
             <Table>
               <TableHeader>
@@ -247,8 +276,8 @@ export function WorkOrders() {
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id} className="border-border">
                     <TableCell>
-                      <Link to={`/work-orders/${order.id}`} className="block group">
-                        <p className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                      <Link to={`${workOrdersPath}/${order.id}`} className="block group">
+                        <p className="font-medium text-foreground transition-colors line-clamp-1 group-hover:text-foreground/90">
                           {order.title}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
@@ -301,17 +330,26 @@ export function WorkOrders() {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={`Actions for work order ${order.id}`}
+                          >
+                            <MoreVertical className="h-4 w-4" aria-hidden />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link to={`/work-orders/${order.id}`}>View Details</Link>
+                            <Link to={`${workOrdersPath}/${order.id}`}>View Details</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Assign</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                          {!isMaintenanceReadOnly && (
+                            <>
+                              <DropdownMenuItem onClick={() => openEdit(order)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openAssign(order)}>Assign</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => openDelete(order)}>Delete</DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -321,14 +359,15 @@ export function WorkOrders() {
             </Table>
           </Card>
         ) : (
-          <KanbanView orders={filteredOrders} />
+            <KanbanView orders={filteredOrders} workOrdersPath={workOrdersPath} />
         )}
       </div>
+      )}
     </>
   )
 }
 
-function KanbanView({ orders }: { orders: WorkOrder[] }) {
+function KanbanView({ orders, workOrdersPath }: { orders: WorkOrder[]; workOrdersPath: string }) {
   const columns: { status: WorkOrderStatus; label: string }[] = [
     { status: 'open', label: 'Open' },
     { status: 'assigned', label: 'Assigned' },
@@ -355,7 +394,7 @@ function KanbanView({ orders }: { orders: WorkOrder[] }) {
               {columnOrders.map((order) => (
                 <Link
                   key={order.id}
-                  to={`/work-orders/${order.id}`}
+                  to={`${workOrdersPath}/${order.id}`}
                   className="block rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50"
                 >
                   <div className="flex items-start justify-between gap-2">

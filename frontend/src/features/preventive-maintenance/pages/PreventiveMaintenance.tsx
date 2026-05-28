@@ -17,7 +17,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { mockPMs, mockAssets, mockLocations, mockUsers } from '@/features/dashboard/services/dashboard.service'
 import { formatDate, getDaysUntil } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
-import type { PMFrequency } from '@/types/common.types'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { EditPMScheduleDialog } from '@/features/preventive-maintenance/components/EditPMScheduleDialog'
+import { SkipPMScheduleDialog } from '@/features/preventive-maintenance/components/SkipPMScheduleDialog'
+import type { PMFrequency, PreventiveMaintenance as PMSchedule } from '@/types/common.types'
+import { toast } from 'sonner'
 
 const freqColors: Record<PMFrequency | string, string> = {
   daily:     'bg-red-400/10 text-red-400 border-red-400/20',
@@ -58,12 +62,24 @@ function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">{monthName}</CardTitle>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrent(d => new Date(d.getFullYear(), d.getMonth() - 1))}>
-              <ChevronLeft className="h-4 w-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrent(d => new Date(d.getFullYear(), d.getMonth() - 1))}
+              aria-label="Previous month"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
             </Button>
             <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={() => setCurrent(new Date())}>Today</Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrent(d => new Date(d.getFullYear(), d.getMonth() + 1))}>
-              <ChevronRight className="h-4 w-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setCurrent(d => new Date(d.getFullYear(), d.getMonth() + 1))}
+              aria-label="Next month"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden />
             </Button>
           </div>
         </div>
@@ -100,6 +116,11 @@ function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
 
 export function PreventiveMaintenance() {
   const [showCreate, setShowCreate] = useState(false)
+  const [editSchedule, setEditSchedule] = useState<PMSchedule | null>(null)
+  const [skipSchedule, setSkipSchedule] = useState<PMSchedule | null>(null)
+  const [deleteSchedule, setDeleteSchedule] = useState<PMSchedule | null>(null)
+  const [toggleSchedule, setToggleSchedule] = useState<PMSchedule | null>(null)
+  const [generateWoSchedule, setGenerateWoSchedule] = useState<PMSchedule | null>(null)
   const [search, setSearch] = useState('')
   const [filterFreq, setFilterFreq] = useState('all')
   const [form, setForm] = useState({
@@ -129,6 +150,44 @@ export function PreventiveMaintenance() {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <EditPMScheduleDialog schedule={editSchedule} open={!!editSchedule} onOpenChange={(o) => !o && setEditSchedule(null)} />
+      <SkipPMScheduleDialog schedule={skipSchedule} open={!!skipSchedule} onOpenChange={(o) => !o && setSkipSchedule(null)} />
+      <ConfirmDialog
+        open={!!deleteSchedule}
+        onOpenChange={(o) => !o && setDeleteSchedule(null)}
+        title="Delete schedule?"
+        description={deleteSchedule ? `Remove "${deleteSchedule.title}" from preventive maintenance?` : ''}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteSchedule) toast.success(`Delete request submitted for ${deleteSchedule.title}`)
+          setDeleteSchedule(null)
+        }}
+      />
+      <ConfirmDialog
+        open={!!toggleSchedule}
+        onOpenChange={(o) => !o && setToggleSchedule(null)}
+        title={toggleSchedule?.isActive ? 'Pause schedule?' : 'Resume schedule?'}
+        description={toggleSchedule ? toggleSchedule.title : ''}
+        confirmLabel={toggleSchedule?.isActive ? 'Pause' : 'Resume'}
+        onConfirm={() => {
+          if (toggleSchedule) {
+            toast.success(`${toggleSchedule.isActive ? 'Paused' : 'Resumed'} ${toggleSchedule.title}`)
+          }
+          setToggleSchedule(null)
+        }}
+      />
+      <ConfirmDialog
+        open={!!generateWoSchedule}
+        onOpenChange={(o) => !o && setGenerateWoSchedule(null)}
+        title="Generate work order?"
+        description={generateWoSchedule ? `Create a work order from "${generateWoSchedule.title}"?` : ''}
+        confirmLabel="Generate"
+        onConfirm={() => {
+          if (generateWoSchedule) toast.success(`Generated work order from ${generateWoSchedule.title}`)
+          setGenerateWoSchedule(null)
+        }}
+      />
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -219,18 +278,32 @@ export function PreventiveMaintenance() {
                           {pm.checklist.length > 0 && <span>{pm.checklist.filter(c=>c.isCompleted).length}/{pm.checklist.length} tasks</span>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button size="sm" variant="outline" className="gap-1.5 h-8"><Play className="h-3.5 w-3.5"/>Start</Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 h-8"
+                          onClick={() => toast.success(`Started schedule ${pm.title}`)}
+                        >
+                          <Play className="h-3.5 w-3.5"/>Start
+                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              aria-label={`Actions for PM schedule ${pm.title}`}
+                            >
+                              <MoreVertical className="h-4 w-4" aria-hidden />
+                            </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2"><Play className="h-4 w-4"/>Generate Work Order</DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2"><SkipForward className="h-4 w-4"/>Skip (with reason)</DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2">{pm.isActive ? <><Pause className="h-4 w-4"/>Pause Schedule</> : <><Play className="h-4 w-4"/>Resume Schedule</>}</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Schedule</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2" onClick={() => setGenerateWoSchedule(pm)}><Play className="h-4 w-4"/>Generate Work Order</DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2" onClick={() => setSkipSchedule(pm)}><SkipForward className="h-4 w-4"/>Skip (with reason)</DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2" onClick={() => setToggleSchedule(pm)}>{pm.isActive ? <><Pause className="h-4 w-4"/>Pause Schedule</> : <><Play className="h-4 w-4"/>Resume Schedule</>}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditSchedule(pm)}>Edit Schedule</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteSchedule(pm)}>Delete</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -336,7 +409,15 @@ export function PreventiveMaintenance() {
                   <span className="text-xs text-muted-foreground w-5 text-right">{i + 1}.</span>
                   <Input className="flex-1 h-8 text-sm" placeholder={`Task ${i + 1}`} value={item.text} onChange={e => updateChecklistItem(item.id, e.target.value)} />
                   {form.checklist.length > 1 && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeChecklistItem(item.id)}>×</Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeChecklistItem(item.id)}
+                      aria-label={`Remove checklist item ${item.text || `row ${i + 1}`}`}
+                    >
+                      <span aria-hidden>×</span>
+                    </Button>
                   )}
                 </div>
               ))}
@@ -344,7 +425,15 @@ export function PreventiveMaintenance() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => setShowCreate(false)} disabled={!form.title || !form.assetId}>Create Schedule</Button>
+            <Button
+              onClick={() => {
+                setShowCreate(false)
+                toast.success('PM schedule created')
+              }}
+              disabled={!form.title || !form.assetId}
+            >
+              Create Schedule
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

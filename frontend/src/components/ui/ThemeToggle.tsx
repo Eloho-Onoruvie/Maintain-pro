@@ -10,14 +10,17 @@ export function ThemeToggle() {
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggleTheme}>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
       {theme === "dark" ? (
-        <Sun className="h-5 w-5" />
+        <Sun className="h-5 w-5" aria-hidden />
       ) : (
-        <Moon className="h-5 w-5" />
+        <Moon className="h-5 w-5" aria-hidden />
       )}
-
-      <span className="sr-only">Toggle theme</span>
     </Button>
   );
 }

@@ -1,4 +1,5 @@
 import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import {
   DropdownMenu,
@@ -12,10 +13,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useAuthStore } from "@/app/store";
+import { usePortalPath } from "@/hooks/usePortal";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 export default function ProfileDropdown() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+  const settingsPath = usePortalPath("settings");
+  const notificationsPath = usePortalPath("notifications");
+  const { canOpenSettings } = useRoleAccess();
 
   if (!user) return null;
 
@@ -56,15 +63,17 @@ export default function ProfileDropdown() {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate(notificationsPath)}>
           <UserIcon className="mr-2 h-4 w-4" />
-          Profile
+          Notifications
         </DropdownMenuItem>
 
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </DropdownMenuItem>
+        {canOpenSettings && (
+          <DropdownMenuItem onClick={() => navigate(settingsPath)}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
 

@@ -8,6 +8,7 @@ import { ArrowRight, Clock, MapPin } from 'lucide-react'
 import { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
 import { Link } from 'react-router-dom'
+import { usePortalPath } from '@/hooks/usePortal'
 
 interface WorkOrderListProps {
   workOrders: WorkOrder[]
@@ -28,8 +29,8 @@ const statusStyles: Record<WorkOrderStatus, string> = {
   in_progress: 'bg-status-pending/10 text-status-pending',
   assigned: 'bg-status-active/10 text-status-active',
   verified: 'bg-status-completed/10 text-status-completed',
+  pending: 'bg-status-high/10 text-status-high',
   closed: 'bg-muted text-muted-foreground',
-  // Removed 'pending' as it's not a valid WorkOrderStatus
   completed: 'bg-status-completed/10 text-status-completed',
   cancelled: 'bg-muted text-muted-foreground',
 }
@@ -39,12 +40,14 @@ const statusLabels: Record<WorkOrderStatus, string> = {
   in_progress: "In Progress",
   assigned: "Assigned",
   verified: "Verified",
+  pending: "Pending",
   closed: "Closed",
   completed: "Completed",
   cancelled: "Cancelled",
 };
 
 export function WorkOrderList({ workOrders, title = 'Recent Work Orders', showViewAll = true, maxItems = 5 }: WorkOrderListProps) {
+  const workOrdersPath = usePortalPath('work-orders')
   const displayOrders = workOrders.slice(0, maxItems)
 
   return (
@@ -53,7 +56,10 @@ export function WorkOrderList({ workOrders, title = 'Recent Work Orders', showVi
         <CardTitle className="text-base font-medium">{title}</CardTitle>
         {showViewAll && (
           <Button variant="ghost" size="sm" asChild>
-            <Link to="/work-orders" className="text-primary">
+            <Link
+              to={workOrdersPath}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
               View All
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
@@ -65,7 +71,7 @@ export function WorkOrderList({ workOrders, title = 'Recent Work Orders', showVi
           {displayOrders.map((order) => (
             <Link
               key={order.id}
-              to={`/work-orders/${order.id}`}
+              to={`${workOrdersPath}/${order.id}`}
               className="flex items-start gap-4 p-4 transition-colors hover:bg-accent/50"
             >
               <div className="flex-1 space-y-1">

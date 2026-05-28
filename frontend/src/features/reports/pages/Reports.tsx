@@ -17,6 +17,7 @@ import {
 import { mockWorkOrders, mockVendors, mockPMs, mockUsers } from '@/features/dashboard/services/dashboard.service'
 import { cn } from '@/utils/helpers'
 import { formatDate } from '@/utils/formatDate'
+import { toast } from 'sonner'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
@@ -64,11 +65,32 @@ const complianceItems = [
   { name: 'Electrical Panel Audit', lastDone: new Date('2024-06-01'), nextDue: new Date('2025-06-01'), status: 'compliant', ref: 'NFPA 70E' },
 ]
 
-function ExportButton({ label }: { label: string }) {
+function exportDataset(filename: string, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function ExportButton({ label, data }: { label: string; data: unknown }) {
   return (
     <div className="flex gap-2">
       {(['PDF','Excel','CSV'] as const).map(fmt => (
-        <Button key={fmt} size="sm" variant="outline" className="gap-2 h-8 text-xs">
+        <Button
+          key={fmt}
+          size="sm"
+          variant="outline"
+          className="gap-2 h-8 text-xs"
+          onClick={() => {
+            exportDataset(`${label.toLowerCase().replace(/\s+/g, '-')}.${fmt.toLowerCase()}.json`, data)
+            toast.success(`${label} exported as ${fmt}`)
+          }}
+        >
           <Download className="h-3.5 w-3.5" />{fmt}
         </Button>
       ))}
@@ -102,7 +124,24 @@ export function Reports() {
                 <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" variant="outline" className="gap-2"><Download className="h-4 w-4" />Export All</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                exportDataset('reports-export-all.json', {
+                  dateRange,
+                  monthlyWO,
+                  monthlyCost,
+                  categorySpend,
+                  pmCompliance,
+                  complianceItems,
+                })
+                toast.success('Reports exported')
+              }}
+            >
+              <Download className="h-4 w-4" />Export All
+            </Button>
           </div>
         </div>
       </div>
@@ -146,7 +185,7 @@ export function Reports() {
               <Card className="bg-card border-border">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm font-medium">Work Orders by Type</CardTitle>
-                  <ExportButton label="WO Chart" />
+                  <ExportButton label="WO Chart" data={monthlyWO} />
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
@@ -167,7 +206,7 @@ export function Reports() {
               <Card className="bg-card border-border">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm font-medium">Spend by Category</CardTitle>
-                  <ExportButton label="Spend Chart" />
+                  <ExportButton label="Spend Chart" data={categorySpend} />
                 </CardHeader>
                 <CardContent className="flex items-center">
                   <ResponsiveContainer width="50%" height={220}>
@@ -196,7 +235,7 @@ export function Reports() {
           <TabsContent value="workorders" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Work Order Report</h2>
-              <ExportButton label="WO Report" />
+              <ExportButton label="WO Report" data={mockWorkOrders} />
             </div>
             <Card className="bg-card border-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Volume Trend</CardTitle></CardHeader>
@@ -246,7 +285,7 @@ export function Reports() {
           <TabsContent value="costs" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Cost Analysis</h2>
-              <ExportButton label="Cost Report" />
+              <ExportButton label="Cost Report" data={monthlyCost} />
             </div>
             <Card className="bg-card border-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Spend Breakdown</CardTitle></CardHeader>
@@ -287,7 +326,7 @@ export function Reports() {
           <TabsContent value="pm" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">PM Compliance Report</h2>
-              <ExportButton label="PM Report" />
+              <ExportButton label="PM Report" data={pmCompliance} />
             </div>
             <div className="grid grid-cols-3 gap-4">
               {[
@@ -326,7 +365,7 @@ export function Reports() {
           <TabsContent value="vendors" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Vendor Performance Report</h2>
-              <ExportButton label="Vendor Report" />
+              <ExportButton label="Vendor Report" data={mockVendors} />
             </div>
             <Card className="bg-card border-border">
               <Table>
@@ -368,7 +407,7 @@ export function Reports() {
           <TabsContent value="compliance" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Regulatory Compliance Report</h2>
-              <ExportButton label="Compliance Report" />
+              <ExportButton label="Compliance Report" data={complianceItems} />
             </div>
             <Card className="bg-card border-border">
               <Table>

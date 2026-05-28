@@ -46,7 +46,9 @@ export function AssetDetails() {
       {/* Header */}
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild><Link to="/assets"><ArrowLeft className="h-4 w-4" /></Link></Button>
+          <Button variant="ghost" size="icon" asChild aria-label="Back to assets list">
+            <Link to="/assets"><ArrowLeft className="h-4 w-4" aria-hidden /></Link>
+          </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold text-foreground">{asset.name}</h1>

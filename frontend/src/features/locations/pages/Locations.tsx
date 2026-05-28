@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   Building2,  ChevronRight, ChevronDown, MapPin,
-  MoreVertical, Users, Wrench, Layers, Home, Search
+  MoreVertical, Wrench, Layers, Home, Search, Plus, Pencil, Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +16,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { mockLocations } from '@/features/dashboard/services/dashboard.service'
 import type { Location } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
+import { usePortalPath } from '@/hooks/usePortal'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { EditLocationDialog } from '@/features/locations/components/EditLocationDialog'
 
 const typeIcons: Record<string, React.ElementType> = {
   site: Home, building: Building2, floor: Layers, room: MapPin, zone: MapPin
@@ -40,7 +45,27 @@ function buildTree(locations: Location[]) {
   return roots
 }
 
-function LocationNode({ node, depth = 0 }: { node: Location & { children: Location[] }; depth?: number }) {
+interface LocationNodeProps {
+  node: Location & { children: Location[] }
+  depth?: number
+  locationsPath: string
+  onAddChild: (location: Location) => void
+  onEdit: (location: Location) => void
+  onViewDetails: (location: Location) => void
+  onViewAssets: (id: string) => void
+  onDelete: (location: Location) => void
+}
+
+function LocationNode({
+  node,
+  depth = 0,
+  locationsPath,
+  onAddChild,
+  onEdit,
+  onViewDetails,
+  onViewAssets,
+  onDelete,
+}: LocationNodeProps) {
   const [expanded, setExpanded] = useState(depth < 2)
   const Icon = typeIcons[node.type] || MapPin
   const hasChildren = node.children.length > 0
@@ -48,16 +73,27 @@ function LocationNode({ node, depth = 0 }: { node: Location & { children: Locati
   return (
     <div>
       <div className={cn('flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted/50 group cursor-pointer transition-colors', depth > 0 && 'ml-6 border-l border-border/50 rounded-l-none pl-4')}>
-        <button className="flex items-center gap-2 flex-1" onClick={() => hasChildren && setExpanded(e => !e)}>
-          <div className="w-5 flex-shrink-0">
+        <div className="flex flex-1 items-center gap-2 min-w-0">
+          <button
+            type="button"
+            className="flex w-5 shrink-0 items-center justify-center"
+            onClick={() => hasChildren && setExpanded((e) => !e)}
+            aria-label={hasChildren ? (expanded ? `Collapse ${node.name}` : `Expand ${node.name}`) : undefined}
+            aria-expanded={hasChildren ? expanded : undefined}
+          >
             {hasChildren
               ? (expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)
               : <div className="w-4" />}
-          </div>
-          <Icon className={cn('h-4 w-4 flex-shrink-0', typeColors[node.type] || 'text-muted-foreground')} />
-          <span className="text-sm font-medium text-foreground">{node.name}</span>
-          <Badge variant="outline" className={cn('text-[10px] ml-1', typeBadgeColors[node.type])}>{node.type}</Badge>
-        </button>
+          </button>
+          <Icon className={cn('h-4 w-4 flex-shrink-0', typeColors[node.type] || 'text-muted-foreground')} aria-hidden />
+          <Link
+            to={`${locationsPath}/${node.id}`}
+            className="truncate text-sm font-medium text-foreground rounded px-1 -mx-1 transition-colors hover:bg-muted/50"
+          >
+            {node.name}
+          </Link>
+          <Badge variant="outline" className={cn('text-[10px] ml-1 shrink-0', typeBadgeColors[node.type])}>{node.type}</Badge>
+        </div>
         <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
           {node.assetCount !== undefined && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -71,28 +107,85 @@ function LocationNode({ node, depth = 0 }: { node: Location & { children: Locati
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label={`Actions for location ${node.name}`}
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="gap-2"><Plus className="h-4 w-4" />Add Child Location</DropdownMenuItem>
-              <DropdownMenuItem className="gap-2"><Edit className="h-4 w-4" />Edit</DropdownMenuItem>
-              <DropdownMenuItem className="gap-2"><Wrench className="h-4 w-4" />View Assets</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive gap-2"><Trash2 className="h-4 w-4" />Delete</DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => onViewDetails(node)}>
+                <MapPin className="h-4 w-4" />View details
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => onAddChild(node)}>
+                <Plus className="h-4 w-4" />Add Child Location
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => onEdit(node)}>
+                <Pencil className="h-4 w-4" />Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => onViewAssets(node.id)}>
+                <Wrench className="h-4 w-4" />View Assets
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive gap-2" onClick={() => onDelete(node)}>
+                <Trash2 className="h-4 w-4" />Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
       {expanded && hasChildren && (
-        <div>{node.children.map(c => <LocationNode key={c.id} node={c as Location & { children: Location[] }} depth={depth + 1} />)}</div>
+        <div>
+          {node.children.map((c) => (
+            <LocationNode
+              key={c.id}
+              node={c as Location & { children: Location[] }}
+              depth={depth + 1}
+              locationsPath={locationsPath}
+              onAddChild={onAddChild}
+              onEdit={onEdit}
+              onViewDetails={onViewDetails}
+              onViewAssets={onViewAssets}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
 }
 
 export function Locations() {
+  const navigate = useNavigate()
+  const assetsPath = usePortalPath('assets')
+  const locationsPath = usePortalPath('locations')
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
+  const [editLocation, setEditLocation] = useState<Location | null>(null)
+  const [deleteLocation, setDeleteLocation] = useState<Location | null>(null)
+
+  const handleAddLocation = () => {
+    toast.success(`Added location "${form.name}"`)
+    setShowCreate(false)
+    setForm({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
+  }
+
+  const locationActions = {
+    onAddChild: (loc: Location) => {
+      setForm((p) => ({ ...p, parentId: loc.id }))
+      setShowCreate(true)
+      toast.info(`Add child under ${loc.name}`)
+    },
+    onEdit: (loc: Location) => setEditLocation(loc),
+    onViewDetails: (loc: Location) => navigate(`${locationsPath}/${loc.id}`),
+    onViewAssets: (id: string) => {
+      navigate(`${assetsPath}?location=${encodeURIComponent(id)}`)
+    },
+    onDelete: (loc: Location) => setDeleteLocation(loc),
+  }
 
   const filtered = mockLocations.filter(l => l.name.toLowerCase().includes(search.toLowerCase()))
   const tree = buildTree(filtered)
@@ -106,6 +199,19 @@ export function Locations() {
 
   return (
     <div className="flex flex-col h-full bg-background">
+      <EditLocationDialog location={editLocation} open={!!editLocation} onOpenChange={(o) => !o && setEditLocation(null)} />
+      <ConfirmDialog
+        open={!!deleteLocation}
+        onOpenChange={(o) => !o && setDeleteLocation(null)}
+        title="Delete location?"
+        description={deleteLocation ? `Remove ${deleteLocation.name} from the hierarchy?` : ''}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteLocation) toast.success(`Delete request created for ${deleteLocation.name}`)
+          setDeleteLocation(null)
+        }}
+      />
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -155,7 +261,9 @@ export function Locations() {
               </CardHeader>
               <CardContent className="p-3">
                 {tree.length > 0
-                  ? tree.map(n => <LocationNode key={n.id} node={n} />)
+                  ? tree.map((n) => (
+                      <LocationNode key={n.id} node={n} locationsPath={locationsPath} {...locationActions} />
+                    ))
                   : <div className="text-center py-8 text-muted-foreground text-sm">No locations found</div>}
               </CardContent>
             </Card>
@@ -167,15 +275,19 @@ export function Locations() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Hotspots</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 {mockLocations.filter(l => (l.openWorkOrders || 0) > 0).slice(0, 5).map(l => (
-                  <div key={l.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                  <Link
+                    key={l.id}
+                    to={`${locationsPath}/${l.id}`}
+                    className="flex items-center justify-between py-1.5 border-b border-border last:border-0 hover:bg-muted/30 rounded-sm px-1 -mx-1"
+                  >
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                       <span className="text-sm">{l.name}</span>
                     </div>
                     <Badge variant="outline" className="text-xs text-amber-400 border-amber-400/20 bg-amber-400/10">
                       {l.openWorkOrders} WOs
                     </Badge>
-                  </div>
+                  </Link>
                 ))}
                 {mockLocations.filter(l => (l.openWorkOrders || 0) > 0).length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">All clear — no open issues</p>
@@ -187,7 +299,11 @@ export function Locations() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Asset Density</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 {mockLocations.filter(l => (l.assetCount || 0) > 0).sort((a, b) => (b.assetCount || 0) - (a.assetCount || 0)).slice(0, 5).map(l => (
-                  <div key={l.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+                  <Link
+                    key={l.id}
+                    to={`${locationsPath}/${l.id}`}
+                    className="flex items-center justify-between py-1.5 border-b border-border last:border-0 hover:bg-muted/30 rounded-sm px-1 -mx-1"
+                  >
                     <span className="text-sm truncate max-w-[150px]">{l.name}</span>
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 bg-primary/20 rounded-full w-16">
@@ -195,7 +311,7 @@ export function Locations() {
                       </div>
                       <span className="text-xs text-muted-foreground w-8 text-right">{l.assetCount}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </CardContent>
             </Card>
@@ -226,10 +342,15 @@ export function Locations() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Parent Location</Label>
-                <Select value={form.parentId} onValueChange={v => setForm(p => ({ ...p, parentId: v }))}>
+                <Select
+                  value={form.parentId || '__none__'}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, parentId: v === '__none__' ? '' : v }))
+                  }
+                >
                   <SelectTrigger><SelectValue placeholder="None (top level)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (top level)</SelectItem>
+                    <SelectItem value="__none__">None (top level)</SelectItem>
                     {mockLocations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -242,20 +363,10 @@ export function Locations() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={() => setShowCreate(false)} disabled={!form.name}>Add Location</Button>
+            <Button onClick={handleAddLocation} disabled={!form.name}>Add Location</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   )
-}
-
-function Plus(props: React.SVGProps<SVGSVGElement>) {
-  return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M5 12h14"/></svg>
-}
-function Edit(props: React.SVGProps<SVGSVGElement>) {
-  return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-}
-function Trash2(props: React.SVGProps<SVGSVGElement>) {
-  return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 }

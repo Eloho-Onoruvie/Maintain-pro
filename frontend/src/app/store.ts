@@ -20,6 +20,7 @@ interface AuthStore {
   isHydrated: boolean
 
   login: (user: User, token: string) => void
+  updateUser: (patch: Partial<User>) => void
   logout: () => void
   hydrate: () => void
 }
@@ -33,6 +34,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
     localStorage.setItem(AUTH_TOKEN_KEY, token)
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
     set({ user, token })
+  },
+
+  updateUser: (patch) => {
+    set((state) => {
+      if (!state.user) return state
+      const user = { ...state.user, ...patch, updatedAt: new Date().toISOString() }
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+      return { user }
+    })
   },
 
   logout: () => {

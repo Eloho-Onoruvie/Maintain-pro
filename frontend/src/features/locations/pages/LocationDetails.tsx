@@ -71,7 +71,7 @@ export function LocationDetails() {
   const Icon = typeIcons[location.type] || MapPin
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex flex-col bg-background">
       <EditLocationDialog
         location={location}
         open={editOpen}
@@ -140,7 +140,7 @@ export function LocationDetails() {
         </div>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-auto p-6">
+      <div className="space-y-6 p-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: 'Assets', value: assets.length },

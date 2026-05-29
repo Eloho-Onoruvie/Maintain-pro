@@ -198,7 +198,7 @@ export function Locations() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <EditLocationDialog location={editLocation} open={!!editLocation} onOpenChange={(o) => !o && setEditLocation(null)} />
       <ConfirmDialog
         open={!!deleteLocation}
@@ -224,7 +224,7 @@ export function Locations() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="space-y-6 p-6">
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3">
           {[

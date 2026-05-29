@@ -18,6 +18,7 @@ import { Inventory } from '@/features/inventory/pages/Inventory'
 import { Reports } from '@/features/reports/pages/Reports'
 import { Notifications } from '@/features/notifications/pages/Notifications'
 import { Settings } from '@/features/settings/pages/Settings'
+import { UserProfile } from '@/features/settings/pages/UserProfile'
 import { VendorTeam } from '@/features/vendors/pages/VendorTeam'
 
 function orgOnly(element: React.ReactNode, segment: keyof typeof ORG_ROUTE_ACCESS) {
@@ -41,6 +42,7 @@ export const orgPortalRoutes: RouteObject[] = [
   { path: 'inventory', element: orgOnly(<Inventory />, 'inventory') },
   { path: 'reports', element: orgOnly(<Reports />, 'reports') },
   { path: 'notifications', element: <Notifications /> },
+  { path: 'profile', element: <UserProfile /> },
   { path: 'settings', element: orgOnly(<Settings />, 'settings') },
   { index: true, element: <Navigate to="dashboard" replace /> },
 ]
@@ -54,6 +56,7 @@ export const techPortalRoutes: RouteObject[] = [
   { path: 'assets/:id', element: <AssetDetails /> },
   { path: 'inventory', element: <Inventory /> },
   { path: 'notifications', element: <Notifications /> },
+  { path: 'profile', element: <UserProfile /> },
   { index: true, element: <Navigate to="dashboard" replace /> },
 ]
 
@@ -64,6 +67,7 @@ export const vendorPortalRoutes: RouteObject[] = [
   { path: 'team', element: <VendorTeam /> },
   { path: 'reports', element: <Reports /> },
   { path: 'notifications', element: <Notifications /> },
+  { path: 'profile', element: <UserProfile /> },
   { path: 'settings', element: <Settings /> },
   { index: true, element: <Navigate to="dashboard" replace /> },
 ]

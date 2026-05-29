@@ -42,7 +42,7 @@ export function AssetDetails() {
   const totalCost = mockHistory.reduce((sum, h) => sum + h.cost, 0)
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       {/* Header */}
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-4">
@@ -68,7 +68,7 @@ export function AssetDetails() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left col — details + KPIs */}
           <div className="space-y-4">

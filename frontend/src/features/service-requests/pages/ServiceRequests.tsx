@@ -105,7 +105,7 @@ export function ServiceRequests() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -118,7 +118,7 @@ export function ServiceRequests() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="space-y-6 p-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

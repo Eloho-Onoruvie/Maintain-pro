@@ -9,11 +9,11 @@ interface MainLayoutProps {
 
 export function MainLayout({ portal }: MainLayoutProps) {
   return (
-    <div className="app-portal flex h-screen overflow-hidden">
-      <div className="hidden lg:flex">
+    <div className="app-portal flex h-dvh max-h-dvh overflow-hidden">
+      <div className="hidden h-full shrink-0 lg:flex">
         <Sidebar portal={portal} />
       </div>
-      <main className="flex-1 overflow-auto">
+      <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
         <Outlet />
       </main>
     </div>

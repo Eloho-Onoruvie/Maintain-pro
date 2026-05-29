@@ -29,6 +29,7 @@ export const ROUTES = {
   portalVendors: (portal: Portal) => buildPortalPath(portal, '/vendors'),
   portalPreventiveMaintenance: (portal: Portal) => buildPortalPath(portal, '/preventive-maintenance'),
   portalReports: (portal: Portal) => buildPortalPath(portal, '/reports'),
+  portalProfile: (portal: Portal) => buildPortalPath(portal, '/profile'),
   portalSettings: (portal: Portal) => buildPortalPath(portal, '/settings'),
   portalNotifications: (portal: Portal) => buildPortalPath(portal, '/notifications'),
 } as const

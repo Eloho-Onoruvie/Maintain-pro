@@ -132,8 +132,28 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    height: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-full bg-background text-foreground;
+  }
+
+  #root {
+    @apply min-h-full;
+  }
+
+  /* Portal: one scroll container (main), not body + main */
+  html:has(.app-portal),
+  body:has(.app-portal) {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root:has(.app-portal) {
+    height: 100%;
+    overflow: hidden;
   }
 
   /* Portal app: navigation links match surrounding text, not default hyperlink chrome */

@@ -84,7 +84,7 @@ export function Notifications() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export function Notifications() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="p-6">
         <Tabs defaultValue="feed">
           <TabsList className="bg-muted border border-border mb-6">
             <TabsTrigger value="feed" className="gap-2">

@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { getDefaultPathForRole } from '@/app/portal.config'
 import { useAuthStore } from '@/app/store'
 import type { User } from '@/types/user.types'
-import { USER_ROLES } from '@/types/user.types'
 
 import { authService } from '../services/auth.service'
-import type { LoginCredentials, RegisterPayload } from '../types/auth.types'
+import type { AuthUser, LoginCredentials, RegisterPayload } from '../types/auth.types'
+import { isAuthMockFallbackEnabled, shouldPreferMockAuth } from '../utils/authConfig'
+import { createMockLoginSession, createMockRegisterSession } from '../utils/mockAuth'
 import { setOrganizationName } from '@/utils/organization'
 
-function toUser(authUser: { id: string; name: string; email: string; role: string }): User {
+function toUser(authUser: AuthUser): User {
   const [firstName = authUser.name, ...rest] = authUser.name.split(' ')
   const now = new Date().toISOString()
 
@@ -26,60 +27,14 @@ function toUser(authUser: { id: string; name: string; email: string; role: strin
   }
 }
 
-function defaultRoleForSignup(payload: RegisterPayload): User['role'] {
-  switch (payload.signupType) {
-    case 'technician':
-      return USER_ROLES.TECHNICIAN
-    case 'vendor':
-      return USER_ROLES.VENDOR
-    default:
-      return USER_ROLES.FACILITY_MANAGER
-  }
-}
-
-/** Dev-only mock session when backend is unavailable */
-function createMockSession(credentials: LoginCredentials): { user: User; token: string } {
-  const now = new Date().toISOString()
-  const email = credentials.email.toLowerCase()
-
-  let role: User['role'] = USER_ROLES.STAFF
-  if (email.includes('admin')) role = USER_ROLES.ADMIN
-  else if (email.includes('manager')) role = USER_ROLES.FACILITY_MANAGER
-  else if (email.includes('tech')) role = USER_ROLES.TECHNICIAN
-  else if (email.includes('vendor')) role = USER_ROLES.VENDOR
-  else if (email.includes('finance')) role = USER_ROLES.FINANCE
-
-  const user: User = {
-    id: 'mock-user',
-    firstName: 'Demo',
-    lastName: 'User',
-    email: credentials.email,
-    role,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  }
-
-  return { user, token: 'mock-jwt-token' }
-}
-
-function createMockRegisterSession(payload: RegisterPayload): { user: User; token: string } {
-  const now = new Date().toISOString()
-  const role = defaultRoleForSignup(payload)
-
-  const user: User = {
-    id: `mock-${Date.now()}`,
-    firstName: payload.firstName,
-    lastName: payload.lastName,
-    email: payload.email,
-    role,
-    department: payload.company ?? payload.businessName,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  }
-
-  return { user, token: 'mock-jwt-token' }
+function isValidAuthResponse(
+  data: unknown,
+): data is { user: AuthUser; tokens: { accessToken: string } } {
+  if (!data || typeof data !== 'object') return false
+  const record = data as Record<string, unknown>
+  const user = record.user as AuthUser | undefined
+  const tokens = record.tokens as { accessToken?: string } | undefined
+  return Boolean(user?.email && user?.role && tokens?.accessToken)
 }
 
 export function useAuth() {
@@ -95,23 +50,40 @@ export function useAuth() {
     navigate(getDefaultPathForRole(authUser.role), { replace: true })
   }
 
+  const completeSession = (sessionUser: User, accessToken: string) => {
+    setSession(sessionUser, accessToken)
+    redirectAfterAuth(sessionUser)
+  }
+
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const { user: authUser, tokens } = await authService.login(credentials)
-      const sessionUser = toUser(authUser)
-      setSession(sessionUser, tokens.accessToken)
-      redirectAfterAuth(sessionUser)
-    } catch (err: unknown) {
-      if (import.meta.env.DEV) {
-        const mock = createMockSession(credentials)
-        setSession(mock.user, mock.token)
-        redirectAfterAuth(mock.user)
+      if (shouldPreferMockAuth()) {
+        const mock = createMockLoginSession(credentials)
+        completeSession(mock.user, mock.token)
         return
       }
-      setError((err as { message?: string })?.message ?? 'Login failed. Check your credentials.')
+
+      const response = await authService.login(credentials)
+      if (!isValidAuthResponse(response)) {
+        throw new Error('Invalid response from authentication server')
+      }
+
+      completeSession(toUser(response.user), response.tokens.accessToken)
+    } catch (err: unknown) {
+      if (isAuthMockFallbackEnabled()) {
+        const mock = createMockLoginSession(credentials)
+        completeSession(mock.user, mock.token)
+        return
+      }
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message ?? 'Login failed. Check your credentials.'
+      setError(message)
     } finally {
       setIsLoading(false)
     }
@@ -121,25 +93,40 @@ export function useAuth() {
     setIsLoading(true)
     setError(null)
 
-    try {
-      const { user: authUser, tokens } = await authService.register(payload)
+    const persistOrgName = () => {
       if (payload.signupType === 'organization' && payload.company) {
         setOrganizationName(payload.company)
       }
-      const sessionUser = toUser(authUser)
-      setSession(sessionUser, tokens.accessToken)
-      redirectAfterAuth(sessionUser)
-    } catch (err: unknown) {
-      if (import.meta.env.DEV) {
+    }
+
+    try {
+      if (shouldPreferMockAuth()) {
         const mock = createMockRegisterSession(payload)
-        if (payload.signupType === 'organization' && payload.company) {
-          setOrganizationName(payload.company)
-        }
-        setSession(mock.user, mock.token)
-        redirectAfterAuth(mock.user)
+        persistOrgName()
+        completeSession(mock.user, mock.token)
         return
       }
-      setError((err as { message?: string })?.message ?? 'Registration failed. Please try again.')
+
+      const response = await authService.register(payload)
+      if (!isValidAuthResponse(response)) {
+        throw new Error('Invalid response from authentication server')
+      }
+
+      persistOrgName()
+      completeSession(toUser(response.user), response.tokens.accessToken)
+    } catch (err: unknown) {
+      if (isAuthMockFallbackEnabled()) {
+        const mock = createMockRegisterSession(payload)
+        persistOrgName()
+        completeSession(mock.user, mock.token)
+        return
+      }
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : (err as { message?: string })?.message ?? 'Registration failed. Please try again.'
+      setError(message)
     } finally {
       setIsLoading(false)
     }

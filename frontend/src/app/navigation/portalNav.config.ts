@@ -78,7 +78,7 @@ export const PORTAL_NAV: Record<Portal, PortalNavConfig> = {
     ],
     secondary: [
       {
-        name: 'Settings',
+        name: 'Administration',
         segment: 'settings',
         icon: Settings,
         roles: [ADMIN, FACILITY_MANAGER],
@@ -105,7 +105,7 @@ export const PORTAL_NAV: Record<Portal, PortalNavConfig> = {
       { name: 'Performance', segment: 'reports', icon: BarChart3 },
     ],
     secondary: [
-      { name: 'Settings', segment: 'settings', icon: Settings },
+      { name: 'Business settings', segment: 'settings', icon: Settings },
     ],
   },
 }

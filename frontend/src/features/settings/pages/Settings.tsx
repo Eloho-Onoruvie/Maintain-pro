@@ -59,6 +59,8 @@ import { formatDate, formatRelativeDate } from "@/utils/formatDate";
 import { cn } from "@/utils/helpers";
 import type { UserRole } from "@/types/user.types";
 import { toast } from "sonner";
+import { PORTALS } from "@/app/portal.config";
+import { usePortal } from "@/hooks/usePortal";
 
 const roleColors: Record<UserRole, string> = {
   admin: "bg-red-400/10 text-red-400 border-red-400/20",
@@ -212,6 +214,8 @@ function downloadJson(filename: string, data: unknown) {
 }
 
 export function Settings() {
+  const portal = usePortal();
+  const isVendorPortal = portal === PORTALS.VENDOR;
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleDetail, setShowRoleDetail] = useState<UserRole | null>(null);
   const [inviteForm, setInviteForm] = useState({
@@ -280,19 +284,21 @@ export function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <div className="border-b border-border px-6 py-4">
         <div>
           <h1 className="text-xl font-semibold text-foreground">
-            Settings & Administration
+            {isVendorPortal ? "Business settings" : "Organization administration"}
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Organization profile, users, roles, SLA & system configuration
+            {isVendorPortal
+              ? "Company profile, team access, and vendor portal configuration"
+              : "Organization profile, users, roles, SLA & system configuration"}
           </p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="p-6">
         <Tabs defaultValue="organization">
           <TabsList className="bg-muted border border-border mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="organization" className="gap-2">

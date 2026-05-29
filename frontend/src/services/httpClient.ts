@@ -18,18 +18,30 @@ async function request<T>(url: string, options: RequestOptions = {}): Promise<T>
 
   const token = localStorage.getItem('auth_token')
 
-  const response = await fetch(finalUrl, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(finalUrl, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init.headers,
+      },
+    })
+  } catch {
+    const networkError: ApiError = {
+      message: 'Unable to reach the server. Check your connection and try again.',
+      status: 0,
+    }
+    throw networkError
+  }
 
   if (!response.ok) {
     const error: ApiError = await response.json().catch(() => ({
-      message: 'An unexpected error occurred',
+      message:
+        response.status === 404
+          ? 'Service not found. The API may be unavailable.'
+          : 'Authentication request failed. Please try again.',
       status: response.status,
     }))
     throw error

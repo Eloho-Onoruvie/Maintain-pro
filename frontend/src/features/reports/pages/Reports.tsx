@@ -106,7 +106,7 @@ export function Reports() {
   const avgCompliance = pmCompliance.reduce((s, p) => s + p.rate, 0) / pmCompliance.length
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -146,7 +146,7 @@ export function Reports() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-muted border border-border mb-6">
             <TabsTrigger value="overview" className="gap-2"><BarChart3 className="h-3.5 w-3.5" />Overview</TabsTrigger>

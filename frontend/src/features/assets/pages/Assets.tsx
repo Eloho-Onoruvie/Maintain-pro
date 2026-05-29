@@ -171,7 +171,7 @@ export function Assets() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <EditAssetDialog asset={editAsset} open={!!editAsset} onOpenChange={(o) => !o && setEditAsset(null)} />
       <AssetHistoryDialog asset={historyAsset} open={!!historyAsset} onOpenChange={(o) => !o && setHistoryAsset(null)} />
       <ImportAssetsDialog
@@ -252,7 +252,7 @@ export function Assets() {
       ) : error ? (
         <PageError message={error.message} onRetry={refetch} />
       ) : (
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="space-y-6 p-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

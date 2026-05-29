@@ -86,7 +86,7 @@ export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }:
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-18 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
       {/* LEFT */}
       <div className="flex items-center gap-4">
         {/* Mobile Sidebar */}

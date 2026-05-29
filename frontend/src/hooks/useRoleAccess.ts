@@ -32,6 +32,13 @@ export function useRoleAccess() {
         portal === PORTALS.ORG
           ? Boolean(role && canAccessOrgSegment(role, 'preventive-maintenance'))
           : portal === PORTALS.TECH,
+      /** Org/vendor sidebar administration — not the user profile page */
+      canOpenOrgSettings:
+        portal === PORTALS.VENDOR
+          ? role === USER_ROLES.VENDOR
+          : portal === PORTALS.ORG
+            ? Boolean(role && canAccessOrgSegment(role, 'settings'))
+            : false,
       canOpenSettings:
         portal === PORTALS.VENDOR
           ? role === USER_ROLES.VENDOR

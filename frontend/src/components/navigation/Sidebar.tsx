@@ -5,7 +5,7 @@ import {
   LogOut,
   HelpCircle,
   Bell,
-  Users,
+  User,
 } from 'lucide-react'
 
 import { buildPortalPath, type Portal } from '@/app/portal.config'
@@ -23,7 +23,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/app/store'
-import { USER_ROLES } from '@/types/user.types'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { usePortalBranding } from '@/hooks/usePortalBranding'
 import {
@@ -96,8 +95,8 @@ export function AppSidebar({ portal }: AppSidebarProps) {
   }
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-18 items-center gap-3 border-b border-sidebar-border py-5 px-5">
+    <aside className="flex h-full min-h-0 w-64 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5 py-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm shadow-primary/20">
           <Wrench className="h-5 w-5 text-primary-foreground" />
         </div>
@@ -109,7 +108,7 @@ export function AppSidebar({ portal }: AppSidebarProps) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 px-3 py-4" type="always">
+      <ScrollArea className="flex-1 min-h-0 px-3 py-4">
         <nav className="space-y-1">{primaryItems.map(renderNavItem)}</nav>
 
         {secondaryItems.length > 0 && (
@@ -154,15 +153,10 @@ export function AppSidebar({ portal }: AppSidebarProps) {
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            {user &&
-              ([USER_ROLES.ADMIN, USER_ROLES.FACILITY_MANAGER, USER_ROLES.VENDOR] as string[]).includes(
-                user.role,
-              ) && (
-              <DropdownMenuItem onClick={() => navigate(hrefFor('settings'))}>
-                <Users className="mr-2 h-4 w-4" />
-                Profile & Settings
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onClick={() => navigate(hrefFor('profile'))}>
+              <User className="mr-2 h-4 w-4" />
+              My profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate(hrefFor('notifications'))}>
               <Bell className="mr-2 h-4 w-4" />
               Notifications

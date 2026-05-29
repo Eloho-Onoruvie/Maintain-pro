@@ -149,7 +149,7 @@ export function PreventiveMaintenance() {
   const removeChecklistItem = (id: string) => setForm(f => ({ ...f, checklist: f.checklist.filter(c => c.id !== id) }))
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background">
       <EditPMScheduleDialog schedule={editSchedule} open={!!editSchedule} onOpenChange={(o) => !o && setEditSchedule(null)} />
       <SkipPMScheduleDialog schedule={skipSchedule} open={!!skipSchedule} onOpenChange={(o) => !o && setSkipSchedule(null)} />
       <ConfirmDialog
@@ -200,7 +200,7 @@ export function PreventiveMaintenance() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="space-y-6 p-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

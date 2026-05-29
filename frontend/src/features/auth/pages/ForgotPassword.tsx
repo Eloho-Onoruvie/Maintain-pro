@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Wrench, Loader2, ArrowLeft, CheckCircle2, Mail } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle2, Mail } from 'lucide-react'
+
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,12 +39,12 @@ export function ForgotPassword() {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex items-center justify-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Wrench className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-semibold">MaintainPro</span>
-        </div>
+        <BrandLogo
+          asLink={false}
+          boxedIcon
+          textClassName="text-xl font-semibold text-foreground"
+          className="mb-8 justify-center"
+        />
 
         <Card className="border-border bg-card">
           {!isSubmitted ? (

@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Wrench,
   ChevronDown,
   LogOut,
   HelpCircle,
@@ -11,6 +10,7 @@ import {
 import { buildPortalPath, type Portal } from '@/app/portal.config'
 import { PORTAL_NAV } from '@/app/navigation/portalNav.config'
 import { filterNavItemsByRole } from '@/app/navigation/routeAccess'
+import { GearIcon } from '@/components/brand/GearIcon'
 import { cn } from '@/utils/helpers'
 import {
   DropdownMenu,
@@ -32,9 +32,11 @@ import {
 
 interface AppSidebarProps {
   portal: Portal
+  /** Close mobile nav sheet after navigation */
+  onNavigate?: () => void
 }
 
-export function AppSidebar({ portal }: AppSidebarProps) {
+export function AppSidebar({ portal, onNavigate }: AppSidebarProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
@@ -73,6 +75,7 @@ export function AppSidebar({ portal }: AppSidebarProps) {
       <Link
         key={item.name}
         to={href}
+        onClick={onNavigate}
         className={cn(
           'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
           isActive
@@ -98,7 +101,7 @@ export function AppSidebar({ portal }: AppSidebarProps) {
     <aside className="flex h-full min-h-0 w-64 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5 py-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary shadow-sm shadow-primary/20">
-          <Wrench className="h-5 w-5 text-primary-foreground" />
+          <GearIcon size={20} className="text-primary-foreground" />
         </div>
         <div className="min-w-0">
           <span className="block truncate text-lg font-semibold leading-tight text-sidebar-foreground">
@@ -122,6 +125,7 @@ export function AppSidebar({ portal }: AppSidebarProps) {
                   <Link
                     key={item.name}
                     to={href}
+                    onClick={onNavigate}
                     className={cn(
                       'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isActive

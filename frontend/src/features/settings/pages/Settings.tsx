@@ -62,6 +62,8 @@ import { toast } from "sonner";
 import { PORTALS } from "@/app/portal.config";
 import { AppHeader } from "@/components/navigation/Navbar";
 import { usePortal } from "@/hooks/usePortal";
+import { useDownloadConfirm } from "@/hooks/useDownloadConfirm";
+import { downloadJson } from "@/utils/downloadFile";
 
 const roleColors: Record<UserRole, string> = {
   admin: "bg-red-400/10 text-red-400 border-red-400/20",
@@ -202,21 +204,10 @@ const defaultSLA = {
 
 const INVITABLE_ORG_ROLES: UserRole[] = ["facility_manager", "staff", "finance"];
 
-function downloadJson(filename: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function Settings() {
   const portal = usePortal();
   const isVendorPortal = portal === PORTALS.VENDOR;
+  const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm();
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleDetail, setShowRoleDetail] = useState<UserRole | null>(null);
   const [inviteForm, setInviteForm] = useState({
@@ -286,6 +277,7 @@ export function Settings() {
 
   return (
     <div className="flex flex-col bg-background">
+      {DownloadConfirmDialog}
       <AppHeader
         title={isVendorPortal ? "Business settings" : "Organization administration"}
         subtitle={
@@ -545,10 +537,19 @@ export function Settings() {
                       size="sm"
                       className="w-full gap-2"
                       onClick={() =>
-                        downloadJson("maintainpro-organization-export.json", {
-                          organization: orgForm,
-                          users,
-                          sla,
+                        requestDownload({
+                          title: "Export organization data?",
+                          description:
+                            "A JSON file with organization settings, users, and SLA configuration will be downloaded to your device.",
+                          confirmLabel: "Download export",
+                          onDownload: () => {
+                            downloadJson("maintainpro-organization-export.json", {
+                              organization: orgForm,
+                              users,
+                              sla,
+                            });
+                            toast.success("Organization data exported");
+                          },
                         })
                       }
                     >
@@ -987,7 +988,18 @@ export function Settings() {
                 size="sm"
                 variant="outline"
                 className="gap-2"
-                onClick={() => downloadJson("maintainpro-audit-log.json", mockAuditLog)}
+                onClick={() =>
+                  requestDownload({
+                    title: "Export audit log?",
+                    description:
+                      "The full audit log will be downloaded as a JSON file to your device.",
+                    confirmLabel: "Download log",
+                    onDownload: () => {
+                      downloadJson("maintainpro-audit-log.json", mockAuditLog);
+                      toast.success("Audit log exported");
+                    },
+                  })
+                }
               >
                 <Download className="h-4 w-4" />
                 Export Log

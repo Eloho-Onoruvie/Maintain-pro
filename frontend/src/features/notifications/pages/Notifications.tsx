@@ -1,8 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Bell, Check, CheckCheck, Trash2, Settings2, Mail, MessageSquare,
-  Smartphone, AlertTriangle, Wrench, Package, DollarSign, Shield,
-  FileText, ChevronRight, Clock, ToggleLeft, ToggleRight
+  Smartphone, AlertTriangle, ChevronRight, Clock, Plus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,41 +18,11 @@ import type { NotificationType, WorkOrderPriority } from '@/types/common.types'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/navigation/Navbar'
-
-const mockNotifications = [
-  { id: '1', type: 'work_order' as NotificationType, title: 'Work Order Assigned', message: 'WO-2024-089 "HVAC Compressor Repair" has been assigned to you', isRead: false, createdAt: new Date(Date.now() - 5 * 60000), priority: 'high' as const, actionUrl: '/work-orders/WO-2024-089' },
-  { id: '2', type: 'maintenance' as NotificationType, title: 'PM Schedule Due', message: 'Quarterly HVAC Inspection at Building A is due in 2 days', isRead: false, createdAt: new Date(Date.now() - 30 * 60000), priority: 'normal' as const, actionUrl: '/preventive-maintenance' },
-  { id: '3', type: 'inventory' as NotificationType, title: 'Low Stock Alert', message: 'HVAC Air Filters (SKU-AF-001) is below minimum stock level (3 remaining)', isRead: false, createdAt: new Date(Date.now() - 2 * 3600000), priority: 'normal' as const, actionUrl: '/inventory' },
-  { id: '4', type: 'approval' as NotificationType, title: 'Approval Required', message: 'Work Order WO-2024-091 requires your approval — estimated cost $4,500', isRead: false, createdAt: new Date(Date.now() - 3 * 3600000), priority: 'high' as const, actionUrl: '/work-orders/WO-2024-091' },
-  { id: '5', type: 'contract' as NotificationType, title: 'Contract Expiring Soon', message: 'CoolTech HVAC Services contract expires in 28 days — renewal required', isRead: true, createdAt: new Date(Date.now() - 5 * 3600000), priority: 'high' as const, actionUrl: '/vendors' },
-  { id: '6', type: 'work_order' as NotificationType, title: 'Work Order Completed', message: 'WO-2024-082 "Plumbing Leak — Floor 3" has been marked complete by Mike Rodriguez', isRead: true, createdAt: new Date(Date.now() - 8 * 3600000), priority: 'normal' as const, actionUrl: '/work-orders/WO-2024-082' },
-  { id: '7', type: 'escalation' as NotificationType, title: 'Escalation Alert', message: 'WO-2024-077 is 6 hours overdue — escalated to Facilities Director', isRead: true, createdAt: new Date(Date.now() - 24 * 3600000), priority: 'high' as const, actionUrl: '/work-orders/WO-2024-077' },
-  { id: '8', type: 'vendor' as NotificationType, title: 'Invoice Submitted', message: 'PestAway Services submitted invoice INV-2024-156 for $1,200 — awaiting verification', isRead: true, createdAt: new Date(Date.now() - 26 * 3600000), priority: 'normal' as const, actionUrl: '/vendors' },
-  { id: '9', type: 'system' as NotificationType, title: 'System Backup Completed', message: 'Nightly data backup completed successfully at 03:00 AM', isRead: true, createdAt: new Date(Date.now() - 36 * 3600000), priority: 'normal' as const },
-  { id: '10', type: 'maintenance' as NotificationType, title: 'PM Overdue', message: 'Monthly Elevator Inspection at Tower B is 3 days overdue', isRead: true, createdAt: new Date(Date.now() - 48 * 3600000), priority: 'high' as const, actionUrl: '/preventive-maintenance' },
-]
-
-const typeConfig: Record<NotificationType, { icon: React.ElementType; color: string; label: string }> = {
-  work_order:  { icon: Wrench,         color: 'text-blue-400 bg-blue-400/10',     label: 'Work Orders' },
-  maintenance: { icon: Clock,          color: 'text-purple-400 bg-purple-400/10', label: 'Maintenance' },
-  inventory:   { icon: Package,        color: 'text-amber-400 bg-amber-400/10',   label: 'Inventory' },
-  approval:    { icon: DollarSign,     color: 'text-emerald-400 bg-emerald-400/10', label: 'Approvals' },
-  system:      { icon: Settings2,      color: 'text-muted-foreground bg-muted',   label: 'System' },
-  vendor:      { icon: FileText,       color: 'text-cyan-400 bg-cyan-400/10',     label: 'Vendors' },
-  contract:    { icon: Shield,         color: 'text-orange-400 bg-orange-400/10', label: 'Contracts' },
-  escalation:  { icon: AlertTriangle,  color: 'text-red-400 bg-red-400/10',       label: 'Escalations' },
-}
-
-const defaultPrefs = {
-  work_order:  { inApp: true,  email: true,  sms: false, push: true  },
-  maintenance: { inApp: true,  email: true,  sms: false, push: true  },
-  inventory:   { inApp: true,  email: false, sms: false, push: false },
-  approval:    { inApp: true,  email: true,  sms: true,  push: true  },
-  system:      { inApp: true,  email: false, sms: false, push: false },
-  vendor:      { inApp: true,  email: true,  sms: false, push: false },
-  contract:    { inApp: true,  email: true,  sms: true,  push: true  },
-  escalation:  { inApp: true,  email: true,  sms: true,  push: true  },
-}
+import {
+  DEFAULT_NOTIFICATION_PREFS,
+  NOTIFICATION_TYPE_CONFIG,
+} from '@/features/notifications/config/notificationConfig'
+import { useUserNotifications } from '@/features/notifications/hooks/useUserNotifications'
 
 const mockEscalationRules = [
   { id: '1', name: 'Critical WO Overdue', triggerHours: 2,  priority: 'critical' as WorkOrderPriority, escalateTo: 'Operations Director', method: ['email','sms'], isActive: true,  level: 1 },
@@ -64,31 +33,60 @@ const mockEscalationRules = [
 
 export function Notifications() {
   const navigate = useNavigate()
-  const [notifications, setNotifications] = useState(mockNotifications)
-  const [prefs, setPrefs] = useState(defaultPrefs)
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    deleteNotification,
+    notificationTypes,
+    showEscalationRules,
+    pageSubtitle,
+    user,
+  } = useUserNotifications()
+
+  const roleTypeConfig = useMemo(() => {
+    const entries = notificationTypes.map((type) => [type, NOTIFICATION_TYPE_CONFIG[type]] as const)
+    return Object.fromEntries(entries) as Record<
+      NotificationType,
+      (typeof NOTIFICATION_TYPE_CONFIG)[NotificationType]
+    >
+  }, [notificationTypes])
+
+  const defaultPrefsForRole = useMemo(() => {
+    const prefs = {} as typeof DEFAULT_NOTIFICATION_PREFS
+    for (const type of notificationTypes) {
+      prefs[type] = DEFAULT_NOTIFICATION_PREFS[type]
+    }
+    return prefs
+  }, [notificationTypes])
+
+  const [prefs, setPrefs] = useState(defaultPrefsForRole)
   const [filterType, setFilterType] = useState<'all' | 'unread'>('all')
+
+  useEffect(() => {
+    setPrefs(defaultPrefsForRole)
+  }, [defaultPrefsForRole])
   const [showEscalationCreate, setShowEscalationCreate] = useState(false)
   const [newRule, setNewRule] = useState({ name: '', triggerHours: '4', priority: 'high', escalateTo: '', level: '1' })
 
-  const filtered = useMemo(() =>
-    notifications.filter(n => filterType === 'all' || !n.isRead),
-    [notifications, filterType])
-
-  const unreadCount = notifications.filter(n => !n.isRead).length
-
-  const markRead = (id: string) => setNotifications(ns => ns.map(n => n.id === id ? { ...n, isRead: true } : n))
-  const markAllRead = () => setNotifications(ns => ns.map(n => ({ ...n, isRead: true })))
-  const deleteNotif = (id: string) => setNotifications(ns => ns.filter(n => n.id !== id))
+  const filtered = useMemo(
+    () => notifications.filter((n) => filterType === 'all' || !n.isRead),
+    [notifications, filterType],
+  )
 
   const togglePref = (type: NotificationType, channel: 'inApp' | 'email' | 'sms' | 'push') => {
-    setPrefs(p => ({ ...p, [type]: { ...p[type as keyof typeof p], [channel]: !p[type as keyof typeof p][channel] } }))
+    setPrefs((p) => ({
+      ...p,
+      [type]: { ...p[type as keyof typeof p], [channel]: !p[type as keyof typeof p][channel] },
+    }))
   }
 
   return (
     <div className="flex flex-col bg-background">
       <AppHeader
         title="Notifications"
-        subtitle="Alerts, preferences & escalation rules"
+        subtitle={pageSubtitle}
         hideQuickCreate
         actions={
           <>
@@ -103,6 +101,12 @@ export function Notifications() {
       />
 
       <div className="page-body">
+        {user && (
+          <p className="text-xs text-muted-foreground mb-4">
+            Showing notifications for {user.email} ({user.role.replace(/_/g, ' ')})
+          </p>
+        )}
+
         <Tabs defaultValue="feed">
           <TabsList className="tabs-list-scroll bg-muted border border-border">
             <TabsTrigger value="feed" className="gap-2">
@@ -110,7 +114,9 @@ export function Notifications() {
               {unreadCount > 0 && <span className="ml-1 bg-primary text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 font-semibold">{unreadCount}</span>}
             </TabsTrigger>
             <TabsTrigger value="preferences" className="gap-2"><Settings2 className="h-3.5 w-3.5" />Preferences</TabsTrigger>
-            <TabsTrigger value="escalation" className="gap-2"><AlertTriangle className="h-3.5 w-3.5" />Escalation Rules</TabsTrigger>
+            {showEscalationRules && (
+              <TabsTrigger value="escalation" className="gap-2"><AlertTriangle className="h-3.5 w-3.5" />Escalation Rules</TabsTrigger>
+            )}
           </TabsList>
 
           {/* FEED */}
@@ -126,7 +132,8 @@ export function Notifications() {
 
             <div className="space-y-2">
               {filtered.map(n => {
-                const cfg = typeConfig[n.type]
+                const cfg = roleTypeConfig[n.type]
+                if (!cfg) return null
                 const Icon = cfg.icon
                 return (
                   <Card
@@ -176,7 +183,7 @@ export function Notifications() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 hover:text-destructive"
-                            onClick={e => { e.stopPropagation(); deleteNotif(n.id) }}
+                            onClick={e => { e.stopPropagation(); deleteNotification(n.id) }}
                             aria-label={`Delete notification "${n.title}"`}
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden />
@@ -202,7 +209,9 @@ export function Notifications() {
             <Card className="bg-card border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Notification Channels per Event Type</CardTitle>
-                <p className="text-xs text-muted-foreground">Control which channels receive each type of notification</p>
+                <p className="text-xs text-muted-foreground">
+                  Control which channels receive each type of notification relevant to your role
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -226,26 +235,25 @@ export function Notifications() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(Object.entries(typeConfig) as [NotificationType, typeof typeConfig[NotificationType]][]).map(([type, cfg]) => {
+                      {(Object.entries(roleTypeConfig) as [NotificationType, typeof roleTypeConfig[NotificationType]][]).map(([type, cfg]) => {
                         const pref = prefs[type as keyof typeof prefs]
                         const Icon = cfg.icon
                         return (
                           <tr key={type} className="border-b border-border/50 last:border-0">
                             <td className="py-3 pr-8">
                               <div className="flex items-center gap-2">
-                                <div className={cn('h-6 w-6 rounded flex items-center justify-center', cfg.color)}>
+                                <div className={cn('h-7 w-7 rounded-md flex items-center justify-center', cfg.color)}>
                                   <Icon className="h-3.5 w-3.5" />
                                 </div>
                                 <span className="text-sm">{cfg.label}</span>
                               </div>
                             </td>
-                            {(['inApp', 'email', 'sms', 'push'] as const).map(ch => (
-                              <td key={ch} className="text-center px-4 py-3">
+                            {(['inApp', 'email', 'sms', 'push'] as const).map(channel => (
+                              <td key={channel} className="text-center px-4 py-3">
                                 <div className="flex justify-center">
                                   <Switch
-                                    checked={pref[ch]}
-                                    onCheckedChange={() => togglePref(type, ch)}
-                                    disabled={ch === 'inApp'} // in-app always on
+                                    checked={pref[channel]}
+                                    onCheckedChange={() => togglePref(type, channel)}
                                   />
                                 </div>
                               </td>
@@ -287,6 +295,7 @@ export function Notifications() {
           </TabsContent>
 
           {/* ESCALATION RULES */}
+          {showEscalationRules && (
           <TabsContent value="escalation" className="mt-0 space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">Auto-escalate overdue work orders to management based on priority and time</p>
@@ -334,10 +343,12 @@ export function Notifications() {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
         </Tabs>
       </div>
 
       {/* Create Escalation Rule Dialog */}
+      {showEscalationRules && (
       <Dialog open={showEscalationCreate} onOpenChange={setShowEscalationCreate}>
         <DialogContent className="bg-card border-border">
           <DialogHeader><DialogTitle>Create Escalation Rule</DialogTitle></DialogHeader>
@@ -374,9 +385,8 @@ export function Notifications() {
                 <Select value={newRule.level} onValueChange={v => setNewRule(p => ({ ...p, level: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Level 1 (First)</SelectItem>
-                    <SelectItem value="2">Level 2 (If still open)</SelectItem>
-                    <SelectItem value="3">Level 3 (Final)</SelectItem>
+                    <SelectItem value="1">Level 1</SelectItem>
+                    <SelectItem value="2">Level 2</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -384,22 +394,11 @@ export function Notifications() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEscalationCreate(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                setShowEscalationCreate(false)
-                toast.success('Escalation rule created')
-              }}
-              disabled={!newRule.name || !newRule.escalateTo}
-            >
-              Create Rule
-            </Button>
+            <Button onClick={() => { toast.success('Escalation rule created'); setShowEscalationCreate(false) }}>Create Rule</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
-}
-
-function Plus(props: React.SVGProps<SVGSVGElement>) {
-  return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M5 12h14"/></svg>
 }

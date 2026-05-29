@@ -19,6 +19,9 @@ import { cn } from '@/utils/helpers'
 import { formatDate } from '@/utils/formatDate'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/navigation/Navbar'
+import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
+import { downloadJson } from '@/utils/downloadFile'
+import type { DownloadConfirmRequest } from '@/hooks/useDownloadConfirm'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
@@ -66,33 +69,37 @@ const complianceItems = [
   { name: 'Electrical Panel Audit', lastDone: new Date('2024-06-01'), nextDue: new Date('2025-06-01'), status: 'compliant', ref: 'NFPA 70E' },
 ]
 
-function exportDataset(filename: string, payload: unknown) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
-
-function ExportButton({ label, data }: { label: string; data: unknown }) {
+function ExportButton({
+  label,
+  data,
+  requestDownload,
+}: {
+  label: string
+  data: unknown
+  requestDownload: (request: DownloadConfirmRequest) => void
+}) {
   return (
     <div className="flex gap-2">
-      {(['PDF','Excel','CSV'] as const).map(fmt => (
+      {(['PDF', 'Excel', 'CSV'] as const).map((fmt) => (
         <Button
           key={fmt}
           size="sm"
           variant="outline"
           className="gap-2 h-8 text-xs"
-          onClick={() => {
-            exportDataset(`${label.toLowerCase().replace(/\s+/g, '-')}.${fmt.toLowerCase()}.json`, data)
-            toast.success(`${label} exported as ${fmt}`)
-          }}
+          onClick={() =>
+            requestDownload({
+              title: `Download ${label}?`,
+              description: `Export this report as ${fmt} (JSON format) to your device.`,
+              confirmLabel: `Download ${fmt}`,
+              onDownload: () => {
+                downloadJson(`${label.toLowerCase().replace(/\s+/g, '-')}.${fmt.toLowerCase()}.json`, data)
+                toast.success(`${label} exported as ${fmt}`)
+              },
+            })
+          }
         >
-          <Download className="h-3.5 w-3.5" />{fmt}
+          <Download className="h-3.5 w-3.5" />
+          {fmt}
         </Button>
       ))}
     </div>
@@ -100,6 +107,7 @@ function ExportButton({ label, data }: { label: string; data: unknown }) {
 }
 
 export function Reports() {
+  const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
   const [dateRange, setDateRange] = useState('6m')
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -108,6 +116,7 @@ export function Reports() {
 
   return (
     <div className="flex flex-col bg-background">
+      {DownloadConfirmDialog}
       <AppHeader
         title="Reports & Analytics"
         subtitle="Operational insights, cost analysis & compliance tracking"
@@ -130,17 +139,25 @@ export function Reports() {
               size="sm"
               variant="outline"
               className="gap-2"
-              onClick={() => {
-                exportDataset('reports-export-all.json', {
-                  dateRange,
-                  monthlyWO,
-                  monthlyCost,
-                  categorySpend,
-                  pmCompliance,
-                  complianceItems,
+              onClick={() =>
+                requestDownload({
+                  title: 'Export all reports?',
+                  description:
+                    'Download a combined JSON file with work orders, costs, compliance, and vendor data for the selected date range.',
+                  confirmLabel: 'Download export',
+                  onDownload: () => {
+                    downloadJson('reports-export-all.json', {
+                      dateRange,
+                      monthlyWO,
+                      monthlyCost,
+                      categorySpend,
+                      pmCompliance,
+                      complianceItems,
+                    })
+                    toast.success('Reports exported')
+                  },
                 })
-                toast.success('Reports exported')
-              }}
+              }
             >
               <Download className="h-4 w-4" />Export All
             </Button>
@@ -187,7 +204,7 @@ export function Reports() {
               <Card className="bg-card border-border">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm font-medium">Work Orders by Type</CardTitle>
-                  <ExportButton label="WO Chart" data={monthlyWO} />
+                  <ExportButton label="WO Chart" data={monthlyWO} requestDownload={requestDownload} />
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
@@ -208,7 +225,7 @@ export function Reports() {
               <Card className="bg-card border-border">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm font-medium">Spend by Category</CardTitle>
-                  <ExportButton label="Spend Chart" data={categorySpend} />
+                  <ExportButton label="Spend Chart" data={categorySpend} requestDownload={requestDownload} />
                 </CardHeader>
                 <CardContent className="flex items-center">
                   <ResponsiveContainer width="50%" height={220}>
@@ -237,7 +254,7 @@ export function Reports() {
           <TabsContent value="workorders" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Work Order Report</h2>
-              <ExportButton label="WO Report" data={mockWorkOrders} />
+              <ExportButton label="WO Report" data={mockWorkOrders} requestDownload={requestDownload} />
             </div>
             <Card className="bg-card border-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Volume Trend</CardTitle></CardHeader>
@@ -289,7 +306,7 @@ export function Reports() {
           <TabsContent value="costs" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Cost Analysis</h2>
-              <ExportButton label="Cost Report" data={monthlyCost} />
+              <ExportButton label="Cost Report" data={monthlyCost} requestDownload={requestDownload} />
             </div>
             <Card className="bg-card border-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Spend Breakdown</CardTitle></CardHeader>
@@ -330,7 +347,7 @@ export function Reports() {
           <TabsContent value="pm" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">PM Compliance Report</h2>
-              <ExportButton label="PM Report" data={pmCompliance} />
+              <ExportButton label="PM Report" data={pmCompliance} requestDownload={requestDownload} />
             </div>
             <div className="grid grid-cols-3 gap-4">
               {[
@@ -369,7 +386,7 @@ export function Reports() {
           <TabsContent value="vendors" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Vendor Performance Report</h2>
-              <ExportButton label="Vendor Report" data={mockVendors} />
+              <ExportButton label="Vendor Report" data={mockVendors} requestDownload={requestDownload} />
             </div>
             <Card className="bg-card border-border">
               <div className="data-table-wrap">
@@ -413,7 +430,7 @@ export function Reports() {
           <TabsContent value="compliance" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Regulatory Compliance Report</h2>
-              <ExportButton label="Compliance Report" data={complianceItems} />
+              <ExportButton label="Compliance Report" data={complianceItems} requestDownload={requestDownload} />
             </div>
             <Card className="bg-card border-border">
               <div className="data-table-wrap">

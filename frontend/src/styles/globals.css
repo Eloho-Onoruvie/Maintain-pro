@@ -175,7 +175,7 @@
   }
 
   .app-portal .page-actions {
-    @apply flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end;
+    @apply flex w-full flex-nowrap gap-2 overflow-x-auto sm:w-auto sm:flex-wrap sm:justify-end sm:overflow-visible;
   }
 
   .app-portal .page-body {

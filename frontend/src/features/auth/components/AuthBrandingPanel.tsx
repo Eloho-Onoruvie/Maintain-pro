@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
-import { Building2, HardHat, Truck, Wrench } from 'lucide-react'
+import { Building2, HardHat, Truck } from 'lucide-react'
+
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { AuthLogoLink } from '@/features/auth/components/AuthLogoLink'
 
 interface AuthBrandingPanelProps {
   variant?: 'login' | 'signup' | 'organization' | 'technician' | 'vendor'
@@ -43,12 +46,7 @@ export function AuthBrandingPanel({ variant = 'login' }: AuthBrandingPanelProps)
 
   return (
     <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-primary p-12 text-primary-foreground">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-foreground/20">
-          <Wrench className="h-5 w-5" />
-        </div>
-        <span className="text-xl font-semibold">MaintainPro</span>
-      </div>
+      <AuthLogoLink variant="panel" />
 
       <div className="space-y-6">
         <h1 className="text-4xl font-bold leading-tight text-balance">{content.title}</h1>
@@ -130,11 +128,12 @@ function SignupTypePreview({
 
 export function AuthMobileLogo() {
   return (
-    <div className="mb-8 flex items-center justify-center gap-2 lg:hidden">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-        <Wrench className="h-5 w-5 text-primary-foreground" />
-      </div>
-      <span className="text-xl font-semibold">MaintainPro</span>
+    <div className="mb-8 flex justify-center lg:hidden">
+      <BrandLogo
+        asLink={false}
+        boxedIcon
+        textClassName="text-xl font-semibold text-foreground"
+      />
     </div>
   )
 }

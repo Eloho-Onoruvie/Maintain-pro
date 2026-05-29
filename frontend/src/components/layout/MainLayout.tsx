@@ -13,7 +13,10 @@ export function MainLayout({ portal }: MainLayoutProps) {
       <div className="hidden h-full shrink-0 lg:flex">
         <Sidebar portal={portal} />
       </div>
-      <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+      <main
+        data-scroll-container
+        className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain"
+      >
         <Outlet />
       </main>
     </div>

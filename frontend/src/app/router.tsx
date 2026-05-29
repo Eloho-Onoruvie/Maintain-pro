@@ -1,4 +1,6 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+
+import { ScrollToTop } from '@/components/navigation/ScrollToTop'
 
 import { MainLayout } from '@/components/layout/MainLayout'
 import { AuthLayout } from '@/components/layout/AuthLayout'
@@ -59,7 +61,19 @@ const legacyAssetDetail = {
   element: <LegacyAssetDetailRedirect />,
 }
 
+function RootLayout() {
+  return (
+    <>
+      <ScrollToTop />
+      <Outlet />
+    </>
+  )
+}
+
 export const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
   /* PUBLIC MARKETING ROUTES */
   {
     element: <PublicLayout />,
@@ -136,4 +150,6 @@ export const router = createBrowserRouter([
   ...legacyRedirects,
   legacyWorkOrderDetail,
   legacyAssetDetail,
+    ],
+  },
 ])

@@ -13,6 +13,8 @@ import { formatDate } from '@/utils/formatDate'
 import { AppHeader } from '@/components/navigation/Navbar'
 import { usePortalPath } from '@/hooks/usePortal'
 import { cn } from '@/utils/helpers'
+import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
+import { toast } from 'sonner'
 import type { AssetStatus } from '@/types/common.types'
 
 const statusConfig: Record<AssetStatus, { label: string; color: string }> = {
@@ -41,11 +43,13 @@ export function AssetDetails() {
   const asset = mockAssets.find(a => a.id === id) || mockAssets[0]
   const s = statusConfig[asset.status]
   const [showQR, setShowQR] = useState(false)
+  const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
 
   const totalCost = mockHistory.reduce((sum, h) => sum + h.cost, 0)
 
   return (
     <div className="flex flex-col bg-background">
+      {DownloadConfirmDialog}
       <AppHeader
         title={asset.name}
         subtitle={`${asset.locationName}${asset.serialNumber ? ` · ${asset.serialNumber}` : ''}`}
@@ -171,7 +175,20 @@ export function AssetDetails() {
                         <p className="text-sm font-medium">{doc.name}</p>
                         <p className="text-xs text-muted-foreground">{doc.type} · {doc.size} · Uploaded {formatDate(doc.uploadedAt)}</p>
                       </div>
-                      <Button size="sm" variant="ghost">Download</Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          requestDownload({
+                            title: `Download ${doc.name}?`,
+                            description: `${doc.type} · ${doc.size} will be saved to your device.`,
+                            confirmLabel: 'Download',
+                            onDownload: () => toast.success(`Download started for ${doc.name}`),
+                          })
+                        }
+                      >
+                        Download
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}

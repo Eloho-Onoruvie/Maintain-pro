@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { Wrench } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface AuthFormProps {
@@ -13,12 +13,12 @@ export function AuthForm({ title, description, children, showLogo = true }: Auth
   return (
     <div className="w-full max-w-sm">
       {showLogo && (
-        <div className="mb-8 flex items-center justify-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Wrench className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-semibold">MaintainPro</span>
-        </div>
+        <BrandLogo
+          asLink={false}
+          boxedIcon
+          textClassName="text-xl font-semibold text-foreground"
+          className="mb-8 justify-center"
+        />
       )}
       <Card className="border-border bg-card">
         <CardHeader className="space-y-1">

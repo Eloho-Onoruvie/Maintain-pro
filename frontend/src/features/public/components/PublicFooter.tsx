@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { MaterialIcon } from '@/features/public/components/MaterialIcon'
 import { PUBLIC_ROUTES } from '@/features/public/constants/routes'
 
@@ -19,10 +20,12 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
     <footer className="w-full border-t border-border-subtle bg-surface-container-lowest py-12">
       <div className="mx-auto grid max-w-max-width grid-cols-1 gap-8 px-gutter-desktop md:grid-cols-4">
         <div className="md:col-span-1">
-          <div className="mb-6 flex items-center gap-2">
-            <MaterialIcon name="settings_suggest" className="text-2xl text-primary" />
-            <span className="font-headline-md text-headline-md font-bold text-primary">MaintainPro</span>
-          </div>
+          <BrandLogo
+            to={PUBLIC_ROUTES.HOME}
+            iconSize={28}
+            textClassName="font-headline-md text-headline-md font-bold text-primary"
+            className="mb-6"
+          />
           <p className="font-body-md text-body-md text-on-surface-variant">
             {variant === 'landing' && 'Smarter maintenance infrastructure for modern organizations.'}
             {variant === 'features' &&

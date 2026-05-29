@@ -16,9 +16,12 @@ import {
   type DashboardDateRange,
 } from '@/features/dashboard/utils/dashboardDateRange'
 import { Button } from '@/components/ui/button'
+import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
+import { downloadJson } from '@/utils/downloadFile'
 
 export function FacilityManagerDashboard() {
   const [range, setRange] = useState<DashboardDateRange>('30d')
+  const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
   const {
     activeWorkOrders,
     stats,
@@ -29,26 +32,25 @@ export function FacilityManagerDashboard() {
   } = useDashboardDateRange(range)
 
   const exportSnapshot = () => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      range,
-      stats,
-      workOrders: workOrdersInRange,
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `dashboard-${range}.json`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-    toast.success(`Exported dashboard data for ${DASHBOARD_RANGE_LABELS[range].toLowerCase()}`)
+    requestDownload({
+      title: 'Export dashboard snapshot?',
+      description: `Download dashboard stats and work orders for ${DASHBOARD_RANGE_LABELS[range].toLowerCase()} as a JSON file.`,
+      confirmLabel: 'Download export',
+      onDownload: () => {
+        downloadJson(`dashboard-${range}.json`, {
+          exportedAt: new Date().toISOString(),
+          range,
+          stats,
+          workOrders: workOrdersInRange,
+        })
+        toast.success(`Exported dashboard data for ${DASHBOARD_RANGE_LABELS[range].toLowerCase()}`)
+      },
+    })
   }
 
   return (
     <>
+      {DownloadConfirmDialog}
       <Navbar
         title="Dashboard"
         subtitle={DASHBOARD_RANGE_LABELS[range]}

@@ -4,6 +4,8 @@ import {
   ArrowDownToLine, MoreVertical, Filter, Upload, Download, CheckCircle2,
 } from 'lucide-react'
 import { AppHeader } from '@/components/navigation/Navbar'
+import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
+import { downloadJson } from '@/utils/downloadFile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +34,7 @@ const mockPurchaseRequests = [
 ]
 
 export function Inventory() {
+  const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
@@ -70,6 +73,7 @@ export function Inventory() {
 
   return (
     <div className="flex flex-col bg-background">
+      {DownloadConfirmDialog}
       <EditInventoryItemDialog item={editItem} open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)} />
       <ConfirmDialog
         open={!!deleteItem}
@@ -101,18 +105,17 @@ export function Inventory() {
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => {
-                const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = 'inventory-export.json'
-                document.body.appendChild(a)
-                a.click()
-                a.remove()
-                URL.revokeObjectURL(url)
-                toast.success('Inventory exported')
-              }}
+              onClick={() =>
+                requestDownload({
+                  title: 'Export inventory?',
+                  description: `Download ${items.length} inventory item${items.length === 1 ? '' : 's'} as a JSON file to your device.`,
+                  confirmLabel: 'Download export',
+                  onDownload: () => {
+                    downloadJson('inventory-export.json', items)
+                    toast.success('Inventory exported')
+                  },
+                })
+              }
             >
               <Download className="h-4 w-4" />Export
             </Button>

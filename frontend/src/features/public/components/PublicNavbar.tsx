@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { cn } from '@/utils/helpers'
 import { MaterialIcon } from '@/features/public/components/MaterialIcon'
 import { PublicThemeToggle } from '@/features/public/components/PublicThemeToggle'
@@ -41,10 +42,7 @@ export function PublicNavbar({ activeItem }: PublicNavbarProps) {
         className="mx-auto flex h-full max-w-max-width items-center justify-between px-gutter-desktop"
         aria-label="Main navigation"
       >
-        <Link to={PUBLIC_ROUTES.HOME} className="flex items-center gap-2">
-          <MaterialIcon name="settings_suggest" className="text-3xl text-primary" />
-          <span className="font-headline-lg text-headline-lg font-bold text-primary">MaintainPro</span>
-        </Link>
+        <BrandLogo to={PUBLIC_ROUTES.HOME} iconSize={32} />
 
         <div className="hidden items-center gap-8 md:flex">
           {PUBLIC_NAV_LINKS.map((link) => (

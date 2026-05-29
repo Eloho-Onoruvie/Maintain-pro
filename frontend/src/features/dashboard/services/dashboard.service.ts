@@ -6,7 +6,6 @@ import {
   InventoryItem, 
   PreventiveMaintenance,
   ServiceRequest,
-  Notification,
   User
 } from '../../../types/common.types'
 
@@ -541,46 +540,6 @@ export const mockServiceRequests: ServiceRequest[] = [
     resolvedAt: new Date('2024-01-16'),
     rating: 5,
     feedback: 'Quick response and fixed promptly!',
-  },
-]
-
-// Mock Notifications
-export const mockNotifications: Notification[] = [
-  {
-    id: 'notif-1',
-    type: 'work_order',
-    title: 'Critical Work Order Assigned',
-    message: 'HVAC System Failure - Building A has been assigned to you',
-    isRead: false,
-    createdAt: new Date('2024-01-19T10:30:00'),
-    actionUrl: '/work-orders/WO-2024-001',
-  },
-  {
-    id: 'notif-2',
-    type: 'inventory',
-    title: 'Low Stock Alert',
-    message: 'LED Light Bulb 60W is below minimum stock level (8/25)',
-    isRead: false,
-    createdAt: new Date('2024-01-19T09:15:00'),
-    actionUrl: '/inventory',
-  },
-  {
-    id: 'notif-3',
-    type: 'maintenance',
-    title: 'PM Due Soon',
-    message: 'Generator Weekly Test is due in 2 days',
-    isRead: true,
-    createdAt: new Date('2024-01-18T14:00:00'),
-    actionUrl: '/preventive-maintenance/pm-3',
-  },
-  {
-    id: 'notif-4',
-    type: 'approval',
-    title: 'Invoice Pending Approval',
-    message: 'ProTech HVAC Services submitted invoice #INV-2024-089 for $2,450',
-    isRead: false,
-    createdAt: new Date('2024-01-18T11:45:00'),
-    actionUrl: '/finance/approvals',
   },
 ]
 

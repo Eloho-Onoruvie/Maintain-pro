@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { downloadBlob } from '@/utils/downloadFile'
 import type { Asset } from '@/types/common.types'
 
 type ExportFormat = 'csv' | 'json' | 'xlsx'
@@ -30,18 +32,6 @@ interface ExportAssetsDialogProps {
   onOpenChange: (open: boolean) => void
   filteredAssets: Asset[]
   allAssets: Asset[]
-}
-
-function downloadBlob(filename: string, content: string, mime: string) {
-  const blob = new Blob([content], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
 }
 
 function assetsToCsv(rows: Asset[]): string {
@@ -76,6 +66,7 @@ export function ExportAssetsDialog({
   const [format, setFormat] = useState<ExportFormat>('csv')
   const [scope, setScope] = useState<ExportScope>('filtered')
   const [exporting, setExporting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const filteredCount = filteredAssets.length
   const totalCount = allAssets.length
@@ -104,7 +95,18 @@ export function ExportAssetsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Download asset export?"
+        description={`${rowCount} asset record${rowCount === 1 ? '' : 's'} will be saved as ${format.toUpperCase()} to your device.`}
+        confirmLabel="Download"
+        onConfirm={() => {
+          void handleExport()
+        }}
+      />
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-card border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -158,7 +160,11 @@ export function ExportAssetsDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" disabled={exporting || rowCount === 0} onClick={handleExport}>
+          <Button
+            type="button"
+            disabled={exporting || rowCount === 0}
+            onClick={() => setConfirmOpen(true)}
+          >
             {exporting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -169,5 +175,6 @@ export function ExportAssetsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

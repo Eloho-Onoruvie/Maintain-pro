@@ -11,7 +11,7 @@ export function getOrganizationName(): string {
 }
 
 export function setOrganizationName(name: string): void {
-  const trimmed = name.trim()
+  const trimmed = name.trim().charAt(0).toUpperCase() + name.trim().slice(1)
   if (!trimmed) return
   try {
     localStorage.setItem(ORG_NAME_KEY, trimmed)

@@ -135,7 +135,7 @@ export function useAuth() {
   const logout = () => {
     authService.logout().catch(() => {})
     clearSession()
-    navigate('/login', { replace: true })
+    navigate('/', { replace: true })
   }
 
   return {

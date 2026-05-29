@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { PageError } from "@/components/feedback/PageError";
 import { PageLoader } from "@/components/feedback/PageLoader";
+import { AppHeader } from "@/components/navigation/Navbar";
 import { usePortalPath } from "@/hooks/usePortal";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import {
@@ -204,16 +205,12 @@ export function Assets() {
           setDeleteAsset(null);
         }}
       />
-      {/* Header */}
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Assets</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Manage all equipment and infrastructure
-            </p>
-          </div>
-          <div className="flex gap-2">
+      <AppHeader
+        title="Assets"
+        subtitle="Manage all equipment and infrastructure"
+        hideQuickCreate
+        actions={
+          <>
             {!isMaintenanceReadOnly && (
               <Button
                 variant="outline"
@@ -243,16 +240,16 @@ export function Assets() {
                 <Plus className="h-4 w-4" /> Add Asset
               </Button>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {isLoading ? (
         <PageLoader label="Loading assets…" />
       ) : error ? (
         <PageError message={error.message} onRetry={refetch} />
       ) : (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
@@ -371,6 +368,7 @@ export function Assets() {
 
         {/* Table */}
         <Card className="bg-card border-border">
+          <div className="data-table-wrap">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
@@ -499,6 +497,7 @@ export function Assets() {
               })}
             </TableBody>
           </Table>
+          </div>
           {assets.length === 0 && (
             <EmptyState
               icon={Cpu}

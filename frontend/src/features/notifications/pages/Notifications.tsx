@@ -18,6 +18,7 @@ import { cn } from '@/utils/helpers'
 import type { NotificationType, WorkOrderPriority } from '@/types/common.types'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { AppHeader } from '@/components/navigation/Navbar'
 
 const mockNotifications = [
   { id: '1', type: 'work_order' as NotificationType, title: 'Work Order Assigned', message: 'WO-2024-089 "HVAC Compressor Repair" has been assigned to you', isRead: false, createdAt: new Date(Date.now() - 5 * 60000), priority: 'high' as const, actionUrl: '/work-orders/WO-2024-089' },
@@ -85,28 +86,25 @@ export function Notifications() {
 
   return (
     <div className="flex flex-col bg-background">
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">Notifications</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Alerts, preferences & escalation rules</p>
-            </div>
+      <AppHeader
+        title="Notifications"
+        subtitle="Alerts, preferences & escalation rules"
+        hideQuickCreate
+        actions={
+          <>
             {unreadCount > 0 && (
               <Badge className="bg-primary text-primary-foreground">{unreadCount} unread</Badge>
             )}
-          </div>
-          <div className="flex gap-2">
             <Button variant="outline" size="sm" className="gap-2" onClick={markAllRead} disabled={unreadCount === 0}>
               <CheckCheck className="h-4 w-4" /> Mark all read
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="p-6">
+      <div className="page-body">
         <Tabs defaultValue="feed">
-          <TabsList className="bg-muted border border-border mb-6">
+          <TabsList className="tabs-list-scroll bg-muted border border-border">
             <TabsTrigger value="feed" className="gap-2">
               <Bell className="h-3.5 w-3.5" />Feed
               {unreadCount > 0 && <span className="ml-1 bg-primary text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 font-semibold">{unreadCount}</span>}

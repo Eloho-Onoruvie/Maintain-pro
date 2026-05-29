@@ -130,7 +130,7 @@ export function WorkOrders() {
       ) : error ? (
         <PageError message={error.message} onRetry={refetch} />
       ) : (
-      <div className="p-4 lg:p-6 space-y-6">
+      <div className="page-body space-y-6">
         {/* Stats Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-card border-border">
@@ -188,9 +188,9 @@ export function WorkOrders() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+        <div className="page-toolbar">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-1 sm:items-center">
+            <div className="relative w-full sm:max-w-sm sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search work orders..."
@@ -200,7 +200,7 @@ export function WorkOrders() {
               />
             </div>
             <Select value={statusFilter} onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}>
-              <SelectTrigger className="w-[140px] bg-secondary">
+              <SelectTrigger className="w-full bg-secondary sm:w-[140px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -215,7 +215,7 @@ export function WorkOrders() {
               </SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={(v) => setFilters((f) => ({ ...f, priority: v }))}>
-              <SelectTrigger className="w-[140px] bg-secondary">
+              <SelectTrigger className="w-full bg-secondary sm:w-[140px]">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -260,6 +260,7 @@ export function WorkOrders() {
           />
         ) : viewMode === 'table' ? (
           <Card className="bg-card border-border">
+            <div className="data-table-wrap">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
@@ -357,6 +358,7 @@ export function WorkOrders() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </Card>
         ) : (
             <KanbanView orders={filteredOrders} workOrdersPath={workOrdersPath} />

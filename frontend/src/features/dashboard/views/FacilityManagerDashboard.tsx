@@ -85,7 +85,24 @@ export function FacilityManagerDashboard() {
           </div>
         }
       />
-      <div className="space-y-6 p-4 lg:p-6">
+      <div className="page-body flex flex-wrap gap-2 pb-0 sm:hidden">
+        {(['7d', '30d', '90d'] as const).map((key) => (
+          <Button
+            key={key}
+            variant={range === key ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setRange(key)}
+            aria-pressed={range === key}
+          >
+            {DASHBOARD_RANGE_LABELS[key]}
+          </Button>
+        ))}
+        <Button variant="outline" size="sm" onClick={exportSnapshot}>
+          <Download className="mr-2 h-4 w-4" aria-hidden />
+          Export
+        </Button>
+      </div>
+      <div className="page-body space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KPICard
             title="Open Work Orders"

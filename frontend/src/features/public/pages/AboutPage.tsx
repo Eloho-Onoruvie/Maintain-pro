@@ -46,33 +46,49 @@ export function AboutPage() {
 </div>
 </section>
 
-<section className="py-24 bg-surface-container-lowest border-y border-border-subtle">
-<div className="max-w-max-width mx-auto px-gutter-desktop">
-<div className="mb-16">
-<h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Our Story</h2>
-<p className="text-on-surface-variant font-body-md text-body-md">From a small basement to a global infrastructure standard.</p>
-</div>
-<div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[240px]">
+<section className="border-y border-border-subtle bg-surface-container-lowest py-12 sm:py-16 md:py-24">
+          <div className="mx-auto max-w-max-width px-gutter-mobile md:px-gutter-desktop">
+            <div className="mb-8 md:mb-16">
+              <h2 className="mb-2 font-headline-lg text-headline-lg text-on-surface">Our Story</h2>
+              <p className="font-body-md text-body-md text-on-surface-variant">
+                From a small basement to a global infrastructure standard.
+              </p>
+            </div>
 
-<div className="md:col-span-8 md:row-span-2 glass-card p-10 rounded-xl flex flex-col justify-center">
-<p className="font-body-lg text-body-lg text-on-surface leading-[1.8] mb-6">
-                            MaintainPro began with a simple observation: the world's most critical infrastructure was often managed with the most outdated tools. In 2018, our founders set out to build a bridge between high-stakes physical facilities and modern digital efficiency.
-                        </p>
-<p className="font-body-lg text-body-lg text-on-surface-variant leading-[1.8]">
-                            We believe that when maintenance technicians have the right data at their fingertips, the world runs smoother. Today, we support over 10,000 facilities worldwide, ensuring that safety, reliability, and sustainability are never compromised.
-                        </p>
-</div>
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-12 md:auto-rows-[minmax(200px,240px)]">
+              <div className="glass-card flex flex-col justify-center rounded-xl p-6 sm:p-8 md:col-span-8 md:row-span-2 md:p-10">
+                <p className="mb-4 font-body-lg text-body-lg leading-relaxed text-on-surface sm:mb-6 sm:leading-[1.8] md:mb-6">
+                  MaintainPro began with a simple observation: the world&apos;s most critical infrastructure
+                  was often managed with the most outdated tools. In 2018, our founders set out to build a
+                  bridge between high-stakes physical facilities and modern digital efficiency.
+                </p>
+                <p className="font-body-lg text-body-lg leading-relaxed text-on-surface-variant sm:leading-[1.8]">
+                  We believe that when maintenance technicians have the right data at their fingertips, the
+                  world runs smoother. Today, we support over 10,000 facilities worldwide, ensuring that
+                  safety, reliability, and sustainability are never compromised.
+                </p>
+              </div>
 
-<div className="md:col-span-4 md:row-span-1 rounded-xl overflow-hidden relative">
-<img alt="Founder Team" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdhmPMKR6fyZkVeLscIs3rQ5CuMIK3eJd27-tD3c2N-aOK8qRjuO894c5PnHDZLc5lmEKNtNIfjPPvRM0Cx01ueTgE4jG406NpETOb3ijQpqdtxSrY4v8yA4TzS3pqCDZ37n57QXke0vfvuYJf3yuHHGZkuhm1m1EzGN7aQIpojJGUuCnT7_rZ5nU88_093V4V2qBFXoYCBQ9Iz4c5GD--EetjPTZa4edgvBYiZlGDAd1OgQJx4LUL55F1PX7-ZSU2waxeCMv4NN0" />
-</div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl sm:aspect-[3/2] md:col-span-4 md:aspect-auto md:min-h-0 md:h-full">
+                  <img
+                    alt="Founder Team"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdhmPMKR6fyZkVeLscIs3rQ5CuMIK3eJd27-tD3c2N-aOK8qRjuO894c5PnHDZLc5lmEKNtNIfjPPvRM0Cx01ueTgE4jG406NpETOb3ijQpqdtxSrY4v8yA4TzS3pqCDZ37n57QXke0vfvuYJf3yuHHGZkuhm1m1EzGN7aQIpojJGUuCnT7_rZ5nU88_093V4V2qBFXoYCBQ9Iz4c5GD--EetjPTZa4edgvBYiZlGDAd1OgQJx4LUL55F1PX7-ZSU2waxeCMv4NN0"
+                  />
+                </div>
 
-<div className="md:col-span-4 md:row-span-1 rounded-xl overflow-hidden relative">
-<img alt="Technician at work" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAN1Xb35mceeuc6hWkuijaDmCbjUT9wEaVYkk301jW79wpG9Rfu_H_6g6FF3X0vqMc5XU36g1jOrvEaKPPLrIUBBmxhbWRl87HcRYC_4sNqI0ivU0fyc6XjJNbAGXiZL-mHt2u1kRDaAor39ZNIrTA1XaWHY4mbKXqtabnOxB3cTnlhMA8CsnTCzKDNIVXLd-hEBWt1DWFABcUcE0JQfoaXTzhT3fuDcFC1NFALgxzY12nGlLYyAatWIcFBimr-Qm0mY92jP7Q3PUM" />
-</div>
-</div>
-</div>
-</section>
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl sm:aspect-[3/2] md:col-span-4 md:aspect-auto md:min-h-0 md:h-full">
+                  <img
+                    alt="Technician at work"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAN1Xb35mceeuc6hWkuijaDmCbjUT9wEaVYkk301jW79wpG9Rfu_H_6g6FF3X0vqMc5XU36g1jOrvEaKPPLrIUBBmxhbWRl87HcRYC_4sNqI0ivU0fyc6XjJNbAGXiZL-mHt2u1kRDaAor39ZNIrTA1XaWHY4mbKXqtabnOxB3cTnlhMA8CsnTCzKDNIVXLd-hEBWt1DWFABcUcE0JQfoaXTzhT3fuDcFC1NFALgxzY12nGlLYyAatWIcFBimr-Qm0mY92jP7Q3PUM"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
 <section className="py-24">
 <div className="max-w-max-width mx-auto px-gutter-desktop text-center">

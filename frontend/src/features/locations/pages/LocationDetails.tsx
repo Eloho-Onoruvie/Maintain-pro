@@ -20,6 +20,7 @@ import {
   mockWorkOrders,
   mockAssets,
 } from '@/features/dashboard/services/dashboard.service'
+import { AppHeader } from '@/components/navigation/Navbar'
 import { EditLocationDialog } from '@/features/locations/components/EditLocationDialog'
 import { usePortalPath } from '@/hooks/usePortal'
 import { cn } from '@/utils/helpers'
@@ -68,8 +69,6 @@ export function LocationDetails() {
     return chain
   }, [location])
 
-  const Icon = typeIcons[location.type] || MapPin
-
   return (
     <div className="flex flex-col bg-background">
       <EditLocationDialog
@@ -78,43 +77,22 @@ export function LocationDetails() {
         onOpenChange={setEditOpen}
       />
 
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center gap-4">
+      <AppHeader
+        title={location.name}
+        subtitle={breadcrumb.map((b) => b.name).join(' / ')}
+        hideQuickCreate
+        leading={
           <Button variant="ghost" size="icon" asChild aria-label="Back to locations list">
             <Link to={locationsPath}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <Icon className="h-5 w-5 shrink-0 text-primary" />
-              <h1 className="truncate text-xl font-semibold text-foreground">{location.name}</h1>
-              <Badge
-                variant="outline"
-                className={cn('capitalize', typeBadgeColors[location.type])}
-              >
-                {location.type}
-              </Badge>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {breadcrumb.map((b, i) => (
-                <span key={b.id}>
-                  {i > 0 && ' / '}
-                  {b.id === location.id ? (
-                    b.name
-                  ) : (
-                    <Link
-                      to={`${locationsPath}/${b.id}`}
-                      className="text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {b.name}
-                    </Link>
-                  )}
-                </span>
-              ))}
-            </p>
-          </div>
-          <div className="flex gap-2">
+        }
+        actions={
+          <>
+            <Badge variant="outline" className={cn('capitalize', typeBadgeColors[location.type])}>
+              {location.type}
+            </Badge>
             <Button
               variant="outline"
               size="sm"
@@ -136,11 +114,11 @@ export function LocationDetails() {
                 View assets
               </Link>
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: 'Assets', value: assets.length },

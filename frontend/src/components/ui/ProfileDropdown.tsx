@@ -13,11 +13,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 import { useAuthStore } from '@/app/store'
+import { useAuth } from '@/features/auth/hooks/useAuth'
 import { usePortalPath } from '@/hooks/usePortal'
 
 export default function ProfileDropdown() {
   const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
+  const { logout } = useAuth()
   const navigate = useNavigate()
   const profilePath = usePortalPath('profile')
   const notificationsPath = usePortalPath('notifications')
@@ -29,8 +30,8 @@ export default function ProfileDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card px-3 py-2 transition hover:bg-accent">
-          <Avatar className="h-9 w-9">
+        <button className="flex cursor-pointer items-center gap-2 rounded-lg border bg-card p-1.5 transition hover:bg-accent sm:gap-3 sm:px-3 sm:py-2">
+          <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
             <AvatarImage src={user.avatar} />
 
             <AvatarFallback>{initials}</AvatarFallback>

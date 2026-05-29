@@ -18,6 +18,7 @@ import { mockServiceRequests, mockLocations } from '@/features/dashboard/service
 import { formatRelativeDate, formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import { EmptyState } from '@/components/feedback/EmptyState'
+import { AppHeader } from '@/components/navigation/Navbar'
 import { usePortalPath } from '@/hooks/usePortal'
 import { ViewServiceRequestDialog } from '@/features/service-requests/components/ViewServiceRequestDialog'
 import type { ServiceRequest, ServiceRequestStatus, WorkOrderPriority } from '@/types/common.types'
@@ -106,19 +107,18 @@ export function ServiceRequests() {
 
   return (
     <div className="flex flex-col bg-background">
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Service Requests</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Submit, track and manage maintenance requests</p>
-          </div>
+      <AppHeader
+        title="Service Requests"
+        subtitle="Submit, track and manage maintenance requests"
+        hideQuickCreate
+        actions={
           <Button size="sm" className="gap-2" onClick={() => setShowSubmit(true)}>
             <Plus className="h-4 w-4" /> Submit Request
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

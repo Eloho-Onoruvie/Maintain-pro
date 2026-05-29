@@ -119,7 +119,7 @@ export function WorkOrderDetails() {
         hideQuickCreate
         actions={
           !isMaintenanceReadOnly ? (
-            <div className="flex items-center gap-2">
+            <div className="page-actions">
               <Button variant="outline" size="sm" onClick={() => openEdit(workOrder)}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
@@ -138,7 +138,7 @@ export function WorkOrderDetails() {
         }
       />
       
-      <div className="p-4 lg:p-6">
+      <div className="page-body">
         {/* Back Link */}
         <Link 
           to={workOrdersPath} 

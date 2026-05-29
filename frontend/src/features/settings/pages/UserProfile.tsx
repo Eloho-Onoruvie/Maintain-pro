@@ -10,6 +10,7 @@ import {
   User as UserIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { AppHeader } from '@/components/navigation/Navbar'
 
 import { useAuthStore } from '@/app/store'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -112,14 +113,13 @@ export function UserProfile() {
 
   return (
     <div className="flex flex-col bg-background">
-      <div className="border-b border-border px-6 py-4">
-        <h1 className="text-xl font-semibold text-foreground">My Profile</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Personal information, security, and notification preferences
-        </p>
-      </div>
+      <AppHeader
+        title="My Profile"
+        subtitle="Personal information, security, and notification preferences"
+        hideQuickCreate
+      />
 
-      <div className="p-6">
+      <div className="page-body">
         <Tabs defaultValue="profile">
           <TabsList className="mb-6 h-auto flex-wrap gap-1 border border-border bg-muted">
             <TabsTrigger value="profile" className="gap-2">

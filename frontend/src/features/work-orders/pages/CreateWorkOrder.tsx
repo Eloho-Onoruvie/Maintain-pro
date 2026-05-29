@@ -93,7 +93,7 @@ export function CreateWorkOrder() {
         hideQuickCreate
       />
 
-      <div className="p-4 lg:p-6 pb-8">
+      <div className="page-body pb-8">
         <Link
           to={workOrdersPath}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"

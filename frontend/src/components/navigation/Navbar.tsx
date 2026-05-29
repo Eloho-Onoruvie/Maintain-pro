@@ -29,19 +29,26 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 import { useAuthStore } from "@/app/store";
 
-import ProfileDropdown from "@/components/ui/ProfileDropdown";
-
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import ProfileDropdown from '@/components/ui/ProfileDropdown'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 interface AppHeaderProps {
   title: string;
   subtitle?: string;
+  /** Shown after the menu button (e.g. back navigation on detail pages) */
+  leading?: React.ReactNode;
   actions?: React.ReactNode;
   /** Hide global Create dropdown (e.g. when the page has its own primary create action) */
   hideQuickCreate?: boolean;
 }
 
-export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }: AppHeaderProps) {
+export function AppHeader({
+  title,
+  subtitle,
+  leading,
+  actions,
+  hideQuickCreate = false,
+}: AppHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { pathname } = useLocation();
@@ -86,9 +93,9 @@ export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }:
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
+    <header className="sticky top-0 z-40 flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:gap-3 sm:px-4 lg:flex-nowrap lg:px-6 lg:py-0">
       {/* LEFT */}
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4 lg:flex-initial">
         {/* Mobile Sidebar */}
         <Sheet>
           <SheetTrigger asChild>
@@ -107,18 +114,22 @@ export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }:
           </SheetContent>
         </Sheet>
 
+        {leading}
+
         {/* Title */}
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-semibold text-foreground sm:text-xl">{title}</h1>
 
           {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="truncate text-xs text-muted-foreground sm:text-sm">
+              {subtitle}
+            </p>
           )}
         </div>
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-2">
+      <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-2 lg:ml-auto">
         {/* SEARCH */}
         {showSearch && (
           <>
@@ -221,7 +232,11 @@ export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }:
         )}
 
         {/* PAGE ACTIONS */}
-        {actions}
+        {actions ? (
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+            {actions}
+          </div>
+        ) : null}
 
         {/* THEME TOGGLE */}
         <ThemeToggle />
@@ -316,6 +331,8 @@ export function AppHeader({ title, subtitle, actions, hideQuickCreate = false }:
             </Button>
           </div>
         )}
+
+        {user ? <ProfileDropdown /> : null}
       </div>
     </header>
   );

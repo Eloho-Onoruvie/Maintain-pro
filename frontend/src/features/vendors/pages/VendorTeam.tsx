@@ -52,8 +52,8 @@ export function VendorTeam() {
   return (
     <div className="flex flex-col min-h-full">
       <Navbar title="Team" subtitle="Manage your vendor team members" />
-      <div className="flex-1 p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="page-body flex-1 space-y-6">
+        <div className="page-toolbar">
           <div>
             <h2 className="text-lg font-semibold">Team Members</h2>
             <p className="text-sm text-muted-foreground">{team.length} members in your organization</p>

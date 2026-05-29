@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
 import {
   Package, Search, AlertTriangle, TrendingDown, ShoppingCart,
-  ArrowDownToLine, MoreVertical, Filter, Upload, Download, CheckCircle2
+  ArrowDownToLine, MoreVertical, Filter, Upload, Download, CheckCircle2,
 } from 'lucide-react'
+import { AppHeader } from '@/components/navigation/Navbar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -82,13 +83,12 @@ export function Inventory() {
           setDeleteItem(null)
         }}
       />
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Inventory</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Spare parts, supplies & stock management</p>
-          </div>
-          <div className="flex gap-2">
+      <AppHeader
+        title="Inventory"
+        subtitle="Spare parts, supplies & stock management"
+        hideQuickCreate
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
@@ -119,11 +119,11 @@ export function Inventory() {
             <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" />Add Item
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
@@ -189,7 +189,8 @@ export function Inventory() {
           {/* Catalog */}
           <TabsContent value="catalog" className="mt-0">
             <Card className="bg-card border-border">
-              <Table>
+              <div className="data-table-wrap">
+          <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     {['Item','SKU','Category','Location','Stock Level','Unit Price','Value','Actions'].map(h => (
@@ -252,6 +253,7 @@ export function Inventory() {
                   })}
                 </TableBody>
               </Table>
+              </div>
               {items.length === 0 && (
                 <div className="text-center py-16 text-muted-foreground">
                   <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />

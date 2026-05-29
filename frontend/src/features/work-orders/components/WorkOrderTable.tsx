@@ -49,7 +49,8 @@ export function WorkOrderTable({ orders, onEdit, onAssign, onDelete }: Props) {
 
   return (
     <Card className="bg-card border-border">
-      <Table>
+      <div className="data-table-wrap">
+          <Table>
         <TableHeader>
           <TableRow className="border-border hover:bg-transparent">
             <TableHead className="text-muted-foreground">Work Order</TableHead>
@@ -138,6 +139,7 @@ export function WorkOrderTable({ orders, onEdit, onAssign, onDelete }: Props) {
           ))}
         </TableBody>
       </Table>
-    </Card>
+        </div>
+        </Card>
   )
 }

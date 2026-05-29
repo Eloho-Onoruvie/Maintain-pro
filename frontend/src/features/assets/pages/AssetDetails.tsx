@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { mockAssets } from '../services/assets.service'
 import { formatDate } from '@/utils/formatDate'
+import { AppHeader } from '@/components/navigation/Navbar'
+import { usePortalPath } from '@/hooks/usePortal'
 import { cn } from '@/utils/helpers'
 import type { AssetStatus } from '@/types/common.types'
 
@@ -35,6 +37,7 @@ const mockDocs = [
 
 export function AssetDetails() {
   const { id } = useParams()
+  const assetsPath = usePortalPath('assets')
   const asset = mockAssets.find(a => a.id === id) || mockAssets[0]
   const s = statusConfig[asset.status]
   const [showQR, setShowQR] = useState(false)
@@ -43,32 +46,33 @@ export function AssetDetails() {
 
   return (
     <div className="flex flex-col bg-background">
-      {/* Header */}
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center gap-4">
+      <AppHeader
+        title={asset.name}
+        subtitle={`${asset.locationName}${asset.serialNumber ? ` · ${asset.serialNumber}` : ''}`}
+        hideQuickCreate
+        leading={
           <Button variant="ghost" size="icon" asChild aria-label="Back to assets list">
-            <Link to="/assets"><ArrowLeft className="h-4 w-4" aria-hidden /></Link>
+            <Link to={assetsPath}>
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+            </Link>
           </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold text-foreground">{asset.name}</h1>
-              <Badge variant="outline" className={cn('text-xs', s.color)}>{s.label}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5" />{asset.locationName}
-              {asset.serialNumber && <><span>·</span><span className="font-mono">{asset.serialNumber}</span></>}
-            </p>
-          </div>
-          <div className="flex gap-2">
+        }
+        actions={
+          <>
+            <Badge variant="outline" className={cn('text-xs', s.color)}>
+              {s.label}
+            </Badge>
             <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowQR(true)}>
               <QrCode className="h-4 w-4" /> QR Code
             </Button>
-            <Button size="sm" className="gap-2"><Edit className="h-4 w-4" /> Edit</Button>
-          </div>
-        </div>
-      </div>
+            <Button size="sm" className="gap-2">
+              <Edit className="h-4 w-4" /> Edit
+            </Button>
+          </>
+        }
+      />
 
-      <div className="p-6">
+      <div className="page-body">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left col — details + KPIs */}
           <div className="space-y-4">

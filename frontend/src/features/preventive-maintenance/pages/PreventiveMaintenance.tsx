@@ -18,6 +18,7 @@ import { mockPMs, mockAssets, mockLocations, mockUsers } from '@/features/dashbo
 import { formatDate, getDaysUntil } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { AppHeader } from '@/components/navigation/Navbar'
 import { EditPMScheduleDialog } from '@/features/preventive-maintenance/components/EditPMScheduleDialog'
 import { SkipPMScheduleDialog } from '@/features/preventive-maintenance/components/SkipPMScheduleDialog'
 import type { PMFrequency, PreventiveMaintenance as PMSchedule } from '@/types/common.types'
@@ -59,7 +60,7 @@ function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
   return (
     <Card className="bg-card border-border">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="page-header-row">
           <CardTitle className="text-sm font-medium">{monthName}</CardTitle>
           <div className="flex gap-1">
             <Button
@@ -84,8 +85,8 @@ function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-3">
-        <div className="grid grid-cols-7 gap-px">
+      <CardContent className="overflow-x-auto p-3">
+        <div className="grid min-w-[320px] grid-cols-7 gap-px sm:min-w-0">
           {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
             <div key={d} className="text-center text-xs text-muted-foreground font-medium py-2">{d}</div>
           ))}
@@ -188,19 +189,18 @@ export function PreventiveMaintenance() {
           setGenerateWoSchedule(null)
         }}
       />
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Preventive Maintenance</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Schedules, compliance tracking & auto work order generation</p>
-          </div>
+      <AppHeader
+        title="Preventive Maintenance"
+        subtitle="Schedules, compliance tracking & auto work order generation"
+        hideQuickCreate
+        actions={
           <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" /> Create Schedule
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

@@ -60,6 +60,7 @@ import { cn } from "@/utils/helpers";
 import type { UserRole } from "@/types/user.types";
 import { toast } from "sonner";
 import { PORTALS } from "@/app/portal.config";
+import { AppHeader } from "@/components/navigation/Navbar";
 import { usePortal } from "@/hooks/usePortal";
 
 const roleColors: Record<UserRole, string> = {
@@ -285,22 +286,19 @@ export function Settings() {
 
   return (
     <div className="flex flex-col bg-background">
-      <div className="border-b border-border px-6 py-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">
-            {isVendorPortal ? "Business settings" : "Organization administration"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {isVendorPortal
-              ? "Company profile, team access, and vendor portal configuration"
-              : "Organization profile, users, roles, SLA & system configuration"}
-          </p>
-        </div>
-      </div>
+      <AppHeader
+        title={isVendorPortal ? "Business settings" : "Organization administration"}
+        subtitle={
+          isVendorPortal
+            ? "Company profile, team access, and vendor portal configuration"
+            : "Organization profile, users, roles, SLA & system configuration"
+        }
+        hideQuickCreate
+      />
 
-      <div className="p-6">
+      <div className="page-body">
         <Tabs defaultValue="organization">
-          <TabsList className="bg-muted border border-border mb-6 flex-wrap h-auto gap-1">
+          <TabsList className="tabs-list-scroll bg-muted border border-border">
             <TabsTrigger value="organization" className="gap-2">
               <Building2 className="h-3.5 w-3.5" />
               Organization

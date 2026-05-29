@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { AppHeader } from '@/components/navigation/Navbar'
 import { EditVendorDialog } from '@/features/vendors/components/EditVendorDialog'
 import { ViewVendorDialog } from '@/features/vendors/components/ViewVendorDialog'
 import { mockVendors } from '@/features/dashboard/services/dashboard.service'
@@ -113,19 +114,18 @@ export function Vendors() {
           setDeactivateVendor(null)
         }}
       />
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Vendors</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Manage service providers, contracts & performance</p>
-          </div>
+      <AppHeader
+        title="Vendors"
+        subtitle="Manage service providers, contracts & performance"
+        hideQuickCreate
+        actions={
           <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" /> Add Vendor
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
@@ -270,7 +270,8 @@ export function Vendors() {
           {/* Table */}
           <TabsContent value="table" className="mt-0">
             <Card className="bg-card border-border">
-              <Table>
+              <div className="data-table-wrap">
+          <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     {['Vendor','Category','Rating','Contract Status','Jobs','Spend','Status','Actions'].map(h => (
@@ -326,7 +327,8 @@ export function Vendors() {
                   })}
                 </TableBody>
               </Table>
-            </Card>
+        </div>
+        </Card>
           </TabsContent>
 
           {/* Performance */}

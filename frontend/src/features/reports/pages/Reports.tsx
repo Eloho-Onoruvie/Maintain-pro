@@ -18,6 +18,7 @@ import { mockWorkOrders, mockVendors, mockPMs, mockUsers } from '@/features/dash
 import { cn } from '@/utils/helpers'
 import { formatDate } from '@/utils/formatDate'
 import { toast } from 'sonner'
+import { AppHeader } from '@/components/navigation/Navbar'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
@@ -107,15 +108,16 @@ export function Reports() {
 
   return (
     <div className="flex flex-col bg-background">
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Reports & Analytics</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Operational insights, cost analysis & compliance tracking</p>
-          </div>
-          <div className="flex gap-2 items-center">
+      <AppHeader
+        title="Reports & Analytics"
+        subtitle="Operational insights, cost analysis & compliance tracking"
+        hideQuickCreate
+        actions={
+          <>
             <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="1m">Last Month</SelectItem>
                 <SelectItem value="3m">Last 3 Months</SelectItem>
@@ -142,11 +144,11 @@ export function Reports() {
             >
               <Download className="h-4 w-4" />Export All
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="p-6">
+      <div className="page-body">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-muted border border-border mb-6">
             <TabsTrigger value="overview" className="gap-2"><BarChart3 className="h-3.5 w-3.5" />Overview</TabsTrigger>
@@ -255,7 +257,8 @@ export function Reports() {
               </CardContent>
             </Card>
             <Card className="bg-card border-border">
-              <Table>
+              <div className="data-table-wrap">
+          <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     {['ID','Title','Type','Priority','Status','Assignee','Cost','Created'].map(h => (
@@ -278,7 +281,8 @@ export function Reports() {
                   ))}
                 </TableBody>
               </Table>
-            </Card>
+        </div>
+        </Card>
           </TabsContent>
 
           {/* COST ANALYSIS */}
@@ -368,7 +372,8 @@ export function Reports() {
               <ExportButton label="Vendor Report" data={mockVendors} />
             </div>
             <Card className="bg-card border-border">
-              <Table>
+              <div className="data-table-wrap">
+          <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     {['Vendor','Category','Rating','Jobs Done','Response Avg','Completion Rate','Total Spend'].map(h => (
@@ -400,7 +405,8 @@ export function Reports() {
                   ))}
                 </TableBody>
               </Table>
-            </Card>
+        </div>
+        </Card>
           </TabsContent>
 
           {/* REGULATORY COMPLIANCE */}
@@ -410,7 +416,8 @@ export function Reports() {
               <ExportButton label="Compliance Report" data={complianceItems} />
             </div>
             <Card className="bg-card border-border">
-              <Table>
+              <div className="data-table-wrap">
+          <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
                     {['Inspection','Regulatory Reference','Last Done','Next Due','Status'].map(h => (
@@ -438,7 +445,8 @@ export function Reports() {
                   ))}
                 </TableBody>
               </Table>
-            </Card>
+        </div>
+        </Card>
           </TabsContent>
         </Tabs>
       </div>

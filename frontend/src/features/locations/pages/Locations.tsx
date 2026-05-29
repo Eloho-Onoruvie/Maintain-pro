@@ -18,6 +18,7 @@ import type { Location } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
 import { usePortalPath } from '@/hooks/usePortal'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { AppHeader } from '@/components/navigation/Navbar'
 import { EditLocationDialog } from '@/features/locations/components/EditLocationDialog'
 
 const typeIcons: Record<string, React.ElementType> = {
@@ -212,21 +213,20 @@ export function Locations() {
           setDeleteLocation(null)
         }}
       />
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Locations</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Facility hierarchy — sites, buildings, floors & rooms</p>
-          </div>
+      <AppHeader
+        title="Locations"
+        subtitle="Facility hierarchy — sites, buildings, floors & rooms"
+        hideQuickCreate
+        actions={
           <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" /> Add Location
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 page-body">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: 'Sites',     value: stats.sites,     icon: Home,      color: 'text-purple-400' },
             { label: 'Buildings', value: stats.buildings, icon: Building2,  color: 'text-blue-400' },

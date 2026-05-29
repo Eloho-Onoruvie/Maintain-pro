@@ -12,7 +12,7 @@ export function VendorDashboard() {
         subtitle="Manage assigned service jobs"
       />
 
-      <div className="space-y-6 p-4 lg:p-6">
+      <div className="space-y-6 page-body">
         <div className="grid gap-4 md:grid-cols-4">
           <KPICard
             title="Assigned Jobs"

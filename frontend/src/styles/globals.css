@@ -161,6 +161,39 @@
     @apply text-inherit no-underline;
   }
 
+  /* Portal page layout — consistent mobile spacing and stacking */
+  .app-portal .page-header {
+    @apply px-4 py-3 sm:px-6 sm:py-4;
+  }
+
+  .app-portal .page-header-row {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .app-portal .page-title-group h1 {
+    @apply text-lg font-semibold text-foreground sm:text-xl;
+  }
+
+  .app-portal .page-actions {
+    @apply flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end;
+  }
+
+  .app-portal .page-body {
+    @apply p-4 sm:p-6;
+  }
+
+  .app-portal .page-toolbar {
+    @apply flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between;
+  }
+
+  .app-portal .data-table-wrap {
+    @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0;
+  }
+
+  .app-portal .tabs-list-scroll {
+    @apply mb-6 flex h-auto max-w-full flex-wrap gap-1 overflow-x-auto;
+  }
+
   button:not(:disabled),
   [type='button']:not(:disabled),
   [type='submit']:not(:disabled),

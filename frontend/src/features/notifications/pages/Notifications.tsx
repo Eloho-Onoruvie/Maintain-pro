@@ -23,13 +23,8 @@ import {
   NOTIFICATION_TYPE_CONFIG,
 } from '@/features/notifications/config/notificationConfig'
 import { useUserNotifications } from '@/features/notifications/hooks/useUserNotifications'
-
-const mockEscalationRules = [
-  { id: '1', name: 'Critical WO Overdue', triggerHours: 2,  priority: 'critical' as WorkOrderPriority, escalateTo: 'Operations Director', method: ['email','sms'], isActive: true,  level: 1 },
-  { id: '2', name: 'High Priority Overdue', triggerHours: 8,  priority: 'high'     as WorkOrderPriority, escalateTo: 'Facility Manager',    method: ['email'],      isActive: true,  level: 1 },
-  { id: '3', name: 'Medium Priority Overdue', triggerHours: 24, priority: 'medium'   as WorkOrderPriority, escalateTo: 'Facility Manager',    method: ['email'],      isActive: true,  level: 1 },
-  { id: '4', name: 'Critical L2 Escalation', triggerHours: 4,  priority: 'critical' as WorkOrderPriority, escalateTo: 'VP Operations',       method: ['email','sms'], isActive: true,  level: 2 },
-]
+import { useMockDataStore } from '@/services/mockDataStore'
+import type { EscalationRule } from '@/types/common.types'
 
 export function Notifications() {
   const navigate = useNavigate()
@@ -67,8 +62,20 @@ export function Notifications() {
   useEffect(() => {
     setPrefs(defaultPrefsForRole)
   }, [defaultPrefsForRole])
+  const escalationRules = useMockDataStore((s) => s.escalationRules)
+  const addEscalationRule = useMockDataStore((s) => s.addEscalationRule)
+  const setEscalationRules = useMockDataStore((s) => s.setEscalationRules)
   const [showEscalationCreate, setShowEscalationCreate] = useState(false)
   const [newRule, setNewRule] = useState({ name: '', triggerHours: '4', priority: 'high', escalateTo: '', level: '1' })
+
+  const toggleRuleActive = (rule: EscalationRule) => {
+    setEscalationRules(
+      escalationRules.map((r) =>
+        r.id === rule.id ? { ...r, isActive: !r.isActive } : r,
+      ),
+    )
+    toast.success(rule.isActive ? 'Rule paused' : 'Rule activated')
+  }
 
   const filtered = useMemo(
     () => notifications.filter((n) => filterType === 'all' || !n.isRead),
@@ -305,7 +312,7 @@ export function Notifications() {
             </div>
 
             <div className="space-y-3">
-              {mockEscalationRules.map(rule => (
+              {escalationRules.map(rule => (
                 <Card key={rule.id} className="bg-card border-border">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
@@ -327,7 +334,7 @@ export function Notifications() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Switch checked={rule.isActive} />
+                        <Switch checked={rule.isActive} onCheckedChange={() => toggleRuleActive(rule)} />
                         <Button variant="ghost" size="sm" className="text-xs" onClick={() => toast.info(`Edit rule: ${rule.name}`)}>Edit</Button>
                       </div>
                     </div>
@@ -394,7 +401,29 @@ export function Notifications() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEscalationCreate(false)}>Cancel</Button>
-            <Button onClick={() => { toast.success('Escalation rule created'); setShowEscalationCreate(false) }}>Create Rule</Button>
+            <Button
+              onClick={() => {
+                if (!newRule.name.trim() || !newRule.escalateTo.trim()) {
+                  toast.error('Name and recipient required')
+                  return
+                }
+                addEscalationRule({
+                  id: `esc-${Date.now()}`,
+                  name: newRule.name,
+                  triggerHours: Number(newRule.triggerHours) || 4,
+                  priority: newRule.priority as WorkOrderPriority,
+                  escalateTo: newRule.escalateTo,
+                  method: ['in_app', 'email'],
+                  isActive: false,
+                  level: Number(newRule.level) || 1,
+                })
+                toast.success('Rule created — activate when ready (US-14)')
+                setShowEscalationCreate(false)
+                setNewRule({ name: '', triggerHours: '4', priority: 'high', escalateTo: '', level: '1' })
+              }}
+            >
+              Create Rule
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

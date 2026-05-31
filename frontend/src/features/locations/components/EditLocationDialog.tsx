@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockLocations } from '@/features/dashboard/services/dashboard.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { Location } from '@/types/common.types'
 
 interface EditLocationDialogProps {
@@ -30,6 +30,8 @@ interface EditLocationDialogProps {
 }
 
 export function EditLocationDialog({ location, open, onOpenChange }: EditLocationDialogProps) {
+  const locations = useMockDataStore((s) => s.locations)
+  const updateLocation = useMockDataStore((s) => s.updateLocation)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -54,7 +56,13 @@ export function EditLocationDialog({ location, open, onOpenChange }: EditLocatio
     e.preventDefault()
     if (!location) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
+    updateLocation(location.id, {
+      name: form.name,
+      type: form.type,
+      address: form.address || undefined,
+      description: form.description || undefined,
+      parentId: form.parentId || undefined,
+    })
     setSaving(false)
     toast.success(`${location.name} updated`)
     onOpenChange(false)
@@ -92,7 +100,7 @@ export function EditLocationDialog({ location, open, onOpenChange }: EditLocatio
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>
-                  {mockLocations.filter((l) => l.id !== location?.id).map((l) => (
+                  {locations.filter((l) => l.id !== location?.id).map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
                 </SelectContent>

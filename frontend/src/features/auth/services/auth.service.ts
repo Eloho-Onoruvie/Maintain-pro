@@ -20,6 +20,9 @@ export const authService = {
   forgotPassword: (email: string) =>
     httpClient.post<{ message: string }>(ENDPOINTS.AUTH.FORGOT_PASSWORD, { email }),
 
+  resetPassword: (payload: { token: string; password: string }) =>
+    httpClient.post<{ message: string }>(ENDPOINTS.AUTH.RESET_PASSWORD, payload),
+
   getMe: () =>
     httpClient.get<AuthUser>(ENDPOINTS.AUTH.ME),
 }

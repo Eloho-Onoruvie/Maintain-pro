@@ -4,7 +4,9 @@ import {
   ArrowDownToLine, MoreVertical, Filter, Upload, Download, CheckCircle2,
 } from 'lucide-react'
 import { AppHeader } from '@/components/navigation/Navbar'
+import { useActionConfirm } from '@/hooks/useActionConfirm'
 import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
 import { downloadJson } from '@/utils/downloadFile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Progress } from '@/components/ui/progress'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { EditInventoryItemDialog } from '@/features/inventory/components/EditInventoryItemDialog'
-import { mockInventory } from '@/features/dashboard/services/dashboard.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { InventoryItem } from '@/types/common.types'
 import { formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
@@ -35,6 +37,8 @@ const mockPurchaseRequests = [
 
 export function Inventory() {
   const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
+  const { canManageInventory } = useRoleAccess()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
@@ -46,6 +50,7 @@ export function Inventory() {
   const [editItem, setEditItem] = useState<InventoryItem | null>(null)
   const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null)
 
+  const mockInventory = useMockDataStore((s) => s.inventory)
   const items = useMemo(() => mockInventory.filter(i => {
     if (categoryFilter !== 'all' && i.category !== categoryFilter) return false
     if (search && !i.name.toLowerCase().includes(search.toLowerCase()) && !i.sku.toLowerCase().includes(search.toLowerCase())) return false
@@ -74,6 +79,7 @@ export function Inventory() {
   return (
     <div className="flex flex-col bg-background">
       {DownloadConfirmDialog}
+      {ActionConfirmDialog}
       <EditInventoryItemDialog item={editItem} open={!!editItem} onOpenChange={(o) => !o && setEditItem(null)} />
       <ConfirmDialog
         open={!!deleteItem}
@@ -97,7 +103,15 @@ export function Inventory() {
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => toast.info('Import flow coming next')}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Import inventory?',
+                  description: 'Upload a CSV or Excel file to bulk-import inventory items.',
+                  confirmLabel: 'Continue',
+                  singleAction: true,
+                  onConfirm: () => toast.info('Import flow will connect to your inventory API'),
+                })
+              }
             >
               <Upload className="h-4 w-4" />Import
             </Button>
@@ -119,9 +133,11 @@ export function Inventory() {
             >
               <Download className="h-4 w-4" />Export
             </Button>
-            <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
-              <Plus className="h-4 w-4" />Add Item
-            </Button>
+            {canManageInventory && (
+              <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
+                <Plus className="h-4 w-4" />Add Item
+              </Button>
+            )}
           </>
         }
       />
@@ -246,7 +262,9 @@ export function Inventory() {
                               <DropdownMenuItem className="gap-2" onClick={() => { setPRForm(p => ({ ...p, itemId: item.id })); setShowPR(true) }}>
                                 <ShoppingCart className="h-4 w-4" />Create Purchase Request
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setEditItem(item)}>Edit Item</DropdownMenuItem>
+                              {canManageInventory && (
+                                <DropdownMenuItem onClick={() => setEditItem(item)}>Edit Item</DropdownMenuItem>
+                              )}
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeleteItem(item)}>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -302,7 +320,14 @@ export function Inventory() {
                         <Button
                           size="sm"
                           className="gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700"
-                          onClick={() => toast.success(`${pr.id} approved`)}
+                          onClick={() =>
+                            requestConfirm({
+                              title: 'Approve purchase request?',
+                              description: `Approve ${pr.id} for ${pr.itemName} (${pr.quantity} units)?`,
+                              confirmLabel: 'Approve',
+                              onConfirm: () => toast.success(`${pr.id} approved`),
+                            })
+                          }
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />Approve
                         </Button>
@@ -310,7 +335,15 @@ export function Inventory() {
                           size="sm"
                           variant="outline"
                           className="gap-1.5 h-8 text-destructive border-destructive/30"
-                          onClick={() => toast.error(`${pr.id} rejected`)}
+                          onClick={() =>
+                            requestConfirm({
+                              title: 'Reject purchase request?',
+                              description: `Reject ${pr.id} for ${pr.itemName}?`,
+                              confirmLabel: 'Reject',
+                              destructive: true,
+                              onConfirm: () => toast.success(`${pr.id} rejected`),
+                            })
+                          }
                         >
                           Reject
                         </Button>
@@ -357,10 +390,17 @@ export function Inventory() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button
-              onClick={() => {
-                setShowCreate(false)
-                toast.success('Inventory item added')
-              }}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Add inventory item?',
+                  description: `Add "${form.name}" (${form.sku}) to inventory?`,
+                  confirmLabel: 'Add item',
+                  onConfirm: () => {
+                    setShowCreate(false)
+                    toast.success('Inventory item added')
+                  },
+                })
+              }
               disabled={!form.name || !form.sku || !form.category}
             >
               Add Item
@@ -394,10 +434,17 @@ export function Inventory() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReceive(null)}>Cancel</Button>
             <Button
-              onClick={() => {
-                setShowReceive(null)
-                toast.success('Stock receipt recorded')
-              }}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Record stock receipt?',
+                  description: `Record receipt of ${receiveForm.quantity} units?`,
+                  confirmLabel: 'Confirm receipt',
+                  onConfirm: () => {
+                    setShowReceive(null)
+                    toast.success('Stock receipt recorded')
+                  },
+                })
+              }
               disabled={!receiveForm.quantity}
             >
               Confirm Receipt
@@ -436,10 +483,17 @@ export function Inventory() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPR(false)}>Cancel</Button>
             <Button
-              onClick={() => {
-                setShowPR(false)
-                toast.success('Purchase request submitted')
-              }}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Submit purchase request?',
+                  description: 'Send this purchase request for approval?',
+                  confirmLabel: 'Submit',
+                  onConfirm: () => {
+                    setShowPR(false)
+                    toast.success('Purchase request submitted')
+                  },
+                })
+              }
               disabled={!prForm.itemId || !prForm.quantity}
             >
               Submit Request

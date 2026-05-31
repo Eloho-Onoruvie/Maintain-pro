@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BarChart3, TrendingUp, FileText, Download, Filter, Calendar,
   DollarSign, Wrench, Users, Shield, CheckCircle2, AlertTriangle, Clock
@@ -14,7 +14,17 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { mockWorkOrders, mockVendors, mockPMs, mockUsers } from '@/features/dashboard/services/dashboard.service'
+import { mockVendors, mockUsers } from '@/features/dashboard/services/dashboard.service'
+import { useMockDataStore } from '@/services/mockDataStore'
+import {
+  buildCategorySpend,
+  buildMonthlyCostBreakdown,
+  buildMonthlyWoTrend,
+  buildPmComplianceFromWorkOrders,
+  buildCostTrend,
+  filterWorkOrdersForReport,
+  type ReportDateRange,
+} from '@/features/reports/utils/reportData'
 import { cn } from '@/utils/helpers'
 import { formatDate } from '@/utils/formatDate'
 import { toast } from 'sonner'
@@ -24,42 +34,6 @@ import { downloadJson } from '@/utils/downloadFile'
 import type { DownloadConfirmRequest } from '@/hooks/useDownloadConfirm'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
-
-const monthlyWO = [
-  { month: 'Jul', reactive: 28, preventive: 42, emergency: 4 },
-  { month: 'Aug', reactive: 35, preventive: 38, emergency: 2 },
-  { month: 'Sep', reactive: 22, preventive: 45, emergency: 6 },
-  { month: 'Oct', reactive: 31, preventive: 41, emergency: 3 },
-  { month: 'Nov', reactive: 27, preventive: 39, emergency: 5 },
-  { month: 'Dec', reactive: 24, preventive: 44, emergency: 2 },
-]
-
-const monthlyCost = [
-  { month: 'Jul', labor: 12400, parts: 5200, vendor: 18600 },
-  { month: 'Aug', labor: 15200, parts: 6800, vendor: 22100 },
-  { month: 'Sep', labor: 11800, parts: 4900, vendor: 17300 },
-  { month: 'Oct', labor: 13600, parts: 5800, vendor: 20400 },
-  { month: 'Nov', labor: 14200, parts: 6200, vendor: 19800 },
-  { month: 'Dec', labor: 12900, parts: 5500, vendor: 18200 },
-]
-
-const categorySpend = [
-  { name: 'HVAC', value: 42300 },
-  { name: 'Electrical', value: 28700 },
-  { name: 'Plumbing', value: 18500 },
-  { name: 'Fire Safety', value: 12400 },
-  { name: 'Elevator', value: 9800 },
-  { name: 'Other', value: 7200 },
-]
-
-const pmCompliance = [
-  { category: 'HVAC', scheduled: 24, completed: 22, rate: 91.7 },
-  { category: 'Electrical', scheduled: 18, completed: 18, rate: 100 },
-  { category: 'Plumbing', scheduled: 12, completed: 10, rate: 83.3 },
-  { category: 'Fire Safety', scheduled: 8, completed: 8, rate: 100 },
-  { category: 'Elevator', scheduled: 6, completed: 5, rate: 83.3 },
-  { category: 'Cleaning', scheduled: 120, completed: 112, rate: 93.3 },
-]
 
 const complianceItems = [
   { name: 'Fire Extinguisher Inspection', lastDone: new Date('2024-11-01'), nextDue: new Date('2025-02-01'), status: 'compliant', ref: 'NFPA 10' },
@@ -108,11 +82,30 @@ function ExportButton({
 
 export function Reports() {
   const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
-  const [dateRange, setDateRange] = useState('6m')
+  const [dateRange, setDateRange] = useState<ReportDateRange>('6m')
   const [activeTab, setActiveTab] = useState('overview')
+  const allWorkOrders = useMockDataStore((s) => s.workOrders)
+  const mockPMs = useMockDataStore((s) => s.pms)
+
+  const workOrdersInRange = useMemo(
+    () => filterWorkOrdersForReport(allWorkOrders, dateRange),
+    [allWorkOrders, dateRange],
+  )
+
+  const monthlyWO = useMemo(() => buildMonthlyWoTrend(workOrdersInRange), [workOrdersInRange])
+  const monthlyCost = useMemo(() => buildMonthlyCostBreakdown(workOrdersInRange), [workOrdersInRange])
+  const categorySpend = useMemo(() => buildCategorySpend(workOrdersInRange), [workOrdersInRange])
+  const pmCompliance = useMemo(
+    () => buildPmComplianceFromWorkOrders(workOrdersInRange),
+    [workOrdersInRange],
+  )
+  const costTrend = useMemo(() => buildCostTrend(workOrdersInRange), [workOrdersInRange])
 
   const totalCost = monthlyCost.reduce((s, m) => s + m.labor + m.parts + m.vendor, 0)
-  const avgCompliance = pmCompliance.reduce((s, p) => s + p.rate, 0) / pmCompliance.length
+  const avgCompliance =
+    pmCompliance.length === 0
+      ? 0
+      : pmCompliance.reduce((s, p) => s + p.rate, 0) / pmCompliance.length
 
   return (
     <div className="flex flex-col bg-background">
@@ -123,7 +116,10 @@ export function Reports() {
         hideQuickCreate
         actions={
           <>
-            <Select value={dateRange} onValueChange={setDateRange}>
+            <Select
+              value={dateRange}
+              onValueChange={(v) => setDateRange(v as ReportDateRange)}
+            >
               <SelectTrigger className="h-9 w-full sm:w-[130px]">
                 <SelectValue />
               </SelectTrigger>
@@ -180,7 +176,7 @@ export function Reports() {
           <TabsContent value="overview" className="space-y-6 mt-0">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'Total Work Orders', value: mockWorkOrders.length, icon: Wrench,        color: 'text-blue-400',    sub: 'last 6 months' },
+                { label: 'Total Work Orders', value: workOrdersInRange.length, icon: Wrench,        color: 'text-blue-400',    sub: 'in selected range' },
                 { label: 'Total Spend',       value: `$${(totalCost/1000).toFixed(0)}k`, icon: DollarSign, color: 'text-amber-400', sub: 'all categories' },
                 { label: 'PM Compliance',     value: `${avgCompliance.toFixed(0)}%`, icon: CheckCircle2, color: avgCompliance >= 90 ? 'text-emerald-400' : 'text-amber-400', sub: 'on-time completion' },
                 { label: 'Avg Resolution',    value: '14.2h', icon: Clock,          color: 'text-purple-400', sub: 'across all priorities' },
@@ -254,7 +250,7 @@ export function Reports() {
           <TabsContent value="workorders" className="space-y-6 mt-0">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-medium">Work Order Report</h2>
-              <ExportButton label="WO Report" data={mockWorkOrders} requestDownload={requestDownload} />
+              <ExportButton label="WO Report" data={workOrdersInRange} requestDownload={requestDownload} />
             </div>
             <Card className="bg-card border-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Volume Trend</CardTitle></CardHeader>
@@ -284,7 +280,7 @@ export function Reports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockWorkOrders.slice(0, 10).map(wo => (
+                  {workOrdersInRange.slice(0, 10).map(wo => (
                     <TableRow key={wo.id} className="border-border">
                       <TableCell className="font-mono text-xs">{wo.id}</TableCell>
                       <TableCell className="text-sm max-w-[180px] truncate">{wo.title}</TableCell>

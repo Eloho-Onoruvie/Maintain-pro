@@ -59,17 +59,23 @@ import { formatDate, formatRelativeDate } from "@/utils/formatDate";
 import { cn } from "@/utils/helpers";
 import type { UserRole } from "@/types/user.types";
 import { toast } from "sonner";
+import { createMockInvite } from "@/features/auth/utils/mockInvite";
 import { PORTALS } from "@/app/portal.config";
 import { AppHeader } from "@/components/navigation/Navbar";
 import { usePortal } from "@/hooks/usePortal";
+import { useActionConfirm } from "@/hooks/useActionConfirm";
 import { useDownloadConfirm } from "@/hooks/useDownloadConfirm";
 import { downloadJson } from "@/utils/downloadFile";
+import { useMockDataStore } from "@/services/mockDataStore";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
+import type { EscalationRule } from "@/types/common.types";
 
 const roleColors: Record<UserRole, string> = {
   admin: "bg-red-400/10 text-red-400 border-red-400/20",
   facility_manager: "bg-purple-400/10 text-purple-400 border-purple-400/20",
   technician: "bg-blue-400/10 text-blue-400 border-blue-400/20",
-  vendor: "bg-cyan-400/10 text-cyan-400 border-cyan-400/20",
+  vendor_team_lead: "bg-cyan-400/10 text-cyan-400 border-cyan-400/20",
+  vendor_technician: "bg-cyan-400/10 text-cyan-400 border-cyan-400/20",
   staff: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
   finance: "bg-amber-400/10 text-amber-400 border-amber-400/20",
 };
@@ -78,7 +84,8 @@ const roleLabels: Record<UserRole, string> = {
   admin: "Admin",
   facility_manager: "Facility Manager",
   technician: "Technician",
-  vendor: "Vendor",
+  vendor_team_lead: "Vendor Team Lead",
+  vendor_technician: "Vendor Technician",
   staff: "Staff",
   finance: "Finance",
 };
@@ -100,11 +107,16 @@ const rolePermissions: Record<UserRole, string[]> = {
     "Upload photos",
     "Report issues",
   ],
-  vendor: [
+  vendor_team_lead: [
     "View assigned WOs",
     "Update job status",
     "Upload completion photos",
     "Submit invoices",
+  ],
+  vendor_technician: [
+    "View assigned WOs",
+    "Update job status",
+    "Upload completion photos",
   ],
   staff: [
     "Submit service requests",
@@ -202,12 +214,26 @@ const defaultSLA = {
   approvalThreshold: 2000,
 };
 
-const INVITABLE_ORG_ROLES: UserRole[] = ["facility_manager", "staff", "finance"];
+const INVITABLE_ORG_ROLES: UserRole[] = [
+  "facility_manager",
+  "technician",
+  "staff",
+  "finance",
+];
 
 export function Settings() {
   const portal = usePortal();
   const isVendorPortal = portal === PORTALS.VENDOR;
+  const { canConfigureEscalation, canViewEscalationRules } = useRoleAccess();
+  const storeEscalationRules = useMockDataStore((s) => s.escalationRules ?? []);
+  const [escalationRules, setEscalationRules] = useState<EscalationRule[]>(storeEscalationRules);
+  const [showEscalationCreate, setShowEscalationCreate] = useState(false);
+  const [escalationForm, setEscalationForm] = useState({
+    name: '', triggerHours: 24, priority: 'high' as EscalationRule['priority'],
+    escalateTo: '', method: ['in_app'] as EscalationRule['method'], level: 1,
+  });
   const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm();
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm();
   const [showInvite, setShowInvite] = useState(false);
   const [showRoleDetail, setShowRoleDetail] = useState<UserRole | null>(null);
   const [inviteForm, setInviteForm] = useState({
@@ -215,6 +241,7 @@ export function Settings() {
     role: "facility_manager" as UserRole,
     name: "",
   });
+  const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
   const user = useAuthStore((state) => state.user);
 
   const isAdmin = user?.role === "admin";
@@ -259,25 +286,41 @@ export function Settings() {
 
   const handleInvite = () => {
     if (!inviteForm.name || !inviteForm.email) return;
-    setUsers((prev) => [
-      {
-        id: `inv-${Date.now()}`,
-        name: inviteForm.name,
-        email: inviteForm.email,
-        role: inviteForm.role,
-        status: "pending",
-        department: "Operations",
-      } as (typeof users)[number],
-      ...prev,
-    ]);
-    toast.success("Invitation sent");
-    setInviteForm({ name: "", email: "", role: "facility_manager" as UserRole });
-    setShowInvite(false);
+    requestConfirm({
+      title: "Send invitation?",
+      description: `Invite ${inviteForm.name} (${inviteForm.email}) to join the organization?`,
+      confirmLabel: "Send invite",
+      onConfirm: () => {
+        const [firstName, ...rest] = inviteForm.name.trim().split(/\s+/)
+        const lastName = rest.join(' ') || firstName
+        const { acceptUrl } = createMockInvite({
+          email: inviteForm.email,
+          role: inviteForm.role,
+          firstName,
+          lastName,
+        })
+        setUsers((prev) => [
+          {
+            id: `inv-${Date.now()}`,
+            name: inviteForm.name,
+            email: inviteForm.email,
+            role: inviteForm.role,
+            status: "pending",
+            department: "Operations",
+          } as (typeof users)[number],
+          ...prev,
+        ]);
+        setLastInviteUrl(acceptUrl)
+        toast.success("Invitation created — share the accept link below");
+        setInviteForm({ name: "", email: "", role: "facility_manager" as UserRole });
+      },
+    });
   };
 
   return (
     <div className="flex flex-col bg-background">
       {DownloadConfirmDialog}
+      {ActionConfirmDialog}
       <AppHeader
         title={isVendorPortal ? "Business settings" : "Organization administration"}
         subtitle={
@@ -293,81 +336,71 @@ export function Settings() {
           <TabsList className="tabs-list-scroll bg-muted border border-border">
             <TabsTrigger value="organization" className="gap-2">
               <Building2 className="h-3.5 w-3.5" />
-              Organization
+              {isVendorPortal ? 'Company' : 'Organization'}
             </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="h-3.5 w-3.5" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-2">
-              <Shield className="h-3.5 w-3.5" />
-              Roles & Permissions
-            </TabsTrigger>
-            {isAdmin && (
+            {!isVendorPortal && (
               <>
-                <TabsTrigger value="sla" className="gap-2">
-                  <Sliders className="h-3.5 w-3.5" />
-                  SLA Config
+                <TabsTrigger value="users" className="gap-2">
+                  <Users className="h-3.5 w-3.5" />
+                  Users
                 </TabsTrigger>
-                <TabsTrigger value="workflow" className="gap-2">
-                  <GitBranch className="h-3.5 w-3.5" />
-                  Workflow Rules
+                <TabsTrigger value="roles" className="gap-2">
+                  <Shield className="h-3.5 w-3.5" />
+                  Roles & Permissions
+                </TabsTrigger>
+                {isAdmin && (
+                  <>
+                    <TabsTrigger value="sla" className="gap-2">
+                      <Sliders className="h-3.5 w-3.5" />
+                      SLA Config
+                    </TabsTrigger>
+                    <TabsTrigger value="workflow" className="gap-2">
+                      <GitBranch className="h-3.5 w-3.5" />
+                      Workflow Rules
+                    </TabsTrigger>
+                  </>
+                )}
+                <TabsTrigger value="audit" className="gap-2">
+                  <FileText className="h-3.5 w-3.5" />
+                  Audit Log
                 </TabsTrigger>
               </>
             )}
-            <TabsTrigger value="audit" className="gap-2">
-              <FileText className="h-3.5 w-3.5" />
-              Audit Log
-            </TabsTrigger>
           </TabsList>
 
-          {/* ORGANIZATION */}
+          {/* ORGANIZATION / COMPANY */}
           <TabsContent value="organization" className="mt-0 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <Card className="bg-card border-border">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium">
-                      Company Information
+                      {isVendorPortal ? 'Business Information' : 'Company Information'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      {[
-                        {
-                          label: "Organization Name *",
-                          key: "name",
-                          placeholder: "Your company name",
-                        },
-                        {
-                          label: "Industry",
-                          key: "industry",
-                          placeholder: "e.g. Hotel",
-                        },
-                        {
-                          label: "Email",
-                          key: "email",
-                          placeholder: "facilities@company.com",
-                          type: "email",
-                        },
-                        {
-                          label: "Phone",
-                          key: "phone",
-                          placeholder: "+1 (555) 000-0000",
-                        },
-                      ].map((f) => (
+                      {(isVendorPortal
+                        ? [
+                            { label: 'Company Name *', key: 'name', placeholder: 'Your company name' },
+                            { label: 'Service Category', key: 'industry', placeholder: 'e.g. HVAC, Electrical' },
+                            { label: 'Business Email', key: 'email', placeholder: 'service@company.com', type: 'email' },
+                            { label: 'Phone', key: 'phone', placeholder: '+1 (555) 000-0000' },
+                          ]
+                        : [
+                            { label: 'Organization Name *', key: 'name', placeholder: 'Your company name' },
+                            { label: 'Industry', key: 'industry', placeholder: 'e.g. Hotel' },
+                            { label: 'Email', key: 'email', placeholder: 'facilities@company.com', type: 'email' },
+                            { label: 'Phone', key: 'phone', placeholder: '+1 (555) 000-0000' },
+                          ]
+                      ).map((f) => (
                         <div key={f.key} className="space-y-1.5">
                           <Label className="text-xs">{f.label}</Label>
                           <Input
-                            type={f.type || "text"}
+                            type={(f as any).type || "text"}
                             placeholder={f.placeholder}
                             value={(orgForm as Record<string, string>)[f.key]}
-                            onChange={(e) =>
-                              setOrgForm((p) => ({
-                                ...p,
-                                [f.key]: e.target.value,
-                              }))
-                            }
+                            onChange={(e) => setOrgForm((p) => ({ ...p, [f.key]: e.target.value }))}
                           />
                         </div>
                       ))}
@@ -385,6 +418,8 @@ export function Settings() {
                           }
                         />
                       </div>
+                      {!isVendorPortal && (
+                        <>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Timezone</Label>
                         <Select
@@ -442,13 +477,17 @@ export function Settings() {
                           </SelectContent>
                         </Select>
                       </div>
+                        </>
+                      )}
                     </div>
+                    
                     <div className="flex justify-end">
-                      <Button size="sm">Save Organization</Button>
+                      <Button size="sm">{isVendorPortal ? 'Save Business Info' : 'Save Organization'}</Button>
                     </div>
                   </CardContent>
                 </Card>
 
+                {!isVendorPortal && (
                 <Card className="bg-card border-border">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium">
@@ -498,8 +537,9 @@ export function Settings() {
                     ))}
                   </CardContent>
                 </Card>
+                 )}
               </div>
-
+           
               <div className="space-y-4">
                 <Card className="bg-card border-border">
                   <CardHeader className="pb-3">
@@ -515,7 +555,15 @@ export function Settings() {
                       size="sm"
                       variant="outline"
                       className="gap-2 w-full"
-                      onClick={() => toast.info("Logo upload flow coming next")}
+                      onClick={() =>
+                        requestConfirm({
+                          title: "Upload company logo?",
+                          description: "Logo upload will connect to your organization API.",
+                          confirmLabel: "Continue",
+                          singleAction: true,
+                          onConfirm: () => {},
+                        })
+                      }
                     >
                       <Camera className="h-4 w-4" />
                       Upload Logo
@@ -560,13 +608,24 @@ export function Settings() {
                       variant="outline"
                       size="sm"
                       className="w-full gap-2 text-destructive hover:text-destructive"
-                      onClick={() => toast.warning("Data deletion request submitted")}
+                      onClick={() =>
+                        requestConfirm({
+                          title: "Request data deletion?",
+                          description:
+                            "Submit a request to delete organization data? This action may require admin approval.",
+                          confirmLabel: "Submit request",
+                          destructive: true,
+                          onConfirm: () => toast.warning("Data deletion request submitted"),
+                        })
+                      }
                     >
                       <Trash2 className="h-4 w-4" />
                       Request Data Deletion
                     </Button>
                   </CardContent>
                 </Card>
+                
+                {/* end !isVendorPortal */}
               </div>
             </div>
           </TabsContent>
@@ -687,7 +746,15 @@ export function Settings() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => toast.info(`Edit ${u.name}`)}
+                            onClick={() =>
+                              requestConfirm({
+                                title: `Edit ${u.name}?`,
+                                description: "User editing will connect to your directory API.",
+                                confirmLabel: "Continue",
+                                singleAction: true,
+                                onConfirm: () => {},
+                              })
+                            }
                             aria-label={`Edit user ${u.name}`}
                           >
                             <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -696,10 +763,18 @@ export function Settings() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 hover:text-destructive"
-                            onClick={() => {
-                              setUsers((prev) => prev.filter((item) => item.id !== u.id));
-                              toast.success("User removed");
-                            }}
+                            onClick={() =>
+                              requestConfirm({
+                                title: "Remove user?",
+                                description: `Remove ${u.name} from this organization?`,
+                                confirmLabel: "Remove",
+                                destructive: true,
+                                onConfirm: () => {
+                                  setUsers((prev) => prev.filter((item) => item.id !== u.id));
+                                  toast.success("User removed");
+                                },
+                              })
+                            }
                             aria-label={`Remove user ${u.name}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden />
@@ -899,70 +974,232 @@ export function Settings() {
             </div>
           </TabsContent>
 
-          {/* WORKFLOW RULES */}
-          <TabsContent value="workflow" className="mt-0 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Automate work order routing, assignment, and escalation
-            </p>
-            {[
-              {
-                name: "Auto-assign by Category",
-                desc: "Route new WOs to default technician based on service category",
-                active: true,
-              },
-              {
-                name: "Auto-approve Low Priority",
-                desc: 'Automatically approve work orders with priority "Low" and cost under $500',
-                active: false,
-              },
-              {
-                name: "Vendor for HVAC",
-                desc: "Route HVAC work orders to CoolTech HVAC Services when internal technicians are unavailable",
-                active: true,
-              },
-              {
-                name: "Emergency Fast-Track",
-                desc: "Skip approval workflow for emergency work orders",
-                active: true,
-              },
-              {
-                name: "Weekend Restriction",
-                desc: "Block non-emergency WO assignments on weekends without manager override",
-                active: false,
-              },
-            ].map((rule) => (
-              <Card key={rule.name} className="bg-card border-border">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{rule.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {rule.desc}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch defaultChecked={rule.active} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs gap-1"
-                      onClick={() => toast.info(`Editing rule: ${rule.name}`)}
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Edit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => toast.info("Create workflow rule")}
-            >
-              <Plus className="h-4 w-4" />
-              Add Workflow Rule
-            </Button>
+          {/* WORKFLOW / ESCALATION RULES — US-14 */}
+          <TabsContent value="workflow" className="mt-0 space-y-6">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Define escalation rules so overdue work orders automatically notify the right people.
+                {!canConfigureEscalation && (
+                  <span className="ml-1 text-amber-400">You can view rules but only Admin can create or edit them.</span>
+                )}
+              </p>
+            </div>
+
+            {/* Escalation Rules List */}
+            <div className="space-y-3">
+              {escalationRules.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                  <p className="text-sm font-medium">No escalation rules configured</p>
+                  <p className="text-xs text-muted-foreground mt-1">Create a rule to notify managers when work orders are overdue</p>
+                </div>
+              )}
+              {escalationRules.map((rule) => (
+                <Card key={rule.id} className="bg-card border-border">
+                  <CardContent className="p-4 flex items-start gap-4">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium">{rule.name}</p>
+                        <Badge variant="outline" className={cn(
+                          'text-xs capitalize',
+                          rule.priority === 'critical' && 'text-red-400 border-red-400/20 bg-red-400/10',
+                          rule.priority === 'high' && 'text-orange-400 border-orange-400/20 bg-orange-400/10',
+                          rule.priority === 'medium' && 'text-amber-400 border-amber-400/20 bg-amber-400/10',
+                          rule.priority === 'low' && 'text-muted-foreground',
+                        )}>
+                          Level {rule.level} · {rule.priority}
+                        </Badge>
+                        <Badge variant={rule.isActive ? 'default' : 'secondary'} className="text-xs">
+                          {rule.isActive ? 'Active' : 'Paused'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Triggers after <strong>{rule.triggerHours}h</strong> overdue · Escalate to: <strong>{rule.escalateTo || 'Facility Manager'}</strong>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Notify via: {rule.method.join(', ')}
+                      </p>
+                    </div>
+                    {canConfigureEscalation && (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Switch
+                          checked={rule.isActive}
+                          onCheckedChange={(checked) =>
+                            setEscalationRules((prev) =>
+                              prev.map((r) => r.id === rule.id ? { ...r, isActive: checked } : r)
+                            )
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs gap-1"
+                          onClick={() =>
+                            requestConfirm({
+                              title: `Test "${rule.name}"?`,
+                              description: `Send a test notification to "${rule.escalateTo || 'Facility Manager'}" to verify the rule fires correctly.`,
+                              confirmLabel: 'Send test',
+                              onConfirm: () => toast.success('Test notification sent'),
+                            })
+                          }
+                        >
+                          Test
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:text-destructive"
+                          onClick={() =>
+                            requestConfirm({
+                              title: 'Delete rule?',
+                              description: `Remove the "${rule.name}" escalation rule?`,
+                              confirmLabel: 'Delete',
+                              destructive: true,
+                              onConfirm: () =>
+                                setEscalationRules((prev) => prev.filter((r) => r.id !== rule.id)),
+                            })
+                          }
+                          aria-label="Delete rule"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Create Rule */}
+            {canConfigureEscalation && (
+              <>
+                {!showEscalationCreate ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setShowEscalationCreate(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Escalation Rule
+                  </Button>
+                ) : (
+                  <Card className="bg-card border-border border-dashed">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium">New Escalation Rule</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Rule name *</Label>
+                          <Input
+                            placeholder="e.g. Critical overdue alert"
+                            value={escalationForm.name}
+                            onChange={(e) => setEscalationForm((p) => ({ ...p, name: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Trigger after (hours) *</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={escalationForm.triggerHours}
+                            onChange={(e) => setEscalationForm((p) => ({ ...p, triggerHours: Number(e.target.value) }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Priority level</Label>
+                          <Select
+                            value={escalationForm.priority}
+                            onValueChange={(v) => setEscalationForm((p) => ({ ...p, priority: v as EscalationRule['priority'] }))}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="critical">Critical</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="low">Low</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Escalation level</Label>
+                          <Select
+                            value={String(escalationForm.level)}
+                            onValueChange={(v) => setEscalationForm((p) => ({ ...p, level: Number(v) }))}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Level 1 (Manager)</SelectItem>
+                              <SelectItem value="2">Level 2 (Director)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Escalate to (name or email)</Label>
+                        <Input
+                          placeholder="e.g. Facility Manager, director@company.com"
+                          value={escalationForm.escalateTo}
+                          onChange={(e) => setEscalationForm((p) => ({ ...p, escalateTo: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Notification method</Label>
+                        <div className="flex flex-wrap gap-3">
+                          {(['in_app', 'email', 'sms'] as const).map((method) => (
+                            <label key={method} className="flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={escalationForm.method.includes(method)}
+                                onChange={(e) =>
+                                  setEscalationForm((p) => ({
+                                    ...p,
+                                    method: e.target.checked
+                                      ? [...p.method, method]
+                                      : p.method.filter((m) => m !== method),
+                                  }))
+                                }
+                                className="rounded"
+                              />
+                              {method === 'in_app' ? 'In-App' : method.toUpperCase()}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          disabled={!escalationForm.name || !escalationForm.triggerHours}
+                          onClick={() => {
+                            const newRule: EscalationRule = {
+                              id: `esc-${Date.now()}`,
+                              name: escalationForm.name,
+                              triggerHours: escalationForm.triggerHours,
+                              priority: escalationForm.priority,
+                              escalateTo: escalationForm.escalateTo || 'Facility Manager',
+                              method: escalationForm.method.length ? escalationForm.method : ['in_app'],
+                              isActive: true,
+                              level: escalationForm.level,
+                            }
+                            setEscalationRules((prev) => [...prev, newRule])
+                            toast.success('Escalation rule created')
+                            setEscalationForm({ name: '', triggerHours: 24, priority: 'high', escalateTo: '', method: ['in_app'], level: 1 })
+                            setShowEscalationCreate(false)
+                          }}
+                        >
+                          Create Rule
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setShowEscalationCreate(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
           </TabsContent>
 
           {/* AUDIT LOG */}
@@ -1110,20 +1347,45 @@ export function Settings() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-              An email invitation will be sent with a link to set up their
-              account. The link expires in 48 hours.
+            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+              In production this link is emailed automatically. For demo, copy the accept URL
+              after sending and share it with the invitee (expires in 7 days).
             </div>
+            {lastInviteUrl ? (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <Label className="text-xs">Accept invitation link</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={lastInviteUrl} className="text-xs font-mono" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(lastInviteUrl)
+                      toast.success('Link copied to clipboard')
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInvite(false)}>
-              Cancel
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowInvite(false)
+                setLastInviteUrl(null)
+              }}
+            >
+              {lastInviteUrl ? 'Done' : 'Cancel'}
             </Button>
             <Button
               onClick={handleInvite}
               disabled={!inviteForm.name || !inviteForm.email}
             >
-              Send Invitation
+              {lastInviteUrl ? 'Send another' : 'Create invitation'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1162,7 +1424,17 @@ export function Settings() {
               <Button variant="outline" onClick={() => setShowRoleDetail(null)}>
                 Close
               </Button>
-              <Button onClick={() => toast.info("Permissions editor coming next")}>
+              <Button
+                onClick={() =>
+                  requestConfirm({
+                    title: "Permissions editor",
+                    description: "Role permissions editor will be available in a future release.",
+                    confirmLabel: "OK",
+                    singleAction: true,
+                    onConfirm: () => {},
+                  })
+                }
+              >
                 Edit Permissions
               </Button>
             </DialogFooter>

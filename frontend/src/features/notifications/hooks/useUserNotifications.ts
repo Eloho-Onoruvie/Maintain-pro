@@ -15,12 +15,14 @@ import {
   loadNotificationsForUser,
   persistNotifications,
 } from '../services/notifications.service'
+import { registerNotificationRefresh } from '../services/notificationEvents'
 
 interface NotificationsStore {
   userId: string | null
   role: UserRole | null
   notifications: Notification[]
   syncForUser: (userId: string, role: UserRole) => void
+  refresh: () => void
   markRead: (id: string) => void
   markAllRead: () => void
   deleteNotification: (id: string) => void
@@ -32,15 +34,17 @@ const useNotificationsStore = create<NotificationsStore>((set, get) => ({
   notifications: [],
 
   syncForUser: (userId, role) => {
-    const current = get()
-    if (current.userId === userId && current.role === role && current.notifications.length > 0) {
-      return
-    }
     set({
       userId,
       role,
       notifications: loadNotificationsForUser(userId, role),
     })
+  },
+
+  refresh: () => {
+    const { userId, role } = get()
+    if (!userId || !role) return
+    set({ notifications: loadNotificationsForUser(userId, role) })
   },
 
   markRead: (id) => {
@@ -67,6 +71,10 @@ const useNotificationsStore = create<NotificationsStore>((set, get) => ({
     set({ notifications: next })
   },
 }))
+
+registerNotificationRefresh(() => {
+  useNotificationsStore.getState().refresh()
+})
 
 function resolveActionUrl(actionUrl: string | undefined, role: UserRole): string | undefined {
   if (!actionUrl) return undefined

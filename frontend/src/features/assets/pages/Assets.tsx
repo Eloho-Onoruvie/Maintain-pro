@@ -59,10 +59,11 @@ import { AssetHistoryDialog } from "@/features/assets/components/AssetHistoryDia
 import { EditAssetDialog } from "@/features/assets/components/EditAssetDialog";
 import { ExportAssetsDialog } from "@/features/assets/components/ExportAssetsDialog";
 import { ImportAssetsDialog } from "@/features/assets/components/ImportAssetsDialog";
-import { AssetAdvancedFiltersSheet } from "@/features/assets/components/AssetAdvancedFiltersSheet";
+import { AssetAdvancedFiltersDialog } from "@/features/assets/components/AssetAdvancedFiltersDialog";
+import { useActionConfirm } from "@/hooks/useActionConfirm";
 import { useAssets } from "../hooks/useAssets";
 import type { Asset } from "@/types/common.types";
-import { mockAssets, mockLocations } from "../services/assets.service";
+import { useMockDataStore } from "@/services/mockDataStore";
 import type { AssetStatus } from "@/types/common.types";
 import { cn } from "@/utils/helpers";
 import { formatDate } from "@/utils/formatDate";
@@ -113,16 +114,18 @@ const statusConfig: Record<
 export function Assets() {
   const [searchParams] = useSearchParams();
   const assetsPath = usePortalPath("assets");
-  const { isMaintenanceReadOnly } = useRoleAccess();
+  const { canManageAssets, isAssignedAssetsOnly } = useRoleAccess();
   const locationFromQuery = searchParams.get("location");
+  const allAssets = useMockDataStore((s) => s.assets)
+  const mockLocations = useMockDataStore((s) => s.locations)
   const { assets, stats, filters, setFilters, isLoading, error, refetch } = useAssets(
     locationFromQuery ? { locationId: locationFromQuery } : {},
   );
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const manufacturers = useMemo(
     () =>
-      [...new Set(mockAssets.map((a) => a.manufacturer).filter(Boolean) as string[])].sort(),
-    [],
+      [...new Set(allAssets.map((a) => a.manufacturer).filter(Boolean) as string[])].sort(),
+    [allAssets],
   );
   const advancedFilterCount = [
     filters.locationId,
@@ -152,28 +155,43 @@ export function Assets() {
     description: "",
   });
 
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm();
+  const readOnly = !canManageAssets;
+
   const handleSave = () => {
-    // In production: call assetsService.create(form)
-    toast.success("Asset registered");
-    setShowCreate(false);
-    setForm({
-      name: "",
-      category: "",
-      model: "",
-      serialNumber: "",
-      manufacturer: "",
-      locationId: "",
-      status: "active",
-      purchaseCost: "",
-      warrantyExpiry: "",
-      installDate: "",
-      description: "",
+    requestConfirm({
+      title: "Register asset?",
+      description: `Register "${form.name}" and add it to your asset registry.`,
+      confirmLabel: "Register",
+      onConfirm: () => {
+        toast.success("Asset registered");
+        setShowCreate(false);
+        setForm({
+          name: "",
+          category: "",
+          model: "",
+          serialNumber: "",
+          manufacturer: "",
+          locationId: "",
+          status: "active",
+          purchaseCost: "",
+          warrantyExpiry: "",
+          installDate: "",
+          description: "",
+        });
+      },
     });
   };
 
   return (
     <div className="flex flex-col bg-background">
-      <EditAssetDialog asset={editAsset} open={!!editAsset} onOpenChange={(o) => !o && setEditAsset(null)} />
+      {ActionConfirmDialog}
+      <EditAssetDialog
+        asset={editAsset}
+        open={!!editAsset}
+        onOpenChange={(o) => !o && setEditAsset(null)}
+        onSaved={() => refetch()}
+      />
       <AssetHistoryDialog asset={historyAsset} open={!!historyAsset} onOpenChange={(o) => !o && setHistoryAsset(null)} />
       <ImportAssetsDialog
         open={showImport}
@@ -184,9 +202,9 @@ export function Assets() {
         open={showExport}
         onOpenChange={setShowExport}
         filteredAssets={assets}
-        allAssets={mockAssets}
+        allAssets={allAssets}
       />
-      <AssetAdvancedFiltersSheet
+      <AssetAdvancedFiltersDialog
         open={showAdvancedFilters}
         onOpenChange={setShowAdvancedFilters}
         filters={filters}
@@ -206,12 +224,16 @@ export function Assets() {
         }}
       />
       <AppHeader
-        title="Assets"
-        subtitle="Manage all equipment and infrastructure"
+        title={isAssignedAssetsOnly ? "My Assets" : "Assets"}
+        subtitle={
+          isAssignedAssetsOnly
+            ? "Equipment on your active work orders"
+            : "Manage all equipment and infrastructure"
+        }
         hideQuickCreate
         actions={
           <>
-            {!isMaintenanceReadOnly && (
+            {!readOnly && (
               <Button
                 variant="outline"
                 size="sm"
@@ -231,7 +253,7 @@ export function Assets() {
               <FileUp className="h-4 w-4" />
               Export
             </Button>
-            {!isMaintenanceReadOnly && (
+            {!readOnly && (
               <Button
                 size="sm"
                 className="gap-2"
@@ -469,14 +491,21 @@ export function Assets() {
                           <DropdownMenuItem asChild>
                             <Link to={`${assetsPath}/${asset.id}`}>View Details</Link>
                           </DropdownMenuItem>
-                          {!isMaintenanceReadOnly && (
+                          {!readOnly && (
                             <>
                               <DropdownMenuItem onClick={() => setEditAsset(asset)}>
                                 Edit Asset
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="gap-2"
-                                onClick={() => toast.success(`QR generated for ${asset.name}`)}
+                                onClick={() =>
+                                  requestConfirm({
+                                    title: "Generate QR code?",
+                                    description: `Generate a QR code label for ${asset.name}.`,
+                                    confirmLabel: "Generate",
+                                    onConfirm: () => toast.success(`QR generated for ${asset.name}`),
+                                  })
+                                }
                               >
                                 <QrCode className="h-4 w-4" />
                                 Generate QR
@@ -503,8 +532,8 @@ export function Assets() {
               icon={Cpu}
               title="No assets found"
               description="Adjust filters or register a new asset."
-              actionLabel={!isMaintenanceReadOnly ? "Add asset" : undefined}
-              onAction={!isMaintenanceReadOnly ? () => setShowCreate(true) : undefined}
+              actionLabel={!readOnly ? "Add asset" : undefined}
+              onAction={!readOnly ? () => setShowCreate(true) : undefined}
             />
           )}
         </Card>

@@ -33,16 +33,14 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import {
-  mockLocations,
-  mockAssets,
-  mockUsers,
-} from "../services/workOrders.service";
+import { mockUsers } from "../services/workOrders.service";
+import { useMockDataStore } from "@/services/mockDataStore";
 import { format } from "date-fns";
 import { cn } from "@/utils/helpers";
 import { useAuthStore } from "@/app/store";
 import { usePortalPath } from "@/hooks/usePortal";
 import { toast } from "sonner";
+import type { WorkOrder, WorkOrderPriority, WorkOrderType } from "@/types/common.types";
 
 export function CreateWorkOrder() {
   const navigate = useNavigate()
@@ -50,6 +48,9 @@ export function CreateWorkOrder() {
   const [isLoading, setIsLoading] = useState(false);
   const [dueDate, setDueDate] = useState<Date>();
   const user = useAuthStore((state) => state.user);
+  const locations = useMockDataStore((s) => s.locations)
+  const assets = useMockDataStore((s) => s.assets)
+  const addWorkOrder = useMockDataStore((s) => s.addWorkOrder)
 
   const isManager = user?.role === "facility_manager" || user?.role === "admin";
 
@@ -67,7 +68,34 @@ export function CreateWorkOrder() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const location = locations.find((l) => l.id === formData.locationId)
+    const asset = assets.find((a) => a.id === formData.assetId)
+    const assignee = mockUsers.find((u) => u.id === formData.assigneeId)
+    const now = new Date()
+    const id = `WO-${now.getFullYear()}-${String(Date.now()).slice(-4)}`
+    const workOrder: WorkOrder = {
+      id,
+      title: formData.title,
+      description: formData.description,
+      type: 'reactive' as WorkOrderType,
+      status: assignee ? 'assigned' : 'open',
+      priority: (formData.priority || 'medium') as WorkOrderPriority,
+      category: formData.category,
+      locationId: formData.locationId,
+      locationName: location?.name ?? '',
+      assetId: formData.assetId || undefined,
+      assetName: asset?.name,
+      assigneeId: assignee?.id,
+      assigneeName: assignee?.name,
+      requesterId: user?.id ?? 'user-1',
+      requesterName: user ? `${user.firstName} ${user.lastName}` : 'Requester',
+      dueDate,
+      createdAt: now,
+      updatedAt: now,
+      estimatedCost: formData.estimatedCost ? Number(formData.estimatedCost) : undefined,
+    }
+    addWorkOrder(workOrder)
+    setIsLoading(false)
     toast.success('Work order created successfully')
     navigate(workOrdersPath)
   };
@@ -229,7 +257,7 @@ export function CreateWorkOrder() {
                         <SelectValue placeholder="Select location" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockLocations.map((loc) => (
+                        {locations.map((loc) => (
                           <SelectItem key={loc.id} value={loc.id}>
                             {loc.name}
                           </SelectItem>
@@ -249,7 +277,7 @@ export function CreateWorkOrder() {
                         <SelectValue placeholder="Select asset" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockAssets.map((asset) => (
+                        {assets.map((asset) => (
                           <SelectItem key={asset.id} value={asset.id}>
                             {asset.name}
                           </SelectItem>

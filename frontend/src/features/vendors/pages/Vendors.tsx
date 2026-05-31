@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { useActionConfirm } from '@/hooks/useActionConfirm'
 import { AppHeader } from '@/components/navigation/Navbar'
 import { EditVendorDialog } from '@/features/vendors/components/EditVendorDialog'
 import { ViewVendorDialog } from '@/features/vendors/components/ViewVendorDialog'
@@ -25,6 +26,7 @@ import { formatDate, getDaysUntil } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import type { VendorStatus } from '@/types/common.types'
 import { toast } from 'sonner'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
 
 const SERVICE_CATEGORIES = ['Electrical','Plumbing','HVAC','Cleaning','Pest Control','Fire Safety','Elevator','Security','Gas','Sewage','General']
 
@@ -46,6 +48,8 @@ function RatingStars({ value, max = 5 }: { value: number; max?: number }) {
 }
 
 export function Vendors() {
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
+  const { canManageVendors } = useRoleAccess()
   const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -62,7 +66,8 @@ export function Vendors() {
     slaResponseTime: '', slaResolutionTime: '', taxId: '', notes: ''
   })
 
-  const vendors = useMemo(() => mockVendors.filter(v => {
+  const [allVendors, setAllVendors] = useState<Vendor[]>(() => mockVendors)
+  const vendors = useMemo(() => allVendors.filter(v => {
     if (statusFilter !== 'all' && v.status !== statusFilter) return false
     if (categoryFilter !== 'all' && !v.serviceCategories?.includes(categoryFilter)) return false
     if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false
@@ -70,15 +75,16 @@ export function Vendors() {
   }), [search, categoryFilter, statusFilter])
 
   const stats = {
-    total: mockVendors.length,
-    active: mockVendors.filter(v => v.status === 'active').length,
-    expiringSoon: mockVendors.filter(v => v.contractEnd && getDaysUntil(v.contractEnd) <= 30 && getDaysUntil(v.contractEnd) >= 0).length,
-    avgRating: (mockVendors.reduce((s, v) => s + v.rating, 0) / mockVendors.length).toFixed(1),
-    totalSpend: mockVendors.reduce((s, v) => s + (v.totalSpend || 0), 0),
+    total: allVendors.length,
+    active: allVendors.filter(v => v.status === 'active').length,
+    expiringSoon: allVendors.filter(v => v.contractEnd && getDaysUntil(v.contractEnd) <= 30 && getDaysUntil(v.contractEnd) >= 0).length,
+    avgRating: (allVendors.reduce((s, v) => s + v.rating, 0) / allVendors.length).toFixed(1),
+    totalSpend: allVendors.reduce((s, v) => s + (v.totalSpend || 0), 0),
   }
 
   return (
     <div className="flex flex-col bg-background">
+      {ActionConfirmDialog}
       <ViewVendorDialog
         vendor={viewVendor}
         open={!!viewVendor}
@@ -90,7 +96,15 @@ export function Vendors() {
           }
         }}
       />
-      <EditVendorDialog vendor={editVendor} open={!!editVendor} onOpenChange={(o) => !o && setEditVendor(null)} />
+      <EditVendorDialog
+        vendor={editVendor}
+        open={!!editVendor}
+        onOpenChange={(o) => !o && setEditVendor(null)}
+        onSaved={(updated) => {
+          setAllVendors((prev) => prev.map((v) => (v.id === updated.id ? updated : v)))
+          setEditVendor(null)
+        }}
+      />
       <ConfirmDialog
         open={!!renewVendor}
         onOpenChange={(o) => !o && setRenewVendor(null)}
@@ -119,9 +133,11 @@ export function Vendors() {
         subtitle="Manage service providers, contracts & performance"
         hideQuickCreate
         actions={
-          <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> Add Vendor
-          </Button>
+          canManageVendors ? (
+            <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" /> Add Vendor
+            </Button>
+          ) : undefined
         }
       />
 
@@ -210,8 +226,20 @@ export function Vendors() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setViewVendor(v)}>View Details</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setEditVendor(v)}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast.info(`Invoices for ${v.name} — coming soon`)}>View Invoices</DropdownMenuItem>
+                              {canManageVendors && (<DropdownMenuItem onClick={() => setEditVendor(v)}>Edit</DropdownMenuItem>)}
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  requestConfirm({
+                                    title: 'Vendor invoices',
+                                    description: `Invoice history for ${v.name} will be available in a future release.`,
+                                    confirmLabel: 'OK',
+                                    singleAction: true,
+                                    onConfirm: () => {},
+                                  })
+                                }
+                              >
+                                View Invoices
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setRenewVendor(v)}>Renew Contract</DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeactivateVendor(v)}>Deactivate</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -316,7 +344,7 @@ export function Vendors() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setViewVendor(v)}>View Details</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setEditVendor(v)}>Edit</DropdownMenuItem>
+                              {canManageVendors && (<DropdownMenuItem onClick={() => setEditVendor(v)}>Edit</DropdownMenuItem>)}
                               <DropdownMenuItem onClick={() => setRenewVendor(v)}>Renew Contract</DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeactivateVendor(v)}>Deactivate</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -412,10 +440,17 @@ export function Vendors() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button
-              onClick={() => {
-                setShowCreate(false)
-                toast.success('Vendor added')
-              }}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Add vendor?',
+                  description: `Add ${form.name} to your vendor directory?`,
+                  confirmLabel: 'Add vendor',
+                  onConfirm: () => {
+                    setShowCreate(false)
+                    toast.success('Vendor added')
+                  },
+                })
+              }
               disabled={!form.name || !form.email || !form.phone}
             >
               Add Vendor

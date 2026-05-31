@@ -89,7 +89,7 @@ export function WorkOrders() {
   const [searchParams] = useSearchParams()
   const workOrdersPath = usePortalPath('work-orders')
   const newWorkOrderPath = usePortalPath('work-orders/new')
-  const { canCreateWorkOrder, isMaintenanceReadOnly } = useRoleAccess()
+  const { canCreateWorkOrder, canEditWorkOrder, canDeleteWorkOrder, canAssignWorkOrder } = useRoleAccess()
   const { openEdit, openAssign, openDelete, modals } = useWorkOrderModals()
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
   const { workOrders: filteredOrders, stats, filters, setFilters, isLoading, error, refetch } =
@@ -344,12 +344,14 @@ export function WorkOrders() {
                           <DropdownMenuItem asChild>
                             <Link to={`${workOrdersPath}/${order.id}`}>View Details</Link>
                           </DropdownMenuItem>
-                          {!isMaintenanceReadOnly && (
-                            <>
-                              <DropdownMenuItem onClick={() => openEdit(order)}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openAssign(order)}>Assign</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => openDelete(order)}>Delete</DropdownMenuItem>
-                            </>
+                          {canEditWorkOrder && (
+                            <DropdownMenuItem onClick={() => openEdit(order)}>Edit</DropdownMenuItem>
+                          )}
+                          {canAssignWorkOrder && (
+                            <DropdownMenuItem onClick={() => openAssign(order)}>Assign</DropdownMenuItem>
+                          )}
+                          {canDeleteWorkOrder && (
+                            <DropdownMenuItem className="text-destructive" onClick={() => openDelete(order)}>Delete</DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>

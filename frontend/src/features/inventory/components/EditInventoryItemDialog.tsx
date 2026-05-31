@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { InventoryItem } from '@/types/common.types'
 
 const CATEGORIES = ['HVAC', 'Electrical', 'Plumbing', 'Fire Safety', 'Elevator', 'General', 'Cleaning', 'Security']
@@ -30,6 +31,7 @@ interface EditInventoryItemDialogProps {
 }
 
 export function EditInventoryItemDialog({ item, open, onOpenChange }: EditInventoryItemDialogProps) {
+  const updateInventoryItem = useMockDataStore((s) => s.updateInventoryItem)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -58,7 +60,15 @@ export function EditInventoryItemDialog({ item, open, onOpenChange }: EditInvent
     e.preventDefault()
     if (!item) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
+    updateInventoryItem(item.id, {
+      name: form.name,
+      sku: form.sku,
+      category: form.category,
+      quantity: Number(form.quantity),
+      minStock: Number(form.minStock),
+      unitPrice: Number(form.unitPrice),
+      supplier: form.supplier || undefined,
+    })
     setSaving(false)
     toast.success(`${item.name} updated`)
     onOpenChange(false)

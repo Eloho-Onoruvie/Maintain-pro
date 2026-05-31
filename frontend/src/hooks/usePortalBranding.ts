@@ -16,6 +16,6 @@ export function usePortalBranding(): string {
     return `${user.department.trim()} Portal`
   }
 
-  if (portal === PORTALS.TECH) return 'Technician Portal'
+  // TECH portal removed — org technicians are in PORTALS.ORG
   return 'Vendor Portal'
 }

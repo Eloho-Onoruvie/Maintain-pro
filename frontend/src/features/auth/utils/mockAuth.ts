@@ -10,12 +10,27 @@ function resolveSignupRole(payload: RegisterPayload): User['role'] {
   }
 
   switch (payload.signupType) {
-    case 'technician':
-      return USER_ROLES.TECHNICIAN
     case 'vendor':
-      return USER_ROLES.VENDOR
+      return USER_ROLES.VENDOR_TEAM_LEAD
     default:
       return USER_ROLES.FACILITY_MANAGER
+  }
+}
+
+function mockProfileForRole(role: User['role']): Pick<User, 'id' | 'firstName' | 'lastName' | 'department'> {
+  switch (role) {
+    case USER_ROLES.ADMIN:
+      return { id: 'user-admin', firstName: 'James', lastName: 'Park', department: 'IT' }
+    case USER_ROLES.FACILITY_MANAGER:
+      return { id: 'user-1', firstName: 'Sarah', lastName: 'Chen', department: 'Operations' }
+    case USER_ROLES.TECHNICIAN:
+      return { id: 'user-2', firstName: 'Mike', lastName: 'Rodriguez', department: 'Maintenance' }
+    case USER_ROLES.FINANCE:
+      return { id: 'user-3', firstName: 'Emily', lastName: 'Watson', department: 'Finance' }
+    case USER_ROLES.VENDOR_TEAM_LEAD:
+      return { id: 'vendor-1', firstName: 'David', lastName: 'Lee', department: 'ProTech HVAC Services' }
+    default:
+      return { id: 'staff-1', firstName: 'John', lastName: 'Smith', department: 'General' }
   }
 }
 
@@ -27,14 +42,15 @@ export function createMockLoginSession(credentials: LoginCredentials): { user: U
   if (email.includes('admin')) role = USER_ROLES.ADMIN
   else if (email.includes('manager')) role = USER_ROLES.FACILITY_MANAGER
   else if (email.includes('tech')) role = USER_ROLES.TECHNICIAN
-  else if (email.includes('vendor')) role = USER_ROLES.VENDOR
+  else if (email.includes('vtech')) role = USER_ROLES.VENDOR_TECHNICIAN
+  else if (email.includes('vendor')) role = USER_ROLES.VENDOR_TEAM_LEAD
   else if (email.includes('finance')) role = USER_ROLES.FINANCE
+
+  const profile = mockProfileForRole(role)
 
   return {
     user: {
-      id: 'mock-user',
-      firstName: 'Demo',
-      lastName: 'User',
+      ...profile,
       email: credentials.email,
       role,
       isActive: true,

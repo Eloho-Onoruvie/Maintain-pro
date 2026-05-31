@@ -1,4 +1,4 @@
-export type SignupType = 'organization' | 'technician' | 'vendor'
+export type SignupType = 'organization' | 'vendor'
 
 export interface LoginCredentials {
   email: string
@@ -15,10 +15,6 @@ export interface RegisterPayload {
   company?: string
   role?: string
   industry?: string
-  /** Technician-specific */
-  trade?: string
-  yearsExperience?: string
-  inviteCode?: string
   /** Vendor-specific */
   businessName?: string
   serviceCategories?: string[]
@@ -41,6 +37,33 @@ export interface AuthUser {
 
 export const SIGNUP_PATHS = {
   organization: '/signup/organization',
-  technician: '/signup/technician',
   vendor: '/signup/vendor',
 } as const
+
+/** Sent by an Admin/FM to invite an internal org member */
+export interface InvitePayload {
+  email: string
+  role: string
+  firstName?: string
+  lastName?: string
+  department?: string
+  message?: string
+}
+
+/** Submitted by the invitee when they accept via the email link */
+export interface AcceptInvitePayload {
+  token: string
+  firstName: string
+  lastName: string
+  password: string
+}
+
+/** Shape returned when validating an invite token */
+export interface InviteTokenInfo {
+  token: string
+  email: string
+  role: string
+  organizationName: string
+  inviterName: string
+  expiresAt: number
+}

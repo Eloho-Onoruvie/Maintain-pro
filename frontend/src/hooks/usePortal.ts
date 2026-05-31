@@ -22,6 +22,12 @@ export function usePortal(): Portal {
 }
 
 export function usePortalPath(segment = ''): string {
+  const { pathname } = useLocation()
+  const user = useAuthStore((state) => state.user)
   const portal = usePortal()
-  return buildPortalPath(portal, segment || '/dashboard')
+
+  return useMemo(() => {
+    if (!user) return buildPortalPath(portal, segment || '/dashboard')
+    return buildPortalPath(user.role, segment || '/dashboard')
+  }, [pathname, user, portal, segment])
 }

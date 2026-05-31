@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bell,
   Camera,
@@ -35,7 +35,8 @@ const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
   facility_manager: 'Facility Manager',
   technician: 'Technician',
-  vendor: 'Vendor',
+  vendor_team_lead: 'Vendor Team Lead',
+  vendor_technician: 'Vendor Technician',
   staff: 'Staff',
   finance: 'Finance',
 }
@@ -43,6 +44,7 @@ const roleLabels: Record<UserRole, string> = {
 export function UserProfile() {
   const user = useAuthStore((state) => state.user)
   const updateUser = useAuthStore((state) => state.updateUser)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -143,6 +145,28 @@ export function UserProfile() {
                 <CardDescription>Visible in the header and sidebar</CardDescription>
               </CardHeader>
               <CardContent className="flex items-center gap-4">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error('Image must be under 2 MB')
+                      return
+                    }
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      const dataUrl = reader.result as string
+                      updateUser({ avatar: dataUrl })
+                      toast.success('Profile photo updated')
+                    }
+                    reader.readAsDataURL(file)
+                    e.target.value = ''
+                  }}
+                />
                 <div className="relative">
                   <Avatar className="h-20 w-20">
                     <AvatarImage src={user.avatar} />
@@ -154,7 +178,7 @@ export function UserProfile() {
                     variant="secondary"
                     className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
                     aria-label="Change profile photo"
-                    onClick={() => toast.info('Photo upload will connect to your account API')}
+                    onClick={() => photoInputRef.current?.click()}
                   >
                     <Camera className="h-4 w-4" />
                   </Button>

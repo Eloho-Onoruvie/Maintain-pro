@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 
-import { mockWorkOrders } from '../services/dashboard.service'
+import type { WorkOrder } from '@/types/common.types'
+import { getWorkOrders } from '@/services/mockDataStore'
 import {
   buildCategoryBreakdown,
   buildCostTrend,
@@ -11,17 +12,20 @@ import {
   type DashboardDateRange,
 } from '../utils/dashboardDateRange'
 
-export function useDashboardDateRange(range: DashboardDateRange) {
-  const referenceDate = useMemo(() => getDashboardReferenceDate(mockWorkOrders), [])
+export function useDashboardDateRange(
+  range: DashboardDateRange,
+  workOrders: WorkOrder[] = getWorkOrders(),
+) {
+  const referenceDate = useMemo(() => getDashboardReferenceDate(workOrders), [workOrders])
 
   const workOrdersInRange = useMemo(
-    () => filterWorkOrdersByRange(mockWorkOrders, range, referenceDate),
-    [range, referenceDate],
+    () => filterWorkOrdersByRange(workOrders, range, referenceDate),
+    [range, referenceDate, workOrders],
   )
 
   const stats = useMemo(
-    () => computeDashboardStats(mockWorkOrders, range, referenceDate),
-    [range, referenceDate],
+    () => computeDashboardStats(workOrders, range, referenceDate),
+    [range, referenceDate, workOrders],
   )
 
   const activeWorkOrders = useMemo(

@@ -14,7 +14,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { mockPMs, mockAssets, mockLocations, mockUsers } from '@/features/dashboard/services/dashboard.service'
+import { mockUsers } from '@/features/dashboard/services/dashboard.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import { formatDate, getDaysUntil } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
@@ -22,7 +23,10 @@ import { AppHeader } from '@/components/navigation/Navbar'
 import { EditPMScheduleDialog } from '@/features/preventive-maintenance/components/EditPMScheduleDialog'
 import { SkipPMScheduleDialog } from '@/features/preventive-maintenance/components/SkipPMScheduleDialog'
 import type { PMFrequency, PreventiveMaintenance as PMSchedule } from '@/types/common.types'
+import { useActionConfirm } from '@/hooks/useActionConfirm'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
 import { toast } from 'sonner'
+import type { WorkOrder } from '@/types/common.types'
 
 const freqColors: Record<PMFrequency | string, string> = {
   daily:     'bg-red-400/10 text-red-400 border-red-400/20',
@@ -33,7 +37,7 @@ const freqColors: Record<PMFrequency | string, string> = {
   custom:    'bg-muted text-muted-foreground border-border',
 }
 
-function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
+function CalendarView({ schedules }: { schedules: PMSchedule[] }) {
   const today = new Date()
   const [current, setCurrent] = useState(today)
 
@@ -43,7 +47,7 @@ function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   const cellEvents = useMemo(() => {
-    const map: Record<number, typeof mockPMs> = {}
+    const map: Record<number, PMSchedule[]> = {}
     schedules.forEach(s => {
       const d = new Date(s.nextDue)
       if (d.getFullYear() === year && d.getMonth() === month) {
@@ -116,6 +120,10 @@ function CalendarView({ schedules }: { schedules: typeof mockPMs }) {
 }
 
 export function PreventiveMaintenance() {
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
+  const { canManagePm } = useRoleAccess()
+  const addWorkOrder = useMockDataStore((s) => s.addWorkOrder)
+  const updatePm = useMockDataStore((s) => s.updatePm)
   const [showCreate, setShowCreate] = useState(false)
   const [editSchedule, setEditSchedule] = useState<PMSchedule | null>(null)
   const [skipSchedule, setSkipSchedule] = useState<PMSchedule | null>(null)
@@ -130,6 +138,10 @@ export function PreventiveMaintenance() {
     isComplianceRequired: false, regulatoryRef: '',
     checklist: [{ id: '1', text: '', isCompleted: false }]
   })
+
+  const mockPMs = useMockDataStore((s) => s.pms)
+  const mockAssets = useMockDataStore((s) => s.assets)
+  const mockLocations = useMockDataStore((s) => s.locations)
 
   const filtered = mockPMs.filter(pm => {
     if (search && !pm.title.toLowerCase().includes(search.toLowerCase())) return false
@@ -151,6 +163,7 @@ export function PreventiveMaintenance() {
 
   return (
     <div className="flex flex-col bg-background">
+      {ActionConfirmDialog}
       <EditPMScheduleDialog schedule={editSchedule} open={!!editSchedule} onOpenChange={(o) => !o && setEditSchedule(null)} />
       <SkipPMScheduleDialog schedule={skipSchedule} open={!!skipSchedule} onOpenChange={(o) => !o && setSkipSchedule(null)} />
       <ConfirmDialog
@@ -185,7 +198,31 @@ export function PreventiveMaintenance() {
         description={generateWoSchedule ? `Create a work order from "${generateWoSchedule.title}"?` : ''}
         confirmLabel="Generate"
         onConfirm={() => {
-          if (generateWoSchedule) toast.success(`Generated work order from ${generateWoSchedule.title}`)
+          if (!generateWoSchedule) return
+          const wo: WorkOrder = {
+            id: `WO-${Date.now().toString().slice(-6)}`,
+            title: `PM: ${generateWoSchedule.title}`,
+            description: generateWoSchedule.description ?? generateWoSchedule.title,
+            type: 'preventive',
+            status: 'open',
+            priority: 'medium',
+            category: 'Preventive Maintenance',
+            locationId: generateWoSchedule.locationId,
+            locationName: generateWoSchedule.locationName,
+            assetId: generateWoSchedule.assetId,
+            assetName: generateWoSchedule.assetName,
+            assigneeId: generateWoSchedule.assigneeId,
+            assigneeName: generateWoSchedule.assigneeName,
+            requesterId: 'user-1',
+            requesterName: 'Facility Manager',
+            dueDate: new Date(generateWoSchedule.nextDue),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            estimatedCost: generateWoSchedule.estimatedCost,
+          }
+          addWorkOrder(wo)
+          updatePm(generateWoSchedule.id, { lastCompleted: new Date() })
+          toast.success(`Work order ${wo.id} created from schedule`)
           setGenerateWoSchedule(null)
         }}
       />
@@ -194,9 +231,11 @@ export function PreventiveMaintenance() {
         subtitle="Schedules, compliance tracking & auto work order generation"
         hideQuickCreate
         actions={
-          <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> Create Schedule
-          </Button>
+          canManagePm ? (
+            <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" /> Create Schedule
+            </Button>
+          ) : undefined
         }
       />
 
@@ -283,7 +322,14 @@ export function PreventiveMaintenance() {
                           size="sm"
                           variant="outline"
                           className="gap-1.5 h-8"
-                          onClick={() => toast.success(`Started schedule ${pm.title}`)}
+                          onClick={() =>
+                            requestConfirm({
+                              title: 'Start PM schedule?',
+                              description: `Start "${pm.title}" and generate work for this cycle?`,
+                              confirmLabel: 'Start',
+                              onConfirm: () => toast.success(`Started schedule ${pm.title}`),
+                            })
+                          }
                         >
                           <Play className="h-3.5 w-3.5"/>Start
                         </Button>
@@ -299,11 +345,18 @@ export function PreventiveMaintenance() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2" onClick={() => setGenerateWoSchedule(pm)}><Play className="h-4 w-4"/>Generate Work Order</DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2" onClick={() => setSkipSchedule(pm)}><SkipForward className="h-4 w-4"/>Skip (with reason)</DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2" onClick={() => setToggleSchedule(pm)}>{pm.isActive ? <><Pause className="h-4 w-4"/>Pause Schedule</> : <><Play className="h-4 w-4"/>Resume Schedule</>}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setEditSchedule(pm)}>Edit Schedule</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteSchedule(pm)}>Delete</DropdownMenuItem>
+                            {canManagePm && (
+                              <>
+                                <DropdownMenuItem className="gap-2" onClick={() => setGenerateWoSchedule(pm)}><Play className="h-4 w-4"/>Generate Work Order</DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2" onClick={() => setSkipSchedule(pm)}><SkipForward className="h-4 w-4"/>Skip (with reason)</DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2" onClick={() => setToggleSchedule(pm)}>{pm.isActive ? <><Pause className="h-4 w-4"/>Pause Schedule</> : <><Play className="h-4 w-4"/>Resume Schedule</>}</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditSchedule(pm)}>Edit Schedule</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => setDeleteSchedule(pm)}>Delete</DropdownMenuItem>
+                              </>
+                            )}
+                            {!canManagePm && (
+                              <DropdownMenuItem disabled>View Only</DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -426,10 +479,17 @@ export function PreventiveMaintenance() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button
-              onClick={() => {
-                setShowCreate(false)
-                toast.success('PM schedule created')
-              }}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Create PM schedule?',
+                  description: `Create preventive maintenance schedule "${form.title}"?`,
+                  confirmLabel: 'Create',
+                  onConfirm: () => {
+                    setShowCreate(false)
+                    toast.success('PM schedule created')
+                  },
+                })
+              }
               disabled={!form.title || !form.assetId}
             >
               Create Schedule

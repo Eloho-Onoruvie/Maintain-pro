@@ -2,6 +2,8 @@ export interface DashboardStats {
   totalWorkOrders: number
   openWorkOrders: number
   completedThisMonth: number
+  dueToday: number
+  completedThisWeek: number
   overdueWorkOrders: number
   pmCompliance: number
   avgResponseTime: string

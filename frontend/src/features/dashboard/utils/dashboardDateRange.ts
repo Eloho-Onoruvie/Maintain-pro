@@ -15,15 +15,9 @@ export const DASHBOARD_RANGE_LABELS: Record<DashboardDateRange, string> = {
   '90d': 'Last 90 days',
 }
 
-/** Anchor ranges to the newest activity in mock data so filters stay meaningful in dev. */
-export function getDashboardReferenceDate(workOrders: WorkOrder[]): Date {
-  if (workOrders.length === 0) return new Date()
-  const latest = Math.max(
-    ...workOrders.map((wo) =>
-      Math.max(new Date(wo.updatedAt).getTime(), new Date(wo.createdAt).getTime()),
-    ),
-  )
-  return new Date(latest)
+/** Use today so 7d / 30d / 90d filters produce different KPIs and charts. */
+export function getDashboardReferenceDate(_workOrders?: WorkOrder[]): Date {
+  return new Date()
 }
 
 export function getRangeBounds(range: DashboardDateRange, referenceDate: Date) {
@@ -62,6 +56,28 @@ export function computeDashboardStats(
   const openStatuses = new Set(['open', 'assigned', 'in_progress', 'pending'])
   const openWorkOrders = inRange.filter((wo) => openStatuses.has(wo.status)).length
   const completedThisMonth = inRange.filter((wo) => wo.status === 'completed').length
+
+  const startOfToday = new Date(now)
+  startOfToday.setHours(0, 0, 0, 0)
+  const endOfToday = new Date(now)
+  endOfToday.setHours(23, 59, 59, 999)
+  const dueToday = workOrders.filter(
+    (wo) =>
+      wo.dueDate &&
+      wo.dueDate >= startOfToday &&
+      wo.dueDate <= endOfToday &&
+      wo.status !== 'completed' &&
+      wo.status !== 'cancelled',
+  ).length
+
+  const weekStart = new Date(now)
+  weekStart.setDate(weekStart.getDate() - 7)
+  const completedThisWeek = workOrders.filter(
+    (wo) =>
+      (wo.status === 'completed' || wo.status === 'verified') &&
+      new Date(wo.updatedAt) >= weekStart,
+  ).length
+
   const overdueWorkOrders = inRange.filter(
     (wo) =>
       wo.dueDate &&
@@ -89,6 +105,8 @@ export function computeDashboardStats(
     totalWorkOrders: inRange.length,
     openWorkOrders,
     completedThisMonth,
+    dueToday,
+    completedThisWeek,
     overdueWorkOrders,
     pmCompliance,
     avgResponseTime: '2.3 hrs',

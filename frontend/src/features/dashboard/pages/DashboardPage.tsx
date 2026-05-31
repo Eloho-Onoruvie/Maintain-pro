@@ -22,7 +22,8 @@ export default function DashboardPage() {
     case USER_ROLES.STAFF:
       return <StaffDashboard />;
 
-    case USER_ROLES.VENDOR:
+    case USER_ROLES.VENDOR_TEAM_LEAD:
+    case USER_ROLES.VENDOR_TECHNICIAN:
       return <VendorDashboard />;
 
     case USER_ROLES.FINANCE:

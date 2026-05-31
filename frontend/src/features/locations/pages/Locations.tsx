@@ -13,11 +13,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { mockLocations } from '@/features/dashboard/services/dashboard.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { Location } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
 import { usePortalPath } from '@/hooks/usePortal'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
+import { useActionConfirm } from '@/hooks/useActionConfirm'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
 import { AppHeader } from '@/components/navigation/Navbar'
 import { EditLocationDialog } from '@/features/locations/components/EditLocationDialog'
 
@@ -50,6 +52,7 @@ interface LocationNodeProps {
   node: Location & { children: Location[] }
   depth?: number
   locationsPath: string
+  canManage?: boolean
   onAddChild: (location: Location) => void
   onEdit: (location: Location) => void
   onViewDetails: (location: Location) => void
@@ -61,6 +64,7 @@ function LocationNode({
   node,
   depth = 0,
   locationsPath,
+  canManage,
   onAddChild,
   onEdit,
   onViewDetails,
@@ -121,18 +125,24 @@ function LocationNode({
               <DropdownMenuItem className="gap-2" onClick={() => onViewDetails(node)}>
                 <MapPin className="h-4 w-4" />View details
               </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2" onClick={() => onAddChild(node)}>
-                <Plus className="h-4 w-4" />Add Child Location
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2" onClick={() => onEdit(node)}>
-                <Pencil className="h-4 w-4" />Edit
-              </DropdownMenuItem>
+              {canManage && (
+                <DropdownMenuItem className="gap-2" onClick={() => onAddChild(node)}>
+                  <Plus className="h-4 w-4" />Add Child Location
+                </DropdownMenuItem>
+              )}
+              {canManage && (
+                <DropdownMenuItem className="gap-2" onClick={() => onEdit(node)}>
+                  <Pencil className="h-4 w-4" />Edit
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="gap-2" onClick={() => onViewAssets(node.id)}>
                 <Wrench className="h-4 w-4" />View Assets
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive gap-2" onClick={() => onDelete(node)}>
-                <Trash2 className="h-4 w-4" />Delete
-              </DropdownMenuItem>
+              {canManage && (
+                <DropdownMenuItem className="text-destructive gap-2" onClick={() => onDelete(node)}>
+                  <Trash2 className="h-4 w-4" />Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -159,7 +169,9 @@ function LocationNode({
 }
 
 export function Locations() {
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
   const navigate = useNavigate()
+  const { canManageLocations } = useRoleAccess()
   const assetsPath = usePortalPath('assets')
   const locationsPath = usePortalPath('locations')
   const [search, setSearch] = useState('')
@@ -167,18 +179,26 @@ export function Locations() {
   const [form, setForm] = useState({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
   const [editLocation, setEditLocation] = useState<Location | null>(null)
   const [deleteLocation, setDeleteLocation] = useState<Location | null>(null)
+  const mockLocations = useMockDataStore((s) => s.locations)
 
   const handleAddLocation = () => {
-    toast.success(`Added location "${form.name}"`)
-    setShowCreate(false)
-    setForm({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
+    requestConfirm({
+      title: 'Add location?',
+      description: `Add "${form.name}" to the facility hierarchy?`,
+      confirmLabel: 'Add location',
+      onConfirm: () => {
+        toast.success(`Added location "${form.name}"`)
+        setShowCreate(false)
+        setForm({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
+      },
+    })
   }
 
   const locationActions = {
+    canManage: canManageLocations,
     onAddChild: (loc: Location) => {
       setForm((p) => ({ ...p, parentId: loc.id }))
       setShowCreate(true)
-      toast.info(`Add child under ${loc.name}`)
     },
     onEdit: (loc: Location) => setEditLocation(loc),
     onViewDetails: (loc: Location) => navigate(`${locationsPath}/${loc.id}`),
@@ -200,6 +220,7 @@ export function Locations() {
 
   return (
     <div className="flex flex-col bg-background">
+      {ActionConfirmDialog}
       <EditLocationDialog location={editLocation} open={!!editLocation} onOpenChange={(o) => !o && setEditLocation(null)} />
       <ConfirmDialog
         open={!!deleteLocation}
@@ -218,9 +239,11 @@ export function Locations() {
         subtitle="Facility hierarchy — sites, buildings, floors & rooms"
         hideQuickCreate
         actions={
-          <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> Add Location
-          </Button>
+          canManageLocations ? (
+            <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" /> Add Location
+            </Button>
+          ) : undefined
         }
       />
 

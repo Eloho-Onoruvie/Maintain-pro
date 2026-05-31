@@ -4,6 +4,7 @@ import {
   getDefaultPathForRole,
   getPortalForRole,
   isRoleAllowedInPortal,
+  resolveRoleFromSegment,
   type Portal,
 } from '@/app/portal.config'
 import { useAuthStore } from '@/app/store'
@@ -13,9 +14,15 @@ interface PortalRouteProps {
   children: React.ReactNode
 }
 
-/** Ensures the authenticated user belongs to the requested portal */
+/**
+ * Ensures:
+ * 1. User is authenticated
+ * 2. User belongs to this portal
+ * 3. The role segment in the URL matches the user's actual role
+ */
 export default function PortalRoute({ portal, children }: PortalRouteProps) {
   const user = useAuthStore((state) => state.user)
+  const { roleSegment } = useParams<{ roleSegment: string }>()
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -25,7 +32,16 @@ export default function PortalRoute({ portal, children }: PortalRouteProps) {
     return <Navigate to={getDefaultPathForRole(user.role)} replace />
   }
 
-  return children
+  // If the URL role segment doesn't match the logged-in user's role, redirect
+  // to their correct segment so URLs stay canonical
+  if (roleSegment) {
+    const expectedRole = resolveRoleFromSegment(portal, roleSegment)
+    if (!expectedRole || expectedRole !== user.role) {
+      return <Navigate to={getDefaultPathForRole(user.role)} replace />
+    }
+  }
+
+  return <>{children}</>
 }
 
 export function RootRedirect() {
@@ -43,7 +59,7 @@ interface LegacyPortalRedirectProps {
   segment: string
 }
 
-/** Redirect legacy flat routes to portal-prefixed routes */
+/** Redirect legacy /app/org/... and bare /dashboard routes */
 export function LegacyPortalRedirect({ segment }: LegacyPortalRedirectProps) {
   const user = useAuthStore((state) => state.user)
   const token = useAuthStore((state) => state.token)
@@ -52,10 +68,8 @@ export function LegacyPortalRedirect({ segment }: LegacyPortalRedirectProps) {
     return <Navigate to="/login" replace />
   }
 
-  const portal = getPortalForRole(user.role)
   const path = segment.startsWith('/') ? segment : `/${segment}`
-
-  return <Navigate to={`/app/${portal}${path}`} replace />
+  return <Navigate to={`${getDefaultPathForRole(user.role).replace('/dashboard', '')}${path}`} replace />
 }
 
 export function LegacyWorkOrderDetailRedirect() {
@@ -64,8 +78,8 @@ export function LegacyWorkOrderDetailRedirect() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  const portal = getPortalForRole(user.role)
-  return <Navigate to={`/app/${portal}/work-orders/${id}`} replace />
+  const base = getDefaultPathForRole(user.role).replace('/dashboard', '')
+  return <Navigate to={`${base}/work-orders/${id}`} replace />
 }
 
 export function LegacyAssetDetailRedirect() {
@@ -74,6 +88,6 @@ export function LegacyAssetDetailRedirect() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  const portal = getPortalForRole(user.role)
-  return <Navigate to={`/app/${portal}/assets/${id}`} replace />
+  const base = getDefaultPathForRole(user.role).replace('/dashboard', '')
+  return <Navigate to={`${base}/assets/${id}`} replace />
 }

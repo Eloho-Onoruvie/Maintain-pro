@@ -63,7 +63,8 @@ export function AppSidebar({ portal, onNavigate }: AppSidebarProps) {
     return undefined
   }
 
-  const hrefFor = (segment: string) => buildPortalPath(portal, `/${segment}`)
+  const hrefFor = (segment: string) =>
+    user ? buildPortalPath(user.role, `/${segment}`) : buildPortalPath(portal, `/${segment}`)
 
   const renderNavItem = (item: (typeof navConfig.primary)[number]) => {
     const href = hrefFor(item.segment)

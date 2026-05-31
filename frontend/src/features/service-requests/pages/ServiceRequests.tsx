@@ -14,13 +14,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { mockServiceRequests, mockLocations } from '@/features/dashboard/services/dashboard.service'
+import { useAuthStore } from '@/app/store'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
+import { appendNotification } from '@/features/notifications/services/notificationEvents'
+import { useMockDataStore } from '@/services/mockDataStore'
+import { scopeServiceRequestsForUser } from '@/features/dashboard/utils/roleScope'
+import { USER_ROLES } from '@/types/user.types'
 import { formatRelativeDate, formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { AppHeader } from '@/components/navigation/Navbar'
 import { usePortalPath } from '@/hooks/usePortal'
+import { ServiceRequestAdvancedFiltersDialog } from '@/features/service-requests/components/ServiceRequestAdvancedFiltersDialog'
+import type { ServiceRequestAdvancedFilters } from '@/features/service-requests/components/ServiceRequestAdvancedFiltersDialog'
 import { ViewServiceRequestDialog } from '@/features/service-requests/components/ViewServiceRequestDialog'
+import { useActionConfirm } from '@/hooks/useActionConfirm'
 import type { ServiceRequest, ServiceRequestStatus, WorkOrderPriority } from '@/types/common.types'
 
 const SERVICE_CATEGORIES = ['Electrical','Plumbing','HVAC','Cleaning','Pest Control','Fire Safety','Elevators','Security','Gas','Sewage','General Repairs']
@@ -56,6 +64,12 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
 
 export function ServiceRequests() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const serviceRequests = useMockDataStore((s) => s.serviceRequests)
+  const locations = useMockDataStore((s) => s.locations)
+  const addServiceRequest = useMockDataStore((s) => s.addServiceRequest)
+  const updateServiceRequest = useMockDataStore((s) => s.updateServiceRequest)
+  const { canConvertServiceRequest, canSubmitServiceRequest, canRateServiceRequest } = useRoleAccess()
   const newWorkOrderPath = usePortalPath('work-orders/new')
   const [showSubmit, setShowSubmit] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -63,6 +77,13 @@ export function ServiceRequests() {
   const [viewRequest, setViewRequest] = useState<ServiceRequest | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [advancedFilters, setAdvancedFilters] = useState<ServiceRequestAdvancedFilters>({})
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
+  const advancedFilterCount = [
+    advancedFilters.priority,
+    advancedFilters.category,
+    advancedFilters.locationId,
+  ].filter(Boolean).length
   const [ratingValue, setRatingValue] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
   const [form, setForm] = useState({
@@ -70,51 +91,117 @@ export function ServiceRequests() {
     locationId: '', isGuest: false, guestContact: ''
   })
 
-  const filtered = useMemo(() => mockServiceRequests.filter(r => {
+  const visibleRequests = useMemo(
+    () => scopeServiceRequestsForUser(user, serviceRequests),
+    [user, serviceRequests],
+  )
+
+  const filtered = useMemo(() => visibleRequests.filter(r => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false
+    if (advancedFilters.priority && r.priority !== advancedFilters.priority) return false
+    if (advancedFilters.category && r.category !== advancedFilters.category) return false
+    if (advancedFilters.locationId && r.locationId !== advancedFilters.locationId) return false
     if (search && !r.title.toLowerCase().includes(search.toLowerCase()) && !r.id.toLowerCase().includes(search.toLowerCase())) return false
     return true
-  }), [search, statusFilter])
+  }), [search, statusFilter, advancedFilters, visibleRequests])
 
   const stats = {
-    total: mockServiceRequests.length,
-    submitted: mockServiceRequests.filter(r => r.status === 'submitted').length,
-    inProgress: mockServiceRequests.filter(r => r.status === 'in_progress').length,
-    resolved: mockServiceRequests.filter(r => r.status === 'resolved').length,
+    total: visibleRequests.length,
+    submitted: visibleRequests.filter(r => r.status === 'submitted').length,
+    inProgress: visibleRequests.filter(r => r.status === 'in_progress').length,
+    resolved: visibleRequests.filter(r => r.status === 'resolved').length,
     avgRating: (() => {
-      const rated = mockServiceRequests.filter(r => r.rating)
+      const rated = visibleRequests.filter(r => r.rating)
       return rated.length ? (rated.reduce((s,r) => s + (r.rating || 0), 0) / rated.length).toFixed(1) : '—'
     })(),
   }
 
   const handleSubmit = () => {
-    toast.success('Service request submitted')
-    setShowSubmit(false)
-    setForm({ title: '', category: '', description: '', priority: 'medium', locationId: '', isGuest: false, guestContact: '' })
+    requestConfirm({
+      title: 'Submit service request?',
+      description: `Submit "${form.title || 'this request'}" for review by your facilities team.`,
+      confirmLabel: 'Submit',
+      onConfirm: () => {
+        const loc = locations.find((l) => l.id === form.locationId)
+        const id = `SR-${Date.now().toString().slice(-6)}`
+        addServiceRequest({
+          id,
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          status: 'submitted',
+          priority: form.priority,
+          requesterId: user?.id ?? 'staff-1',
+          requesterName: user ? `${user.firstName} ${user.lastName}` : 'Staff',
+          requesterEmail: user?.email ?? '',
+          locationId: form.locationId,
+          locationName: loc?.name ?? 'Unknown',
+          createdAt: new Date(),
+        })
+        appendNotification('user-1', USER_ROLES.FACILITY_MANAGER, {
+          type: 'maintenance',
+          title: 'New service request',
+          message: `${form.title} (${id})`,
+          actionUrl: 'service-requests',
+        })
+        toast.success(`Request submitted — confirmation #${id}`)
+        setShowSubmit(false)
+        setForm({ title: '', category: '', description: '', priority: 'medium', locationId: '', isGuest: false, guestContact: '' })
+      },
+    })
   }
 
   const handleConvert = (reqId: string, title: string) => {
-    toast.success(`Converting ${reqId} to work order`)
-    navigate(`${newWorkOrderPath}?from=${encodeURIComponent(reqId)}&title=${encodeURIComponent(title)}`)
+    requestConfirm({
+      title: 'Convert to work order?',
+      description: `Create a work order from ${reqId} (${title})?`,
+      confirmLabel: 'Convert',
+      onConfirm: () => {
+        toast.success(`Converting ${reqId} to work order`)
+        navigate(`${newWorkOrderPath}?from=${encodeURIComponent(reqId)}&title=${encodeURIComponent(title)}`)
+      },
+    })
   }
 
   const handleRateSubmit = () => {
-    toast.success('Thank you for your feedback')
-    setShowRate(null)
-    setRatingValue(0)
-    setRatingComment('')
+    requestConfirm({
+      title: 'Submit rating?',
+      description: 'Send your feedback for this resolved service request.',
+      confirmLabel: 'Submit rating',
+      onConfirm: () => {
+        if (showRate) {
+          updateServiceRequest(showRate, {
+            rating: ratingValue,
+            feedback: ratingComment,
+          })
+        }
+        toast.success('Thank you for your feedback')
+        setShowRate(null)
+        setRatingValue(0)
+        setRatingComment('')
+      },
+    })
   }
 
   return (
     <div className="flex flex-col bg-background">
+      {ActionConfirmDialog}
+      <ServiceRequestAdvancedFiltersDialog
+        open={showFilters}
+        onOpenChange={setShowFilters}
+        filters={advancedFilters}
+        onApply={setAdvancedFilters}
+      />
       <AppHeader
         title="Service Requests"
         subtitle="Submit, track and manage maintenance requests"
         hideQuickCreate
         actions={
-          <Button size="sm" className="gap-2" onClick={() => setShowSubmit(true)}>
-            <Plus className="h-4 w-4" /> Submit Request
-          </Button>
+          canSubmitServiceRequest ? (
+            <Button size="sm" className="gap-2" onClick={() => setShowSubmit(true)}>
+              <Plus className="h-4 w-4" /> Submit Request
+            </Button>
+          ) : undefined
         }
       />
 
@@ -151,8 +238,23 @@ export function ServiceRequests() {
               {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" aria-label="Open advanced service request filters">
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative"
+            aria-label={
+              advancedFilterCount > 0
+                ? `Advanced filters, ${advancedFilterCount} active`
+                : 'Open advanced service request filters'
+            }
+            onClick={() => setShowFilters(true)}
+          >
             <Filter className="h-4 w-4" aria-hidden />
+            {advancedFilterCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                {advancedFilterCount}
+              </span>
+            )}
           </Button>
         </div>
 
@@ -161,8 +263,10 @@ export function ServiceRequests() {
           {filtered.map(req => {
             const s = statusConfig[req.status]
             const Icon = s.icon
-            const canConvert = req.status === 'reviewed' || req.status === 'approved'
-            const canRate = req.status === 'resolved' && !req.rating
+            const canConvert =
+              canConvertServiceRequest &&
+              (req.status === 'reviewed' || req.status === 'approved')
+            const canRate = canRateServiceRequest && req.status === 'resolved' && !req.rating
             return (
               <Card key={req.id} className="bg-card border-border hover:border-border/80 transition-colors">
                 <CardContent className="p-4">
@@ -185,6 +289,14 @@ export function ServiceRequests() {
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 text-xs"
+                        onClick={() => setViewRequest(req)}
+                      >
+                        View
+                      </Button>
                       {canRate && (
                         <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => setShowRate(req.id)}>
                           <Star className="h-3.5 w-3.5" />Rate
@@ -197,16 +309,6 @@ export function ServiceRequests() {
                           onClick={() => handleConvert(req.id, req.title)}
                         >
                           <ArrowRight className="h-3.5 w-3.5" />Convert to WO
-                        </Button>
-                      )}
-                      {!canConvert && !canRate && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 text-xs"
-                          onClick={() => setViewRequest(req)}
-                        >
-                          View
                         </Button>
                       )}
                     </div>
@@ -260,7 +362,7 @@ export function ServiceRequests() {
               <Label className="text-xs">Location *</Label>
               <Select value={form.locationId} onValueChange={v => setForm(p => ({ ...p, locationId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                <SelectContent>{mockLocations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -271,7 +373,15 @@ export function ServiceRequests() {
             <button
               type="button"
               className="flex w-full items-center justify-center gap-3 rounded-lg border border-dashed border-border p-3 text-muted-foreground transition-colors hover:bg-muted/30"
-              onClick={() => toast.info('Photo upload will be available when connected to the API')}
+              onClick={() =>
+                requestConfirm({
+                  title: 'Add photo?',
+                  description: 'Photo upload will be available when connected to the API.',
+                  confirmLabel: 'OK',
+                  singleAction: true,
+                  onConfirm: () => {},
+                })
+              }
             >
               <Camera className="h-5 w-5" />
               <span className="text-sm">Attach photos (optional)</span>
@@ -295,12 +405,31 @@ export function ServiceRequests() {
             <p className="text-sm text-muted-foreground">{['','Poor','Fair','Good','Very Good','Excellent'][ratingValue] || 'Select a rating'}</p>
             <Textarea placeholder="Optional feedback..." rows={3} value={ratingComment} onChange={e => setRatingComment(e.target.value)} />
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="text-destructive"
+              onClick={() => {
+                if (showRate) {
+                  updateServiceRequest(showRate, { status: 'reopened' })
+                  toast.success('Request reopened for review')
+                }
+                setShowRate(null)
+              }}
+            >
+              Reopen — not satisfied
+            </Button>
             <Button variant="outline" onClick={() => setShowRate(null)}>Skip</Button>
             <Button onClick={handleRateSubmit} disabled={!ratingValue}>Submit Rating</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ViewServiceRequestDialog
+        request={viewRequest}
+        open={!!viewRequest}
+        onOpenChange={(open) => !open && setViewRequest(null)}
+      />
     </div>
   )
 }

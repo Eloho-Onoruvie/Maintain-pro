@@ -74,9 +74,38 @@ export function KPICard({ title, value, change, changeLabel, icon, variant = 'de
               </div>
             )}
           </div>
-          <div className={cn('rounded-lg p-2.5', variantStyles[variant])}>
-            <Icon className="h-5 w-5" />
-          </div>
+          {icon === 'compliance' ? (
+            <div className="relative flex h-14 w-14 items-center justify-center shrink-0">
+              <svg className="h-full w-full -rotate-90">
+                {/* Background track */}
+                <circle
+                  cx="28"
+                  cy="28"
+                  r="22"
+                  className="stroke-muted fill-transparent"
+                  strokeWidth="4"
+                />
+                {/* Progress bar */}
+                <circle
+                  cx="28"
+                  cy="28"
+                  r="22"
+                  className="stroke-status-completed fill-transparent transition-all duration-500 ease-in-out"
+                  strokeWidth="4"
+                  strokeDasharray={2 * Math.PI * 22}
+                  strokeDashoffset={2 * Math.PI * 22 * (1 - parseFloat(String(value).replace('%', '')) / 100)}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="absolute text-[10px] font-semibold text-status-completed">
+                {value}
+              </span>
+            </div>
+          ) : (
+            <div className={cn('rounded-lg p-2.5', variantStyles[variant])}>
+              <Icon className="h-5 w-5" />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

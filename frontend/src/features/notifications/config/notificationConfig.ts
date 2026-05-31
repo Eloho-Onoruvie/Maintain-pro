@@ -64,7 +64,8 @@ export const NOTIFICATION_TYPES_BY_ROLE: Record<UserRole, NotificationType[]> = 
     'escalation',
   ],
   [USER_ROLES.TECHNICIAN]: ['work_order', 'maintenance', 'system'],
-  [USER_ROLES.VENDOR]: ['work_order', 'vendor', 'contract', 'approval'],
+  [USER_ROLES.VENDOR_TEAM_LEAD]: ['work_order', 'vendor', 'contract', 'approval'],
+  [USER_ROLES.VENDOR_TECHNICIAN]: ['work_order', 'vendor', 'system'],
   [USER_ROLES.STAFF]: ['work_order', 'maintenance'],
   [USER_ROLES.FINANCE]: ['approval', 'vendor', 'contract', 'work_order', 'inventory'],
 }

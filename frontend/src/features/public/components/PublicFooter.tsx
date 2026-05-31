@@ -1,20 +1,23 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
-import { BrandLogo } from '@/components/brand/BrandLogo'
-import { MaterialIcon } from '@/features/public/components/MaterialIcon'
-import { PUBLIC_ROUTES } from '@/features/public/constants/routes'
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { MaterialIcon } from "@/features/public/components/MaterialIcon";
+import { PUBLIC_ROUTES } from "@/features/public/constants/routes";
 
-type FooterVariant = 'landing' | 'features' | 'about' | 'contact'
+type FooterVariant = "landing" | "features" | "about" | "contact";
 
 interface PublicFooterProps {
-  variant?: FooterVariant
+  variant?: FooterVariant;
 }
 
-export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
-  const showNewsletter = variant === 'landing'
-  const showConnect = variant === 'about' || variant === 'contact' || variant === 'features'
-  const [newsletterState, setNewsletterState] = useState<'idle' | 'success'>('idle')
+export function PublicFooter({ variant = "landing" }: PublicFooterProps) {
+  const showNewsletter = variant === "landing";
+  const showConnect =
+    variant === "about" || variant === "contact" || variant === "features";
+  const [newsletterState, setNewsletterState] = useState<"idle" | "success">(
+    "idle",
+  );
 
   return (
     <footer className="w-full border-t border-border-subtle bg-surface-container-lowest py-12">
@@ -27,18 +30,24 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
             className="mb-6"
           />
           <p className="font-body-md text-body-md text-on-surface-variant">
-            {variant === 'landing' && 'Smarter maintenance infrastructure for modern organizations.'}
-            {variant === 'features' &&
-              'Engineering reliability and transparency into every square foot of your enterprise.'}
-            {variant === 'about' && 'Connecting global maintenance operations with intelligent, unified systems.'}
-            {variant === 'contact' &&
-              'Empowering maintenance professionals with intelligent asset management tools.'}
+            {variant === "landing" &&
+              "Smarter maintenance infrastructure for modern organizations."}
+            {variant === "features" &&
+              "Engineering reliability and transparency into every square foot of your enterprise."}
+            {variant === "about" &&
+              "Connecting global maintenance operations with intelligent, unified systems."}
+            {variant === "contact" &&
+              "Empowering maintenance professionals with intelligent asset management tools."}
           </p>
         </div>
 
         <div>
           <h4 className="mb-6 font-label-md text-label-md font-bold text-on-surface">
-            {variant === 'about' ? 'Product' : variant === 'features' ? 'Solutions' : 'Platform'}
+            {variant === "about"
+              ? "Product"
+              : variant === "features"
+              ? "Solutions"
+              : "Platform"}
           </h4>
           <ul className="space-y-4">
             <li>
@@ -59,14 +68,6 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
             </li>
             <li>
               <Link
-                to={PUBLIC_ROUTES.SIGNUP_TECH}
-                className="text-on-surface-variant underline transition-all hover:text-secondary"
-              >
-                Technicians
-              </Link>
-            </li>
-            <li>
-              <Link
                 to={PUBLIC_ROUTES.SIGNUP_VENDOR}
                 className="text-on-surface-variant underline transition-all hover:text-secondary"
               >
@@ -77,15 +78,17 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
         </div>
 
         <div>
-          <h4 className="mb-6 font-label-md text-label-md font-bold text-on-surface">Company</h4>
+          <h4 className="mb-6 font-label-md text-label-md font-bold text-on-surface">
+            Company
+          </h4>
           <ul className="space-y-4">
             <li>
               <Link
                 to={PUBLIC_ROUTES.ABOUT}
                 className={
-                  variant === 'about'
-                    ? 'font-body-md text-body-md font-bold text-primary'
-                    : 'text-on-surface-variant underline transition-all hover:text-secondary'
+                  variant === "about"
+                    ? "font-body-md text-body-md font-bold text-primary"
+                    : "text-on-surface-variant underline transition-all hover:text-secondary"
                 }
               >
                 About
@@ -112,16 +115,18 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
 
         {showNewsletter && (
           <div>
-            <h4 className="mb-6 font-label-md text-label-md font-bold text-on-surface">Newsletter</h4>
+            <h4 className="mb-6 font-label-md text-label-md font-bold text-on-surface">
+              Newsletter
+            </h4>
             <p className="mb-4 font-body-md text-body-md text-on-surface-variant">
               Stay updated with facility trends.
             </p>
             <form
               className="flex gap-2"
               onSubmit={(e) => {
-                e.preventDefault()
-                setNewsletterState('success')
-                window.setTimeout(() => setNewsletterState('idle'), 2500)
+                e.preventDefault();
+                setNewsletterState("success");
+                window.setTimeout(() => setNewsletterState("idle"), 2500);
               }}
             >
               <input
@@ -134,10 +139,10 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
                 type="submit"
                 className="rounded-lg bg-primary px-4 py-2 font-label-sm text-label-sm text-on-primary"
               >
-                {newsletterState === 'success' ? 'Joined' : 'Join'}
+                {newsletterState === "success" ? "Joined" : "Join"}
               </button>
             </form>
-            {newsletterState === 'success' && (
+            {newsletterState === "success" && (
               <p className="mt-2 font-label-sm text-label-sm text-status-success">
                 Thanks for subscribing.
               </p>
@@ -167,17 +172,17 @@ export function PublicFooter({ variant = 'landing' }: PublicFooterProps) {
               </Link>
             </div>
             <p className="mt-8 font-body-md text-body-md text-on-surface-variant opacity-80">
-              © 2024 MaintainPro Inc. All rights reserved.
+              © 2026 MaintainPro Inc. All rights reserved.
             </p>
           </div>
         )}
       </div>
 
-      {(showNewsletter || variant === 'features') && (
+      {(showNewsletter || variant === "features") && (
         <div className="mx-auto mt-12 max-w-max-width border-t border-border-subtle px-gutter-desktop pt-8 text-center font-body-md text-body-md text-on-surface-variant">
-          © 2024 MaintainPro Inc. All rights reserved.
+          © 2026 MaintainPro Inc. All rights reserved.
         </div>
       )}
     </footer>
-  )
+  );
 }

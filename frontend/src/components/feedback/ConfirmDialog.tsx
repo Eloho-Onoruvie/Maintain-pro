@@ -18,6 +18,8 @@ interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  /** When true, only the primary button is shown (acknowledgement dialogs). */
+  singleAction?: boolean
   onConfirm: () => void
 }
 
@@ -29,6 +31,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   destructive = false,
+  singleAction = false,
   onConfirm,
 }: ConfirmDialogProps) {
   return (
@@ -39,7 +42,7 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+          {!singleAction ? <AlertDialogCancel>{cancelLabel}</AlertDialogCancel> : null}
           <AlertDialogAction
             className={cn(destructive && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}
             onClick={onConfirm}

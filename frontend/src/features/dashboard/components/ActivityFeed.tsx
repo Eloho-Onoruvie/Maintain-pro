@@ -4,11 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ArrowRight, Clock, MapPin } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
 import { Link } from 'react-router-dom'
 import { usePortalPath } from '@/hooks/usePortal'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface WorkOrderListProps {
   workOrders: WorkOrder[]
@@ -67,58 +75,62 @@ export function WorkOrderList({ workOrders, title = 'Recent Work Orders', showVi
         )}
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-border">
-          {displayOrders.map((order) => (
-            <Link
-              key={order.id}
-              to={`${workOrdersPath}/${order.id}`}
-              className="flex items-start gap-4 p-4 transition-colors hover:bg-accent/50"
-            >
-              <div className="flex-1 space-y-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground line-clamp-1">
-                      {order.title}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-mono">{order.id}</span>
-                      <span>•</span>
-                      <span>{order.category}</span>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className={cn('shrink-0', priorityStyles[order.priority])}>
-                    {order.priority}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-4 pt-1">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    <span className="line-clamp-1">{order.locationName}</span>
-                  </div>
-                  {order.dueDate && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>Due {new Date(order.dueDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <Badge className={cn('text-xs', statusStyles[order.status])}>
-                  {statusLabels[order.status]}
-                </Badge>
-                {order.assigneeName && (
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                      {order.assigneeName.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            </Link>
-          ))}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Work Order</TableHead>
+                <TableHead className="text-muted-foreground">Priority</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
+                <TableHead className="text-muted-foreground">Assignee</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayOrders.map((order) => (
+                <TableRow key={order.id} className="border-border">
+                  <TableCell>
+                    <Link to={`${workOrdersPath}/${order.id}`} className="block group">
+                      <p className="font-medium text-foreground transition-colors line-clamp-1 group-hover:text-foreground/90">
+                        {order.title}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        <span className="font-mono">{order.id}</span>
+                        <span>•</span>
+                        <span>{order.category}</span>
+                      </div>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn('capitalize text-xs', priorityStyles[order.priority])}>
+                      {order.priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={cn('text-xs', statusStyles[order.status])}>
+                      {statusLabels[order.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {order.assigneeName ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                            {order.assigneeName.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{order.assigneeName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Unassigned</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>
   )
 }
+

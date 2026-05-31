@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { PMFrequency, PreventiveMaintenance } from '@/types/common.types'
 
 const FREQUENCIES: PMFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']
@@ -31,6 +32,7 @@ interface EditPMScheduleDialogProps {
 }
 
 export function EditPMScheduleDialog({ schedule, open, onOpenChange }: EditPMScheduleDialogProps) {
+  const updatePm = useMockDataStore((s) => s.updatePm)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -53,7 +55,12 @@ export function EditPMScheduleDialog({ schedule, open, onOpenChange }: EditPMSch
     e.preventDefault()
     if (!schedule) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
+    updatePm(schedule.id, {
+      title: form.title,
+      description: form.description,
+      frequency: form.frequency,
+      isActive: form.isActive,
+    })
     setSaving(false)
     toast.success(`Schedule "${schedule.title}" updated`)
     onOpenChange(false)

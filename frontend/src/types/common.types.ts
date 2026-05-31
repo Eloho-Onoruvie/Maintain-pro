@@ -73,6 +73,28 @@ export interface WorkOrder {
   slaTarget?: number;
   slaBreached?: boolean;
   completionNotes?: string;
+  /** Vendor portal: accept/reject assignment */
+  vendorOfferStatus?: "pending_acceptance" | "accepted" | "rejected";
+  vendorRejectReason?: string;
+  proposedSchedule?: Date;
+  linkedServiceRequestId?: string;
+  approvalNotes?: string;
+  rejectionReason?: string;
+  paymentStatus?: "pending" | "approved" | "paid";
+}
+
+export interface VendorInvoice {
+  id: string;
+  workOrderId: string;
+  vendorId: string;
+  vendorName: string;
+  amount: number;
+  estimatedAmount?: number;
+  status: "pending" | "approved" | "rejected" | "paid" | "disputed";
+  submittedAt: Date;
+  paidAt?: Date;
+  invoiceNumber?: string;
+  notes?: string;
 }
 
 export interface Comment {

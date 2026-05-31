@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { useMockDataStore } from '@/services/mockDataStore'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,6 +23,7 @@ interface SkipPMScheduleDialogProps {
 }
 
 export function SkipPMScheduleDialog({ schedule, open, onOpenChange }: SkipPMScheduleDialogProps) {
+  const updatePm = useMockDataStore((s) => s.updatePm)
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -30,6 +32,7 @@ export function SkipPMScheduleDialog({ schedule, open, onOpenChange }: SkipPMSch
     if (!schedule || !reason.trim()) return
     setSaving(true)
     await new Promise((r) => setTimeout(r, 400))
+    updatePm(schedule.id, { lastCompleted: new Date() })
     setSaving(false)
     toast.success(`Skipped ${schedule.title}`)
     setReason('')

@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useActionConfirm } from '@/hooks/useActionConfirm'
 import { toast } from 'sonner'
 import {AppHeader as Navbar } from '@/components/navigation/Navbar'
 import { Button } from '@/components/ui/button'
@@ -37,12 +38,14 @@ import {
   AlertTriangle,
   MessageSquare,
 } from 'lucide-react'
-import { mockWorkOrders, mockUsers } from '../services/workOrders.service'
+import { mockUsers } from '../services/workOrders.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import { WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 import { cn } from '@/utils/helpers'
 import { usePortalPath } from '@/hooks/usePortal'
 import { useRoleAccess } from '@/hooks/useRoleAccess'
 import { useWorkOrderModals } from '@/features/work-orders/hooks/useWorkOrderModals'
+import { WorkOrderRolePanel } from '@/features/work-orders/components/WorkOrderRolePanel'
 
 const priorityStyles: Record<WorkOrderPriority, string> = {
   critical: 'bg-status-critical/10 text-status-critical border-status-critical/20',
@@ -81,10 +84,13 @@ export function WorkOrderDetails() {
   const { id } = useParams()
   const workOrdersPath = usePortalPath('work-orders')
   const assetsPath = usePortalPath('assets')
-  const { isMaintenanceReadOnly } = useRoleAccess()
+  const { canEditWorkOrder, canDeleteWorkOrder, canAssignWorkOrder } = useRoleAccess()
   const { openEdit, openAssign, openDelete, modals } = useWorkOrderModals()
   const [comment, setComment] = useState('')
-  const workOrder = mockWorkOrders.find(wo => wo.id === id) || mockWorkOrders[0]
+  const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
+  const workOrders = useMockDataStore((s) => s.workOrders)
+  const updateWorkOrder = useMockDataStore((s) => s.updateWorkOrder)
+  const workOrder = workOrders.find((wo) => wo.id === id) ?? workOrders[0]
 
   const activities = [
     { 
@@ -112,27 +118,32 @@ export function WorkOrderDetails() {
 
   return (
     <>
+      {ActionConfirmDialog}
       {modals}
       <Navbar
         title={workOrder.id}
         subtitle={workOrder.title}
         hideQuickCreate
         actions={
-          !isMaintenanceReadOnly ? (
+          (canEditWorkOrder || canDeleteWorkOrder) ? (
             <div className="page-actions">
-              <Button variant="outline" size="sm" onClick={() => openEdit(workOrder)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => openDelete(workOrder)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
+              {canEditWorkOrder && (
+                <Button variant="outline" size="sm" onClick={() => openEdit(workOrder)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+              {canDeleteWorkOrder && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => openDelete(workOrder)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              )}
             </div>
           ) : undefined
         }
@@ -151,6 +162,7 @@ export function WorkOrderDetails() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            <WorkOrderRolePanel workOrder={workOrder} />
             {/* Header Card */}
             <Card className="bg-card border-border">
               <CardContent className="p-6">
@@ -184,8 +196,20 @@ export function WorkOrderDetails() {
                   </div>
                   <Select
                     defaultValue={workOrder.status}
-                    disabled={isMaintenanceReadOnly}
-                    onValueChange={(value) => toast.success(`Status updated to ${value.replace('_', ' ')}`)}
+                    disabled={!canEditWorkOrder}
+                    onValueChange={(value) =>
+                      requestConfirm({
+                        title: 'Update work order status?',
+                        description: `Change status to ${value.replace('_', ' ')}?`,
+                        confirmLabel: 'Update status',
+                        onConfirm: () => {
+                          updateWorkOrder(workOrder.id, {
+                            status: value as WorkOrderStatus,
+                          })
+                          toast.success(`Status updated to ${value.replace('_', ' ')}`)
+                        },
+                      })
+                    }
                   >
                     <SelectTrigger className="w-[160px]">
                       <SelectValue placeholder="Update Status" />
@@ -220,7 +244,15 @@ export function WorkOrderDetails() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => toast.info('Photo upload will be available when connected to the API')}
+                  onClick={() =>
+                    requestConfirm({
+                      title: 'Add photo?',
+                      description: 'Photo upload will be available when connected to the API.',
+                      confirmLabel: 'OK',
+                      singleAction: true,
+                      onConfirm: () => {},
+                    })
+                  }
                 >
                   <Camera className="mr-2 h-4 w-4" />
                   Add Photo
@@ -260,10 +292,17 @@ export function WorkOrderDetails() {
                       <Button
                         size="sm"
                         disabled={!comment.trim()}
-                        onClick={() => {
-                          toast.success('Comment posted')
-                          setComment('')
-                        }}
+                        onClick={() =>
+                          requestConfirm({
+                            title: 'Post comment?',
+                            description: 'Add this comment to the work order activity log?',
+                            confirmLabel: 'Post',
+                            onConfirm: () => {
+                              toast.success('Comment posted')
+                              setComment('')
+                            },
+                          })
+                        }
                       >
                         <Send className="mr-2 h-4 w-4" />
                         Send
@@ -322,7 +361,7 @@ export function WorkOrderDetails() {
                       </Avatar>
                       <span className="text-sm font-medium">{workOrder.assigneeName}</span>
                     </div>
-                  ) : (
+                  ) : canAssignWorkOrder ? (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -331,6 +370,8 @@ export function WorkOrderDetails() {
                     >
                       Assign
                     </Button>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Unassigned</span>
                   )}
                 </div>
                 <Separator />

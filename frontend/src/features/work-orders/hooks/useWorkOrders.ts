@@ -1,44 +1,58 @@
 import { useMemo, useState } from 'react'
 
-import { mockDelay, useAsyncResource } from '@/hooks/useAsyncResource'
-
-import { mockWorkOrders } from '../services/workOrders.service'
+import { useAuthStore } from '@/app/store'
+import { usePortal } from '@/hooks/usePortal'
+import { scopeWorkOrdersForUser } from '@/features/dashboard/utils/roleScope'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { WorkOrder } from '@/types/common.types'
 import type { WorkOrderFilters } from '../types/workOrder.types'
 
-async function fetchWorkOrders(): Promise<WorkOrder[]> {
-  await mockDelay()
-  return mockWorkOrders
-}
-
 export function useWorkOrders(initialFilters: WorkOrderFilters = {}) {
   const [filters, setFilters] = useState<WorkOrderFilters>(initialFilters)
-  const { data, isLoading, error, refetch } = useAsyncResource(fetchWorkOrders, [])
+  const allOrders = useMockDataStore((s) => s.workOrders)
+  const user = useAuthStore((state) => state.user)
+  const portal = usePortal()
 
-  const allOrders = data ?? []
+  const scopedOrders = useMemo(
+    () => scopeWorkOrdersForUser(user, portal, allOrders),
+    [allOrders, portal, user],
+  )
 
   const workOrders = useMemo<WorkOrder[]>(() => {
-    return allOrders.filter((order) => {
+    return scopedOrders.filter((order) => {
       if (filters.status && filters.status !== 'all' && order.status !== filters.status) return false
-      if (filters.priority && filters.priority !== 'all' && order.priority !== filters.priority) return false
+      if (filters.priority && filters.priority !== 'all' && order.priority !== filters.priority)
+        return false
       if (filters.search) {
         const q = filters.search.toLowerCase()
         if (!order.title.toLowerCase().includes(q) && !order.id.toLowerCase().includes(q)) return false
       }
       return true
     })
-  }, [allOrders, filters])
+  }, [scopedOrders, filters])
 
   const stats = useMemo(
     () => ({
-      total: allOrders.length,
-      open: allOrders.filter((o) => o.status === 'open').length,
-      inProgress: allOrders.filter((o) => o.status === 'in_progress').length,
-      completed: allOrders.filter((o) => o.status === 'completed').length,
-      critical: allOrders.filter((o) => o.priority === 'critical').length,
+      total: scopedOrders.length,
+      open: scopedOrders.filter((o) => o.status === 'open').length,
+      inProgress: scopedOrders.filter((o) => o.status === 'in_progress').length,
+      completed: scopedOrders.filter((o) => o.status === 'completed').length,
+      critical: scopedOrders.filter((o) => o.priority === 'critical').length,
     }),
-    [allOrders],
+    [scopedOrders],
   )
 
-  return { workOrders, stats, filters, setFilters, isLoading, error, refetch }
+  const refetch = () => {
+    /* store updates trigger re-render automatically */
+  }
+
+  return {
+    workOrders,
+    stats,
+    filters,
+    setFilters,
+    isLoading: false,
+    error: null as Error | null,
+    refetch,
+  }
 }

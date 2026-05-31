@@ -9,7 +9,7 @@ type NotificationSeed = Omit<Notification, 'id' | 'userId' | 'createdAt'> & {
   createdAtOffsetMs: number
 }
 
-const ROLE_NOTIFICATION_SEEDS: Record<UserRole, NotificationSeed[]> = {
+const ROLE_NOTIFICATION_SEEDS: Partial<Record<UserRole, NotificationSeed[]>> = {
   [USER_ROLES.ADMIN]: [
     {
       idSuffix: 'wo-critical',
@@ -184,7 +184,7 @@ const ROLE_NOTIFICATION_SEEDS: Record<UserRole, NotificationSeed[]> = {
       priority: 'normal',
     },
   ],
-  [USER_ROLES.VENDOR]: [
+  [USER_ROLES.VENDOR_TEAM_LEAD]: [
     {
       idSuffix: 'wo-assigned',
       type: 'work_order',
@@ -322,7 +322,7 @@ function storageKey(userId: string): string {
 
 function buildNotificationsForUser(userId: string, role: UserRole): Notification[] {
   const allowedTypes = new Set(getNotificationTypesForRole(role))
-  const seeds = ROLE_NOTIFICATION_SEEDS[role] ?? ROLE_NOTIFICATION_SEEDS[USER_ROLES.STAFF]
+  const seeds = ROLE_NOTIFICATION_SEEDS[role] ?? ROLE_NOTIFICATION_SEEDS[USER_ROLES.STAFF] ?? []
   const now = Date.now()
 
   return seeds

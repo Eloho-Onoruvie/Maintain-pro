@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { useMockDataStore } from '@/services/mockDataStore'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,10 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  mockAssets,
-  mockLocations,
-} from '@/features/work-orders/services/workOrders.service'
 import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
 
 const CATEGORIES = [
@@ -64,6 +61,9 @@ export function EditWorkOrderDialog({
   onOpenChange,
   onSaved,
 }: EditWorkOrderDialogProps) {
+  const locations = useMockDataStore((s) => s.locations)
+  const assets = useMockDataStore((s) => s.assets)
+  const updateWorkOrder = useMockDataStore((s) => s.updateWorkOrder)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -95,8 +95,8 @@ export function EditWorkOrderDialog({
     if (!workOrder) return
     setSaving(true)
     await new Promise((r) => setTimeout(r, 600))
-    const location = mockLocations.find((l) => l.id === form.locationId)
-    const asset = mockAssets.find((a) => a.id === form.assetId)
+    const location = locations.find((l) => l.id === form.locationId)
+    const asset = assets.find((a) => a.id === form.assetId)
     const updated: WorkOrder = {
       ...workOrder,
       title: form.title,
@@ -111,6 +111,7 @@ export function EditWorkOrderDialog({
       estimatedCost: form.estimatedCost ? Number(form.estimatedCost) : undefined,
       updatedAt: new Date(),
     }
+    updateWorkOrder(updated.id, updated)
     setSaving(false)
     toast.success(`${workOrder.id} updated`)
     onSaved?.(updated)
@@ -212,7 +213,7 @@ export function EditWorkOrderDialog({
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
               <SelectContent>
-                {mockLocations.map((loc) => (
+                {locations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
                   </SelectItem>
@@ -231,7 +232,7 @@ export function EditWorkOrderDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">None</SelectItem>
-                {mockAssets.map((asset) => (
+                {assets.map((asset) => (
                   <SelectItem key={asset.id} value={asset.id}>
                     {asset.name}
                   </SelectItem>

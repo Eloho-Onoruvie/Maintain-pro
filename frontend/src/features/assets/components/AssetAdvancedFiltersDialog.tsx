@@ -12,13 +12,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { mockLocations } from '../services/assets.service'
 import type { AssetFilters } from '../types/asset.types'
 
@@ -40,7 +40,7 @@ const emptyAdvanced: AdvancedDraft = {
   maintenanceDue: 'all',
 }
 
-interface AssetAdvancedFiltersSheetProps {
+interface AssetAdvancedFiltersDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   filters: AssetFilters
@@ -48,13 +48,13 @@ interface AssetAdvancedFiltersSheetProps {
   manufacturers: string[]
 }
 
-export function AssetAdvancedFiltersSheet({
+export function AssetAdvancedFiltersDialog({
   open,
   onOpenChange,
   filters,
   onApply,
   manufacturers,
-}: AssetAdvancedFiltersSheetProps) {
+}: AssetAdvancedFiltersDialogProps) {
   const [draft, setDraft] = useState<AdvancedDraft>(emptyAdvanced)
 
   useEffect(() => {
@@ -95,19 +95,19 @@ export function AssetAdvancedFiltersSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col border-border bg-card sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-md">
+        <DialogHeader className="space-y-2 px-6 pt-6 text-left">
+          <DialogTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-primary" />
             Advanced filters
-          </SheetTitle>
-          <SheetDescription>
+          </DialogTitle>
+          <DialogDescription>
             Narrow assets by location, manufacturer, dates, warranty, and maintenance schedule.
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="flex-1 space-y-5 overflow-y-auto py-4">
+        <div className="max-h-[min(55vh,420px)] space-y-5 overflow-y-auto px-6 py-4">
           <div className="space-y-2">
             <Label>Location</Label>
             <Select
@@ -214,16 +214,16 @@ export function AssetAdvancedFiltersSheet({
           </div>
         </div>
 
-        <SheetFooter className="flex-row gap-2 border-t border-border pt-4">
-          <Button type="button" variant="outline" className="flex-1" onClick={reset}>
+        <DialogFooter className="flex-row gap-2 border-t border-border px-6 py-4 sm:justify-end">
+          <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={reset}>
             <RotateCcw className="mr-2 h-4 w-4" />
             Reset
           </Button>
-          <Button type="button" className="flex-1" onClick={apply}>
+          <Button type="button" className="flex-1 sm:flex-none" onClick={apply}>
             Apply filters
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

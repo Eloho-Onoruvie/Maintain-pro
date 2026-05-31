@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockLocations } from '@/features/assets/services/assets.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { Asset, AssetStatus } from '@/types/common.types'
 
 const STATUSES: AssetStatus[] = ['active', 'needs_maintenance', 'under_repair', 'decommissioned', 'down']
@@ -28,9 +28,12 @@ interface EditAssetDialogProps {
   asset: Asset | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: (asset: Asset) => void
 }
 
-export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogProps) {
+export function EditAssetDialog({ asset, open, onOpenChange, onSaved }: EditAssetDialogProps) {
+  const locations = useMockDataStore((s) => s.locations)
+  const updateAsset = useMockDataStore((s) => s.updateAsset)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -59,9 +62,22 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
     e.preventDefault()
     if (!asset) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
+    const location = locations.find((l) => l.id === form.locationId)
+    const updated: Asset = {
+      ...asset,
+      name: form.name,
+      category: form.category,
+      status: form.status,
+      locationId: form.locationId,
+      locationName: location?.name ?? asset.locationName,
+      manufacturer: form.manufacturer || undefined,
+      model: form.model || undefined,
+      serialNumber: form.serialNumber || undefined,
+    }
+    updateAsset(asset.id, updated)
     setSaving(false)
     toast.success(`${asset.name} updated`)
+    onSaved?.(updated)
     onOpenChange(false)
   }
 
@@ -98,7 +114,7 @@ export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogPr
             <Select value={form.locationId} onValueChange={(v) => setForm((p) => ({ ...p, locationId: v }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {mockLocations.map((l) => (
+                {locations.map((l) => (
                   <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                 ))}
               </SelectContent>

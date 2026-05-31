@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Building2, HardHat, Truck, ArrowRight } from 'lucide-react'
+import { Building2, Truck, ArrowRight } from 'lucide-react'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AuthSplitLayout } from '@/features/auth/components/AuthBrandingPanel'
@@ -12,13 +12,6 @@ const SIGNUP_OPTIONS = [
     description: 'For facility managers, admins, and internal operations teams.',
     href: SIGNUP_PATHS.organization,
     icon: Building2,
-  },
-  {
-    type: 'technician' as const,
-    title: 'Technician',
-    description: 'For maintenance staff managing assigned jobs and PM tasks.',
-    href: SIGNUP_PATHS.technician,
-    icon: HardHat,
   },
   {
     type: 'vendor' as const,

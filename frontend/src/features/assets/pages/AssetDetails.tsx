@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, Navigate } from 'react-router-dom'
 import {
   ArrowLeft, QrCode, Edit, FileText, History, Wrench,
   MapPin, Calendar, DollarSign, AlertTriangle, CheckCircle2, Package, Upload
@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { mockAssets } from '../services/assets.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import { formatDate } from '@/utils/formatDate'
 import { AppHeader } from '@/components/navigation/Navbar'
-import { usePortalPath } from '@/hooks/usePortal'
+import { usePortal, usePortalPath } from '@/hooks/usePortal'
+import { useAuthStore } from '@/app/store'
+import { useRoleAccess } from '@/hooks/useRoleAccess'
+import { canAccessAsset } from '@/features/dashboard/utils/roleScope'
 import { cn } from '@/utils/helpers'
 import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
 import { toast } from 'sonner'
@@ -40,7 +43,16 @@ const mockDocs = [
 export function AssetDetails() {
   const { id } = useParams()
   const assetsPath = usePortalPath('assets')
-  const asset = mockAssets.find(a => a.id === id) || mockAssets[0]
+  const portal = usePortal()
+  const user = useAuthStore((state) => state.user)
+  const { isAssignedAssetsOnly } = useRoleAccess()
+  const assets = useMockDataStore((s) => s.assets)
+  const asset = assets.find((a) => a.id === id)
+
+  if (!asset || !canAccessAsset(user, portal, asset.id)) {
+    return <Navigate to={assetsPath} replace />
+  }
+
   const s = statusConfig[asset.status]
   const [showQR, setShowQR] = useState(false)
   const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
@@ -69,9 +81,11 @@ export function AssetDetails() {
             <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowQR(true)}>
               <QrCode className="h-4 w-4" /> QR Code
             </Button>
-            <Button size="sm" className="gap-2">
-              <Edit className="h-4 w-4" /> Edit
-            </Button>
+            {!isAssignedAssetsOnly && (
+              <Button size="sm" className="gap-2">
+                <Edit className="h-4 w-4" /> Edit
+              </Button>
+            )}
           </>
         }
       />

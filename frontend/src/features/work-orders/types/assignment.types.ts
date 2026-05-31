@@ -1,6 +1,6 @@
 export type AssignmentSort = 'proximity' | 'rating' | 'experience'
 
-export type AssignmentPath = 'vendor' | 'independent'
+export type AssignmentPath = 'internal' | 'vendor' | 'independent'
 
 /** Vendor portal account owner (default role on vendor signup) */
 export interface VendorManagerProfile {

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { useMockDataStore } from '@/services/mockDataStore'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -37,6 +38,7 @@ import type {
   IndependentTechnicianOption,
   VendorAssignmentOption,
 } from '@/features/work-orders/types/assignment.types'
+import { mockUsers } from '@/features/dashboard/services/dashboard.service'
 import type { WorkOrder } from '@/types/common.types'
 
 interface AssignWorkOrderDialogProps {
@@ -112,9 +114,15 @@ export function AssignWorkOrderDialog({
   onOpenChange,
   onAssigned,
 }: AssignWorkOrderDialogProps) {
+  const updateWorkOrder = useMockDataStore((s) => s.updateWorkOrder)
   const [saving, setSaving] = useState(false)
   const [sort, setSort] = useState<AssignmentSort>('proximity')
-  const [path, setPath] = useState<AssignmentPath>('vendor')
+  const [path, setPath] = useState<AssignmentPath>('internal')
+  const internalTechnicians = useMemo(
+    () => mockUsers.filter((u) => u.role === 'technician'),
+    [],
+  )
+  const [selectedInternalId, setSelectedInternalId] = useState<string | null>(null)
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
   const [selectedVendorTechId, setSelectedVendorTechId] = useState<string | null>(null)
   const [selectedIndependentId, setSelectedIndependentId] = useState<string | null>(null)
@@ -154,10 +162,14 @@ export function AssignWorkOrderDialog({
     setSelectedVendorTechId(null)
   }, [selectedVendorId])
 
+  const selectedInternal = internalTechnicians.find((t) => t.id === selectedInternalId)
+
   const canSubmit =
-    path === 'vendor'
-      ? Boolean(selectedVendorId && selectedVendorTechId)
-      : Boolean(selectedIndependentId && selectedIndependent?.availability === 'available')
+    path === 'internal'
+      ? Boolean(selectedInternalId)
+      : path === 'vendor'
+        ? Boolean(selectedVendorId && selectedVendorTechId)
+        : Boolean(selectedIndependentId && selectedIndependent?.availability === 'available')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -170,7 +182,12 @@ export function AssignWorkOrderDialog({
     let assigneeName: string
     let status = workOrder.status
 
-    if (path === 'vendor' && selectedVendor && selectedVendorTechId) {
+    if (path === 'internal' && selectedInternal) {
+      assigneeId = selectedInternal.id
+      assigneeName = selectedInternal.name
+      status = workOrder.status === 'open' ? 'assigned' : workOrder.status
+      toast.success(`${workOrder.id} assigned to ${selectedInternal.name}`)
+    } else if (path === 'vendor' && selectedVendor && selectedVendorTechId) {
       const tech = selectedVendor.technicians.find((t) => t.id === selectedVendorTechId)
       assigneeId = selectedVendorTechId
       assigneeName = `${tech?.name ?? 'Technician'} (${selectedVendor.vendorName})`
@@ -198,6 +215,7 @@ export function AssignWorkOrderDialog({
       updatedAt: new Date(),
     }
 
+    updateWorkOrder(updated.id, updated)
     setSaving(false)
     onAssigned?.(updated)
     onOpenChange(false)
@@ -234,7 +252,23 @@ export function AssignWorkOrderDialog({
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 space-y-4 border-b border-border bg-muted/20 px-6 py-4">
             <SortTabs value={sort} onChange={setSort} />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setPath('internal')}
+                className={cn(
+                  'rounded-xl border p-4 text-left transition-colors',
+                  path === 'internal'
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-border bg-card hover:bg-muted/50',
+                )}
+              >
+                <User className="mb-2 h-5 w-5 text-primary" />
+                <p className="text-sm font-medium">Internal staff</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Assign to your organization&apos;s maintenance technicians
+                </p>
+              </button>
               <button
                 type="button"
                 onClick={() => setPath('vendor')}
@@ -276,7 +310,37 @@ export function AssignWorkOrderDialog({
             aria-label="Assignment options"
           >
             <div className="space-y-8">
-              {path === 'vendor' ? (
+              {path === 'internal' ? (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-foreground">Maintenance team</h3>
+                  {internalTechnicians.map((tech) => (
+                    <button
+                      key={tech.id}
+                      type="button"
+                      onClick={() => setSelectedInternalId(tech.id)}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                        selectedInternalId === tech.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-muted/50',
+                      )}
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarFallback>
+                          {tech.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{tech.name}</p>
+                        <p className="text-xs text-muted-foreground">{tech.department ?? 'Maintenance'}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : path === 'vendor' ? (
                 <VendorAssignmentPanel
                   vendors={options.vendors}
                   selectedVendorId={selectedVendorId}

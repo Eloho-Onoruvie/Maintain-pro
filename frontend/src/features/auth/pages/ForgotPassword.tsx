@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, ArrowLeft, CheckCircle2, Mail } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle2, Mail, Copy } from 'lucide-react'
 
 import { BrandLogo } from '@/components/brand/BrandLogo'
 
@@ -10,11 +10,14 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { authService } from '@/features/auth/services/auth.service'
+import { getMockResetUrl } from '@/features/auth/utils/mockInvite'
+import { toast } from 'sonner'
 
 export function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [email, setEmail] = useState('')
+  const [resetUrl, setResetUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,6 +30,7 @@ export function ForgotPassword() {
       setIsSubmitted(true)
     } catch (err: unknown) {
       if (import.meta.env.DEV) {
+        setResetUrl(getMockResetUrl(email))
         setIsSubmitted(true)
         return
       }
@@ -35,6 +39,8 @@ export function ForgotPassword() {
       setIsLoading(false)
     }
   }
+
+  const devResetUrl = import.meta.env.DEV ? resetUrl ?? (isSubmitted ? getMockResetUrl(email) : null) : null
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -101,7 +107,7 @@ export function ForgotPassword() {
           ) : (
             <>
               <CardHeader className="space-y-1 text-center">
-                <div className="flex justify-center mb-4">
+                <div className="mb-4 flex justify-center">
                   <div className="rounded-full bg-status-completed/10 p-4">
                     <Mail className="h-8 w-8 text-status-completed" />
                   </div>
@@ -113,6 +119,30 @@ export function ForgotPassword() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {devResetUrl ? (
+                  <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-left">
+                    <p className="text-xs text-muted-foreground">
+                      Email is not configured in demo mode. Use this reset link instead:
+                    </p>
+                    <Input readOnly value={devResetUrl} className="text-xs font-mono" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(devResetUrl)
+                        toast.success('Reset link copied')
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy reset link
+                    </Button>
+                    <Button asChild className="w-full" size="sm">
+                      <Link to={devResetUrl.replace(window.location.origin, '')}>Open reset page</Link>
+                    </Button>
+                  </div>
+                ) : null}
                 <p className="text-center text-sm text-muted-foreground">
                   Didn&apos;t receive the email? Check your spam folder or
                 </p>
@@ -122,6 +152,7 @@ export function ForgotPassword() {
                   onClick={() => {
                     setIsSubmitted(false)
                     setEmail('')
+                    setResetUrl(null)
                   }}
                 >
                   Try another email

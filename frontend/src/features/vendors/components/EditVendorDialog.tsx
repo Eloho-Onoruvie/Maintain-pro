@@ -25,9 +25,10 @@ interface EditVendorDialogProps {
   vendor: Vendor | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: (updated: Vendor) => void
 }
 
-export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialogProps) {
+export function EditVendorDialog({ vendor, open, onOpenChange, onSaved }: EditVendorDialogProps) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -52,9 +53,18 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
     e.preventDefault()
     if (!vendor) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
+    await new Promise((r) => setTimeout(r, 400))
+    const updated: Vendor = {
+      ...vendor,
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      contactPerson: form.contactPerson,
+      status: form.status,
+    }
     setSaving(false)
-    toast.success(`${vendor.name} updated`)
+    toast.success(`${updated.name} updated`)
+    onSaved?.(updated)
     onOpenChange(false)
   }
 
@@ -96,7 +106,10 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>Save</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

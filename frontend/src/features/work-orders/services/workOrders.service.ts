@@ -1,10 +1,5 @@
 // Re-export mock data for dev; replace with real API calls in production
-export {
-  mockWorkOrders,
-  mockLocations,
-  mockAssets,
-  mockUsers,
-} from '@/features/dashboard/services/dashboard.service'
+export { mockUsers } from '@/features/dashboard/services/dashboard.service'
 
 import { httpClient } from '@/services/httpClient'
 import { ENDPOINTS } from '@/services/endpoints'

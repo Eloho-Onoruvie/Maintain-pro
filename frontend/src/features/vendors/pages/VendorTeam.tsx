@@ -25,22 +25,10 @@ import {
 } from '@/components/ui/select'
 import { useAuthStore } from '@/app/store'
 import { useActionConfirm } from '@/hooks/useActionConfirm'
+import { useMockDataStore } from '@/services/mockDataStore'
+import type { VendorTeamMember } from '@/services/mockDataStore'
 
 const MEMBER_ROLES = ['HVAC Technician', 'Electrician', 'Plumber', 'General Technician', 'Inspector', 'Site Supervisor']
-
-interface TeamMember {
-  id: string
-  name: string
-  email: string
-  role: string
-  status: 'active' | 'invited'
-  isTeamLead?: boolean
-}
-
-const SEED_MEMBERS: TeamMember[] = [
-  { id: 'tm-2', name: 'James Wilson', email: 'james@vendor.com', role: 'HVAC Technician', status: 'active' },
-  { id: 'tm-3', name: 'Priya Kapoor', email: 'priya@vendor.com', role: 'Electrician', status: 'invited' },
-]
 
 function initials(name: string) {
   return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -50,7 +38,11 @@ export function VendorTeam() {
   const user = useAuthStore((s) => s.user)
   const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
 
-  const teamLead: TeamMember = {
+  const members = useMockDataStore((s) => s.vendorTeamMembers)
+  const addVendorTeamMember = useMockDataStore((s) => s.addVendorTeamMember)
+  const removeVendorTeamMember = useMockDataStore((s) => s.removeVendorTeamMember)
+
+  const teamLead: VendorTeamMember = {
     id: user?.id ?? 'vendor-lead',
     name: `${user?.firstName ?? 'Team'} ${user?.lastName ?? 'Lead'}`,
     email: user?.email ?? '',
@@ -59,7 +51,6 @@ export function VendorTeam() {
     isTeamLead: true,
   }
 
-  const [members, setMembers] = useState<TeamMember[]>(SEED_MEMBERS)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', role: MEMBER_ROLES[0] })
 
@@ -74,23 +65,26 @@ export function VendorTeam() {
       toast.error('A team member with this email already exists')
       return
     }
-    setMembers((prev) => [
-      ...prev,
-      { id: `tm-${Date.now()}`, name, email: form.email, role: form.role, status: 'invited' },
-    ])
+    addVendorTeamMember({
+      id: `tm-${Date.now()}`,
+      name,
+      email: form.email,
+      role: form.role,
+      status: 'invited',
+    })
     toast.success(`Invitation sent to ${form.email}`)
     setForm({ firstName: '', lastName: '', email: '', role: MEMBER_ROLES[0] })
     setDialogOpen(false)
   }
 
-  const handleRemove = (member: TeamMember) => {
+  const handleRemove = (member: VendorTeamMember) => {
     requestConfirm({
       title: 'Remove team member?',
       description: `${member.name} will lose access to your vendor portal.`,
       confirmLabel: 'Remove',
       destructive: true,
       onConfirm: () => {
-        setMembers((prev) => prev.filter((m) => m.id !== member.id))
+        removeVendorTeamMember(member.id)
         toast.success(`${member.name} removed from team`)
       },
     })
@@ -102,21 +96,15 @@ export function VendorTeam() {
       <Navbar
         title="Team"
         subtitle={`${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} · you are the Team Lead`}
-      />
-      <div className="page-body flex-1 space-y-6">
-        <div className="page-toolbar">
-          <div>
-            <h2 className="text-lg font-semibold">Team Members</h2>
-            <p className="text-sm text-muted-foreground">
-              Manage who has access to your vendor portal
-            </p>
-          </div>
+        hideQuickCreate
+        actions={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Invite Member
           </Button>
-        </div>
-
+        }
+      />
+      <div className="page-body flex-1 space-y-6">
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {allMembers.map((member) => (
             <Card key={member.id} className="bg-card border-border">

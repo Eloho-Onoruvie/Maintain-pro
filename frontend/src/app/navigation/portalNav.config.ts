@@ -47,7 +47,7 @@ export const PORTAL_NAV: Record<Portal, PortalNavConfig> = {
       { name: 'Service Requests',       segment: 'service-requests',       icon: MessagesSquare },
       { name: 'Preventive Maintenance', segment: 'preventive-maintenance', icon: Calendar,       roles: [ADMIN, FACILITY_MANAGER] },
       { name: 'Reports',                segment: 'reports',                icon: BarChart3,      roles: [ADMIN, FACILITY_MANAGER, FINANCE] },
-      { name: 'Approvals',              segment: 'approvals',              icon: FileCheck,      roles: [FINANCE, ADMIN] },
+      { name: 'Financial Approvals',    segment: 'approvals',              icon: FileCheck,      roles: [FINANCE, ADMIN] },
       { name: 'Invoices',               segment: 'invoices',               icon: DollarSign,     roles: [FINANCE, ADMIN] },
     ],
     secondary: [
@@ -57,10 +57,11 @@ export const PORTAL_NAV: Record<Portal, PortalNavConfig> = {
   [PORTALS.VENDOR]: {
     label: 'Vendor',
     primary: [
-      { name: 'Dashboard',   segment: 'dashboard',   icon: LayoutDashboard },
-      { name: 'Work Orders', segment: 'work-orders', icon: ClipboardList },
-      { name: 'Team',        segment: 'team',        icon: Users,    roles: [VENDOR_TEAM_LEAD] },
-      { name: 'Performance', segment: 'reports',     icon: BarChart3, roles: [VENDOR_TEAM_LEAD] },
+      { name: 'Dashboard',     segment: 'dashboard',     icon: LayoutDashboard },
+      { name: 'Work Orders',   segment: 'work-orders',   icon: ClipboardList },
+      { name: 'Team',          segment: 'team',          icon: Users,    roles: [VENDOR_TEAM_LEAD] },
+      { name: 'Opportunities', segment: 'opportunities', icon: Wrench,   roles: [VENDOR_TEAM_LEAD] },
+      { name: 'Performance',   segment: 'reports',       icon: BarChart3, roles: [VENDOR_TEAM_LEAD] },
     ],
     secondary: [
       { name: 'Business Settings', segment: 'settings', icon: Settings, roles: [VENDOR_TEAM_LEAD] },

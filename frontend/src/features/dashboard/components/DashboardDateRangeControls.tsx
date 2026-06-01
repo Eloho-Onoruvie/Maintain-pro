@@ -2,6 +2,13 @@ import { Calendar, Download } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   DASHBOARD_RANGE_LABELS,
   type DashboardDateRange,
 } from '@/features/dashboard/utils/dashboardDateRange'
@@ -21,60 +28,52 @@ export function DashboardDateRangeControls({
   exportLabel = 'Export dashboard',
   layout = 'both',
 }: DashboardDateRangeControlsProps) {
+  const select = (
+    <Select
+      value={range}
+      onValueChange={(v) => onRangeChange(v as DashboardDateRange)}
+    >
+      <SelectTrigger className="h-9 w-[160px] bg-card border-border flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {(['7d', '30d', '90d'] as const).map((key) => (
+          <SelectItem key={key} value={key}>
+            {DASHBOARD_RANGE_LABELS[key]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+
   const desktop = (
     <div className="hidden items-center gap-2 sm:flex">
-        {(['7d', '30d', '90d'] as const).map((key) => (
-          <Button
-            key={key}
-            variant={range === key ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onRangeChange(key)}
-            aria-label={`Filter dashboard to ${DASHBOARD_RANGE_LABELS[key]}`}
-            aria-pressed={range === key}
-          >
-            {key === '30d' ? (
-              <>
-                <Calendar className="mr-2 h-4 w-4" aria-hidden />
-                {DASHBOARD_RANGE_LABELS[key]}
-              </>
-            ) : (
-              key.toUpperCase()
-            )}
-          </Button>
-        ))}
-        {onExport ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExport}
-            aria-label={exportLabel}
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            <span className="sr-only">{exportLabel}</span>
-          </Button>
-        ) : null}
+      {select}
+      {onExport ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onExport}
+          aria-label={exportLabel}
+          className="h-9"
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          <span className="sr-only">{exportLabel}</span>
+        </Button>
+      ) : null}
     </div>
   )
 
   const mobile = (
-    <div className="page-body flex flex-wrap gap-2 pb-0 sm:hidden">
-        {(['7d', '30d', '90d'] as const).map((key) => (
-          <Button
-            key={key}
-            variant={range === key ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onRangeChange(key)}
-            aria-pressed={range === key}
-          >
-            {DASHBOARD_RANGE_LABELS[key]}
-          </Button>
-        ))}
-        {onExport ? (
-          <Button variant="outline" size="sm" onClick={onExport}>
-            <Download className="mr-2 h-4 w-4" aria-hidden />
-            Export
-          </Button>
-        ) : null}
+    <div className="page-body flex items-center gap-2 pb-0 sm:hidden">
+      <div className="flex-1">{select}</div>
+      {onExport ? (
+        <Button variant="outline" size="sm" onClick={onExport} className="h-9">
+          <Download className="mr-2 h-4 w-4" aria-hidden />
+          Export
+        </Button>
+      ) : null}
     </div>
   )
 

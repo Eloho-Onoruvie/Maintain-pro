@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   Plus, Search, MessageSquare, CheckCircle2, Clock, AlertTriangle,
-  Star, ArrowRight, Filter, Camera, MapPin, ChevronDown
+  Star, ArrowRight, Filter, Camera, MapPin, ChevronDown, Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +18,7 @@ import { useAuthStore } from '@/app/store'
 import { useRoleAccess } from '@/hooks/useRoleAccess'
 import { appendNotification } from '@/features/notifications/services/notificationEvents'
 import { useMockDataStore } from '@/services/mockDataStore'
-import { scopeServiceRequestsForUser } from '@/features/dashboard/utils/roleScope'
+import { scopeServiceRequestsForUser, filterServiceRequestsByRange, getServiceRequestReferenceDate } from '@/features/dashboard/utils/roleScope'
 import { USER_ROLES } from '@/types/user.types'
 import { formatRelativeDate, formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
@@ -34,13 +34,18 @@ import type { ServiceRequest, ServiceRequestStatus, WorkOrderPriority } from '@/
 const SERVICE_CATEGORIES = ['Electrical','Plumbing','HVAC','Cleaning','Pest Control','Fire Safety','Elevators','Security','Gas','Sewage','General Repairs']
 
 const statusConfig: Record<ServiceRequestStatus, { label: string; color: string; icon: React.ElementType }> = {
-  submitted:   { label: 'Submitted',   color: 'bg-blue-400/10 text-blue-400 border-blue-400/20',       icon: MessageSquare },
-  reviewed:    { label: 'Reviewed',    color: 'bg-purple-400/10 text-purple-400 border-purple-400/20', icon: Clock },
-  approved:    { label: 'Approved',    color: 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20',       icon: CheckCircle2 },
-  in_progress: { label: 'In Progress', color: 'bg-amber-400/10 text-amber-400 border-amber-400/20',    icon: Clock },
-  resolved:    { label: 'Resolved',    color: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20', icon: CheckCircle2 },
-  rejected:    { label: 'Rejected',    color: 'bg-red-400/10 text-red-400 border-red-400/20',          icon: AlertTriangle },
-  reopened:    { label: 'Reopened',    color: 'bg-orange-400/10 text-orange-400 border-orange-400/20', icon: AlertTriangle },
+  draft:              { label: 'Draft',               color: 'bg-slate-400/10 text-slate-400 border-slate-400/20',       icon: MessageSquare },
+  submitted:          { label: 'Submitted',           color: 'bg-blue-400/10 text-blue-400 border-blue-400/20',           icon: MessageSquare },
+  under_review:       { label: 'Under Review',        color: 'bg-purple-400/10 text-purple-400 border-purple-400/20',     icon: Clock },
+  rejected:           { label: 'Rejected',            color: 'bg-red-400/10 text-red-400 border-red-400/20',              icon: AlertTriangle },
+  approved:           { label: 'Approved',            color: 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20',           icon: CheckCircle2 },
+  assigned_internal:  { label: 'Assigned (Internal)',  color: 'bg-teal-400/10 text-teal-400 border-teal-400/20',           icon: Clock },
+  open_to_vendors:    { label: 'Open to Vendors',     color: 'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',     icon: Clock },
+  vendor_selected:    { label: 'Vendor Selected',     color: 'bg-pink-400/10 text-pink-400 border-pink-400/20',           icon: CheckCircle2 },
+  work_order_created: { label: 'Work Order Created',  color: 'bg-sky-400/10 text-sky-400 border-sky-400/20',             icon: MessageSquare },
+  in_progress:        { label: 'In Progress',         color: 'bg-amber-400/10 text-amber-400 border-amber-400/20',       icon: Clock },
+  completed:          { label: 'Completed',           color: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20', icon: CheckCircle2 },
+  closed:             { label: 'Closed',              color: 'bg-zinc-400/10 text-zinc-400 border-zinc-400/20',          icon: CheckCircle2 },
 }
 
 const priorityColors: Record<WorkOrderPriority, string> = {
@@ -78,6 +83,7 @@ export function ServiceRequests() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [advancedFilters, setAdvancedFilters] = useState<ServiceRequestAdvancedFilters>({})
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('all')
   const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
   const advancedFilterCount = [
     advancedFilters.priority,
@@ -88,12 +94,24 @@ export function ServiceRequests() {
   const [ratingComment, setRatingComment] = useState('')
   const [form, setForm] = useState({
     title: '', category: '', description: '', priority: 'medium' as WorkOrderPriority,
-    locationId: '', isGuest: false, guestContact: ''
+    locationId: '', isGuest: false, guestContact: '',
+    buildingId: '', floorId: '', roomId: ''
   })
 
+  const buildings = useMemo(() => locations.filter(l => l.type === 'building' || l.type === 'site'), [locations])
+  const floors = useMemo(() => locations.filter(l => l.type === 'floor' && l.parentId === form.buildingId), [locations, form.buildingId])
+  const rooms = useMemo(() => locations.filter(l => (l.type === 'room' || l.type === 'zone') && l.parentId === form.floorId), [locations, form.floorId])
+
   const visibleRequests = useMemo(
-    () => scopeServiceRequestsForUser(user, serviceRequests),
-    [user, serviceRequests],
+    () => {
+      let list = scopeServiceRequestsForUser(user, serviceRequests)
+      if (dateRange !== 'all') {
+        const refDate = getServiceRequestReferenceDate(list)
+        list = filterServiceRequestsByRange(list, dateRange, refDate)
+      }
+      return list
+    },
+    [user, serviceRequests, dateRange],
   )
 
   const filtered = useMemo(() => visibleRequests.filter(r => {
@@ -109,7 +127,7 @@ export function ServiceRequests() {
     total: visibleRequests.length,
     submitted: visibleRequests.filter(r => r.status === 'submitted').length,
     inProgress: visibleRequests.filter(r => r.status === 'in_progress').length,
-    resolved: visibleRequests.filter(r => r.status === 'resolved').length,
+    resolved: visibleRequests.filter(r => r.status === 'completed' || r.status === 'closed').length,
     avgRating: (() => {
       const rated = visibleRequests.filter(r => r.rating)
       return rated.length ? (rated.reduce((s,r) => s + (r.rating || 0), 0) / rated.length).toFixed(1) : '—'
@@ -122,7 +140,8 @@ export function ServiceRequests() {
       description: `Submit "${form.title || 'this request'}" for review by your facilities team.`,
       confirmLabel: 'Submit',
       onConfirm: () => {
-        const loc = locations.find((l) => l.id === form.locationId)
+        const targetLocId = form.roomId || form.floorId || form.buildingId || form.locationId
+        const loc = locations.find((l) => l.id === targetLocId)
         const id = `SR-${Date.now().toString().slice(-6)}`
         addServiceRequest({
           id,
@@ -134,7 +153,7 @@ export function ServiceRequests() {
           requesterId: user?.id ?? 'staff-1',
           requesterName: user ? `${user.firstName} ${user.lastName}` : 'Staff',
           requesterEmail: user?.email ?? '',
-          locationId: form.locationId,
+          locationId: targetLocId,
           locationName: loc?.name ?? 'Unknown',
           createdAt: new Date(),
         })
@@ -146,8 +165,26 @@ export function ServiceRequests() {
         })
         toast.success(`Request submitted — confirmation #${id}`)
         setShowSubmit(false)
-        setForm({ title: '', category: '', description: '', priority: 'medium', locationId: '', isGuest: false, guestContact: '' })
+        setForm({ title: '', category: '', description: '', priority: 'medium', locationId: '', isGuest: false, guestContact: '', buildingId: '', floorId: '', roomId: '' })
       },
+    })
+  }
+
+  const handleResolve = (reqId: string, requesterId: string) => {
+    requestConfirm({
+      title: 'Mark request completed?',
+      description: 'Mark this service request as completed and notify the requester.',
+      confirmLabel: 'Complete',
+      onConfirm: () => {
+        updateServiceRequest(reqId, { status: 'completed', resolvedAt: new Date() })
+        appendNotification(requesterId, USER_ROLES.STAFF, {
+          type: 'maintenance',
+          title: 'Service Request Completed',
+          message: `Your request ${reqId} has been completed. Please rate our service!`,
+          actionUrl: 'service-requests',
+        })
+        toast.success('Service request marked completed')
+      }
     })
   }
 
@@ -197,11 +234,32 @@ export function ServiceRequests() {
         subtitle="Submit, track and manage maintenance requests"
         hideQuickCreate
         actions={
-          canSubmitServiceRequest ? (
-            <Button size="sm" className="gap-2" onClick={() => setShowSubmit(true)}>
-              <Plus className="h-4 w-4" /> Submit Request
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-muted border border-border p-0.5 rounded-lg">
+              {(['7d', '30d', '90d', 'all'] as const).map((key) => (
+                <Button
+                  key={key}
+                  variant={dateRange === key ? 'default' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    "h-7 px-2.5 text-xs font-medium rounded-md",
+                    dateRange === key 
+                      ? "shadow-sm bg-background text-foreground hover:bg-background" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-transparent"
+                  )}
+                  onClick={() => setDateRange(key)}
+                  aria-pressed={dateRange === key}
+                >
+                  {key === 'all' ? 'All' : key.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+            {canSubmitServiceRequest && (
+              <Button size="sm" className="gap-2 h-8" onClick={() => setShowSubmit(true)}>
+                <Plus className="h-4 w-4" /> Submit Request
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -263,10 +321,8 @@ export function ServiceRequests() {
           {filtered.map(req => {
             const s = statusConfig[req.status]
             const Icon = s.icon
-            const canConvert =
-              canConvertServiceRequest &&
-              (req.status === 'reviewed' || req.status === 'approved')
-            const canRate = canRateServiceRequest && req.status === 'resolved' && !req.rating
+            const canConvert = false
+            const canRate = canRateServiceRequest && (req.status === 'completed' || req.status === 'closed') && !req.rating
             return (
               <Card key={req.id} className="bg-card border-border hover:border-border/80 transition-colors">
                 <CardContent className="p-4">
@@ -302,14 +358,17 @@ export function ServiceRequests() {
                           <Star className="h-3.5 w-3.5" />Rate
                         </Button>
                       )}
-                      {canConvert && (
-                        <Button
-                          size="sm"
-                          className="gap-1.5 h-8 text-xs"
-                          onClick={() => handleConvert(req.id, req.title)}
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" />Convert to WO
-                        </Button>
+                      {(user?.role === 'facility_manager' || user?.role === 'admin') &&
+                        ['submitted', 'under_review', 'approved', 'assigned_internal', 'vendor_selected', 'work_order_created', 'in_progress'].includes(req.status) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/10 h-8 text-xs gap-1"
+                            onClick={() => handleResolve(req.id, req.requesterId)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Resolve
+                          </Button>
                       )}
                     </div>
                   </div>
@@ -358,12 +417,34 @@ export function ServiceRequests() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Location *</Label>
-              <Select value={form.locationId} onValueChange={v => setForm(p => ({ ...p, locationId: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                <SelectContent>{locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="space-y-3 p-3 border border-border rounded-lg bg-muted/20">
+              <span className="text-xs font-semibold text-muted-foreground block">Select Asset Location *</span>
+              
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Building</Label>
+                  <Select value={form.buildingId} onValueChange={v => setForm(p => ({ ...p, buildingId: v, floorId: '', roomId: '', locationId: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Building" /></SelectTrigger>
+                    <SelectContent>{buildings.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Floor</Label>
+                  <Select value={form.floorId} disabled={!form.buildingId} onValueChange={v => setForm(p => ({ ...p, floorId: v, roomId: '', locationId: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Floor" /></SelectTrigger>
+                    <SelectContent>{floors.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Room / Zone</Label>
+                  <Select value={form.roomId} disabled={!form.floorId} onValueChange={v => setForm(p => ({ ...p, roomId: v, locationId: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Room" /></SelectTrigger>
+                    <SelectContent>{rooms.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Description *</Label>
@@ -389,7 +470,7 @@ export function ServiceRequests() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSubmit(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!form.title || !form.category || !form.locationId || !form.description}>
+            <Button onClick={handleSubmit} disabled={!form.title || !form.category || !form.buildingId || !form.description}>
               Submit Request
             </Button>
           </DialogFooter>
@@ -411,7 +492,7 @@ export function ServiceRequests() {
               className="text-destructive"
               onClick={() => {
                 if (showRate) {
-                  updateServiceRequest(showRate, { status: 'reopened' })
+                  updateServiceRequest(showRate, { status: 'under_review' })
                   toast.success('Request reopened for review')
                 }
                 setShowRate(null)

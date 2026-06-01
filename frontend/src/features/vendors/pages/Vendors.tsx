@@ -20,7 +20,9 @@ import { useActionConfirm } from '@/hooks/useActionConfirm'
 import { AppHeader } from '@/components/navigation/Navbar'
 import { EditVendorDialog } from '@/features/vendors/components/EditVendorDialog'
 import { ViewVendorDialog } from '@/features/vendors/components/ViewVendorDialog'
+import { appendNotification } from '@/features/notifications/services/notificationEvents'
 import { mockVendors } from '@/features/dashboard/services/dashboard.service'
+import { useMockDataStore } from '@/services/mockDataStore'
 import type { Vendor } from '@/types/common.types'
 import { formatDate, getDaysUntil } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
@@ -50,6 +52,7 @@ function RatingStars({ value, max = 5 }: { value: number; max?: number }) {
 export function Vendors() {
   const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
   const { canManageVendors } = useRoleAccess()
+  const allWorkOrders = useMockDataStore((s) => s.workOrders)
   const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -67,6 +70,25 @@ export function Vendors() {
   })
 
   const [allVendors, setAllVendors] = useState<Vendor[]>(() => mockVendors)
+
+  useState(() => {
+    // Check expiring contracts <= 90 days on mount
+    mockVendors.forEach((v) => {
+      if (v.contractEnd) {
+        const days = getDaysUntil(new Date(v.contractEnd))
+        if (days >= 0 && days <= 90) {
+          appendNotification('user-1', 'facility_manager', {
+            type: 'contract',
+            title: `Contract Expiring Soon`,
+            message: `Contract for ${v.name} expires in ${days} days.`,
+            priority: days <= 30 ? 'high' : 'normal',
+            actionUrl: 'vendors',
+          })
+        }
+      }
+    })
+  })
+
   const vendors = useMemo(() => allVendors.filter(v => {
     if (statusFilter !== 'all' && v.status !== statusFilter) return false
     if (categoryFilter !== 'all' && !v.serviceCategories?.includes(categoryFilter)) return false
@@ -361,38 +383,55 @@ export function Vendors() {
 
           {/* Performance */}
           <TabsContent value="performance" className="mt-0 space-y-4">
-            {vendors.filter(v => v.status === 'active').map(v => (
-              <Card key={v.id} className="bg-card border-border">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium">{v.name}</h3>
-                      <p className="text-xs text-muted-foreground">{v.category}</p>
+            {vendors.filter(v => v.status === 'active').map(v => {
+              const vendorWOs = allWorkOrders.filter(wo => wo.assigneeId === v.id || wo.assigneeName === v.name)
+              const completedWOs = vendorWOs.filter(wo => wo.status === 'completed')
+              
+              const completionRate = vendorWOs.length 
+                ? Math.round((completedWOs.length / vendorWOs.length) * 100)
+                : (v.completedJobs ? 95 : 100)
+
+              const onTimeWOs = completedWOs.filter(wo => !wo.dueDate || new Date(wo.updatedAt) <= new Date(wo.dueDate))
+              const onTimeRate = completedWOs.length
+                ? Math.round((onTimeWOs.length / completedWOs.length) * 100)
+                : 92
+
+              const avgResponse = v.slaResponseTime || 4
+              const qualityScore = v.rating || 4.5
+
+              return (
+                <Card key={v.id} className="bg-card border-border">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium">{v.name}</h3>
+                        <p className="text-xs text-muted-foreground">{v.category}</p>
+                      </div>
+                      <RatingStars value={v.rating} />
                     </div>
-                    <RatingStars value={v.rating} />
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { label: 'Completion Rate', value: Math.min(100, 85 + Math.random() * 15), suffix: '%' },
-                      { label: 'On-Time Rate',     value: Math.min(100, 75 + Math.random() * 20), suffix: '%' },
-                      { label: 'Avg Response',     value: Math.floor(2 + Math.random() * 6), suffix: 'h' },
-                      { label: 'Quality Score',    value: Math.floor(3.5 + Math.random() * 1.5), suffix: '/5' },
-                    ].map(m => {
-                      const pct = m.suffix === '%' ? m.value : (m.value / (m.suffix === 'h' ? 24 : 5)) * 100
-                      return (
-                        <div key={m.label}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">{m.label}</span>
-                            <span className="font-medium">{m.value.toFixed(0)}{m.suffix}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Completion Rate', value: completionRate, suffix: '%' },
+                        { label: 'On-Time Rate',     value: onTimeRate, suffix: '%' },
+                        { label: 'Avg Response',     value: avgResponse, suffix: 'h' },
+                        { label: 'Quality Score',    value: qualityScore, suffix: '/5' },
+                      ].map(m => {
+                        const pct = m.suffix === '%' ? m.value : (m.value / (m.suffix === 'h' ? 24 : 5)) * 100
+                        return (
+                          <div key={m.label}>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-muted-foreground">{m.label}</span>
+                              <span className="font-medium">{m.value.toFixed(m.label === 'Quality Score' ? 1 : 0)}{m.suffix}</span>
+                            </div>
+                            <Progress value={Math.min(100, pct)} className="h-1.5" />
                           </div>
-                          <Progress value={Math.min(100, pct)} className="h-1.5" />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </TabsContent>
         </Tabs>
       </div>
@@ -446,6 +485,27 @@ export function Vendors() {
                   description: `Add ${form.name} to your vendor directory?`,
                   confirmLabel: 'Add vendor',
                   onConfirm: () => {
+                    const newVendor: Vendor = {
+                      id: `vendor-${Date.now()}`,
+                      name: form.name,
+                      category: form.category || 'General',
+                      serviceCategories: form.serviceCategories.length ? form.serviceCategories : [form.category || 'General'],
+                      email: form.email,
+                      phone: form.phone,
+                      address: form.address || undefined,
+                      contactPerson: form.contactPerson || undefined,
+                      rating: 5.0,
+                      status: 'active',
+                      contractStart: form.contractStart ? new Date(form.contractStart) : undefined,
+                      contractEnd: form.contractEnd ? new Date(form.contractEnd) : undefined,
+                      contractValue: form.contractValue ? parseFloat(form.contractValue) : undefined,
+                      slaResponseTime: form.slaResponseTime ? parseFloat(form.slaResponseTime) : undefined,
+                      slaResolutionTime: form.slaResolutionTime ? parseFloat(form.slaResolutionTime) : undefined,
+                      taxId: form.taxId || undefined,
+                      totalSpend: 0,
+                      completedJobs: 0,
+                    }
+                    setAllVendors((prev) => [newVendor, ...prev])
                     setShowCreate(false)
                     toast.success('Vendor added')
                   },

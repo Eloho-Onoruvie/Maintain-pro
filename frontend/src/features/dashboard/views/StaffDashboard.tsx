@@ -158,7 +158,7 @@ export function StaffDashboard() {
                       variant="outline"
                       className={cn(
                         'text-[10px] capitalize',
-                        request.status === 'resolved'
+                        request.status === 'completed' || request.status === 'closed'
                           ? 'border-emerald-400/20 text-emerald-400'
                           : request.status === 'in_progress'
                             ? 'border-blue-400/20 text-blue-400'

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { usePortalPath } from '@/hooks/usePortal'
+import { useAuthStore } from '@/app/store'
 import { useMockDataStore } from '@/services/mockDataStore'
 import type { VendorInvoice } from '@/types/common.types'
 import { formatDate } from '@/utils/formatDate'
@@ -34,20 +35,54 @@ export function VendorInvoices() {
     return invoices.filter((inv) => inv.status === filter)
   }, [filter, invoices])
 
+  const user = useAuthStore((s) => s.user)
+  const actorName = user ? `${user.firstName} ${user.lastName}` : 'Finance Staff'
+
   const markPaid = (inv: VendorInvoice) => {
-    updateVendorInvoice(inv.id, { status: 'paid', paidAt: new Date() })
+    const entry = {
+      id: `AE-${Date.now()}`,
+      action: 'Paid',
+      actorName: actorName,
+      timestamp: new Date(),
+      notes: 'Payment processed and closed.',
+    }
+    updateVendorInvoice(inv.id, {
+      status: 'paid',
+      paidAt: new Date(),
+      auditLog: [...(inv.auditLog ?? []), entry],
+    })
     updateWorkOrder(inv.workOrderId, { paymentStatus: 'paid' })
     toast.success(`Invoice ${inv.id} marked paid`)
   }
 
   const approve = (inv: VendorInvoice) => {
-    updateVendorInvoice(inv.id, { status: 'approved' })
+    const entry = {
+      id: `AE-${Date.now()}`,
+      action: 'Approved',
+      actorName: actorName,
+      timestamp: new Date(),
+      notes: 'Invoice matched and approved.',
+    }
+    updateVendorInvoice(inv.id, {
+      status: 'approved',
+      auditLog: [...(inv.auditLog ?? []), entry],
+    })
     updateWorkOrder(inv.workOrderId, { paymentStatus: 'approved' })
     toast.success(`Invoice ${inv.id} approved`)
   }
 
   const reject = (inv: VendorInvoice) => {
-    updateVendorInvoice(inv.id, { status: 'rejected' })
+    const entry = {
+      id: `AE-${Date.now()}`,
+      action: 'Rejected',
+      actorName: actorName,
+      timestamp: new Date(),
+      notes: 'Invoice disputed/rejected.',
+    }
+    updateVendorInvoice(inv.id, {
+      status: 'rejected',
+      auditLog: [...(inv.auditLog ?? []), entry],
+    })
     toast.success(`Invoice ${inv.id} rejected`)
   }
 
@@ -136,6 +171,38 @@ export function VendorInvoices() {
                     <p className="rounded-md bg-muted/40 p-2 text-sm text-muted-foreground">
                       Completion: {wo.completionNotes}
                     </p>
+                  )}
+                  {wo?.images && wo.images.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-semibold text-muted-foreground">Completion Photos:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {wo.images.map((img, i) => (
+                          <img
+                            key={i}
+                            src={img.startsWith('data:') ? img : `https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200`}
+                            alt="Work completion evidence"
+                            className="h-16 w-16 object-cover rounded border border-border"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {inv.auditLog && inv.auditLog.length > 0 && (
+                    <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/10">
+                      <span className="text-xs font-semibold text-muted-foreground block">Invoice Audit Trail</span>
+                      <div className="space-y-2 text-xs">
+                        {inv.auditLog.map((log) => (
+                          <div key={log.id} className="flex justify-between border-b border-border/40 pb-1.5 last:border-b-0 last:pb-0">
+                            <div>
+                              <span className="font-semibold text-foreground">{log.action}</span>
+                              <span className="text-muted-foreground ml-1">by {log.actorName}</span>
+                              {log.notes && <p className="text-[11px] text-muted-foreground mt-0.5">{log.notes}</p>}
+                            </div>
+                            <span className="text-muted-foreground text-[10px]">{formatDate(new Date(log.timestamp))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   {inv.status === 'pending' && (
                     <div className="flex flex-wrap gap-2">

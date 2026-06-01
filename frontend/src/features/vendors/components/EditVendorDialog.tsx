@@ -36,6 +36,9 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onSaved }: EditVe
     phone: '',
     contactPerson: '',
     status: 'active' as VendorStatus,
+    slaResponseTime: '',
+    slaResolutionTime: '',
+    contractDocumentUrl: '',
   })
 
   useEffect(() => {
@@ -46,6 +49,9 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onSaved }: EditVe
       phone: vendor.phone,
       contactPerson: vendor.contactPerson ?? '',
       status: vendor.status,
+      slaResponseTime: String(vendor.slaResponseTime ?? ''),
+      slaResolutionTime: String(vendor.slaResolutionTime ?? ''),
+      contractDocumentUrl: vendor.contractDocumentUrl ?? '',
     })
   }, [vendor, open])
 
@@ -61,6 +67,9 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onSaved }: EditVe
       phone: form.phone,
       contactPerson: form.contactPerson,
       status: form.status,
+      slaResponseTime: form.slaResponseTime ? Number(form.slaResponseTime) : undefined,
+      slaResolutionTime: form.slaResolutionTime ? Number(form.slaResolutionTime) : undefined,
+      contractDocumentUrl: form.contractDocumentUrl || undefined,
     }
     setSaving(false)
     toast.success(`${updated.name} updated`)
@@ -70,7 +79,7 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onSaved }: EditVe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border-border">
+      <DialogContent className="max-w-md bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit vendor</DialogTitle>
         </DialogHeader>
@@ -92,6 +101,37 @@ export function EditVendorDialog({ vendor, open, onOpenChange, onSaved }: EditVe
               <Label>Phone</Label>
               <Input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>SLA Response (hrs)</Label>
+              <Input type="number" value={form.slaResponseTime} onChange={(e) => setForm((p) => ({ ...p, slaResponseTime: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>SLA Resolution (hrs)</Label>
+              <Input type="number" value={form.slaResolutionTime} onChange={(e) => setForm((p) => ({ ...p, slaResolutionTime: e.target.value }))} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Upload Contract (PDF)</Label>
+            <Input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onloadend = () => {
+                    setForm((p) => ({ ...p, contractDocumentUrl: reader.result as string }))
+                    toast.success('Contract PDF loaded')
+                  }
+                  reader.readAsDataURL(file)
+                }
+              }}
+            />
+            {form.contractDocumentUrl && (
+              <p className="text-xs text-emerald-400">✓ Contract PDF uploaded successfully</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Status</Label>

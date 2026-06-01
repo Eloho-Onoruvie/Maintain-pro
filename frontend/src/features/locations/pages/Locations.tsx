@@ -176,20 +176,65 @@ export function Locations() {
   const locationsPath = usePortalPath('locations')
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
+  const [form, setForm] = useState({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '', template: 'none' })
   const [editLocation, setEditLocation] = useState<Location | null>(null)
   const [deleteLocation, setDeleteLocation] = useState<Location | null>(null)
   const mockLocations = useMockDataStore((s) => s.locations)
+  const addLocationStore = useMockDataStore((s) => s.addLocation) || ((loc: Location) => {
+    // Fallback if not directly exported, using the store's set action in memory
+  })
 
   const handleAddLocation = () => {
     requestConfirm({
       title: 'Add location?',
-      description: `Add "${form.name}" to the facility hierarchy?`,
+      description: form.template !== 'none'
+        ? `Add "${form.name}" pre-populated with structure from ${form.template} template?`
+        : `Add "${form.name}" to the facility hierarchy?`,
       confirmLabel: 'Add location',
       onConfirm: () => {
-        toast.success(`Added location "${form.name}"`)
+        const parentId = form.parentId || undefined
+        const parentIdStr = parentId || ''
+        const mainId = `LOC-${Date.now()}`
+        
+        // Add main parent location
+        const newLoc: Location = {
+          id: mainId,
+          name: form.name,
+          type: form.type as any,
+          parentId,
+          address: form.address || undefined,
+          assetCount: 0,
+          openWorkOrders: 0,
+        }
+        
+        mockLocations.push(newLoc) // Direct push to reactive store array for instant state updates
+
+        // Apply templates recursively
+        if (form.template === 'office') {
+          const f1Id = `LOC-F1-${Date.now()}`
+          const f2Id = `LOC-F2-${Date.now()}`
+          const serverRoomId = `LOC-SR-${Date.now()}`
+          
+          mockLocations.push(
+            { id: f1Id, name: 'Floor 1', type: 'floor', parentId: mainId, assetCount: 0, openWorkOrders: 0 },
+            { id: f2Id, name: 'Floor 2', type: 'floor', parentId: mainId, assetCount: 0, openWorkOrders: 0 },
+            { id: serverRoomId, name: 'Server Room', type: 'room', parentId: f1Id, assetCount: 0, openWorkOrders: 0 }
+          )
+        } else if (form.template === 'hotel') {
+          const r101Id = `LOC-R101-${Date.now()}`
+          const r102Id = `LOC-R102-${Date.now()}`
+          const closetId = `LOC-UC-${Date.now()}`
+          
+          mockLocations.push(
+            { id: r101Id, name: 'Room 101', type: 'room', parentId: mainId, assetCount: 0, openWorkOrders: 0 },
+            { id: r102Id, name: 'Room 102', type: 'room', parentId: mainId, assetCount: 0, openWorkOrders: 0 },
+            { id: closetId, name: 'Utility Closet', type: 'room', parentId: mainId, assetCount: 0, openWorkOrders: 0 }
+          )
+        }
+
+        toast.success(`Added location "${form.name}" ${form.template !== 'none' ? 'with template structure' : ''}`)
         setShowCreate(false)
-        setForm({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '' })
+        setForm({ name: '', type: 'building', parentId: '', address: '', managerId: '', description: '', template: 'none' })
       },
     })
   }
@@ -382,6 +427,17 @@ export function Locations() {
             <div className="space-y-1.5">
               <Label className="text-xs">Address</Label>
               <Input placeholder="Street address (for sites)" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Copy Structure from Template</Label>
+              <Select value={form.template} onValueChange={v => setForm(p => ({ ...p, template: v }))}>
+                <SelectTrigger><SelectValue placeholder="No template" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No template (empty)</SelectItem>
+                  <SelectItem value="office">Standard Office Template (Floors 1 & 2 + Server Room)</SelectItem>
+                  <SelectItem value="hotel">Standard Hotel Template (Rooms 101 & 102 + Utility Closet)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

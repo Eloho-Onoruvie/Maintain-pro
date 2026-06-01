@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { AppHeader as Navbar } from '@/components/navigation/Navbar'
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
 import { downloadJson } from '@/utils/downloadFile'
 import { usePortalPath } from '@/hooks/usePortal'
+import { cn } from '@/utils/helpers'
 import {
   Select,
   SelectContent,
@@ -82,25 +83,26 @@ export function FacilityManagerDashboard() {
         subtitle={DASHBOARD_RANGE_LABELS[range]}
         actions={
           <div className="hidden items-center gap-2 sm:flex">
-            {(['7d', '30d', '90d'] as const).map((key) => (
-              <Button
-                key={key}
-                variant={range === key ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRange(key)}
-                aria-label={`Filter dashboard to ${DASHBOARD_RANGE_LABELS[key]}`}
-                aria-pressed={range === key}
-              >
-                {key === '30d' ? (
-                  <>
-                    <Calendar className="mr-2 h-4 w-4" aria-hidden />
-                    {DASHBOARD_RANGE_LABELS[key]}
-                  </>
-                ) : (
-                  key.toUpperCase()
-                )}
-              </Button>
-            ))}
+            <div className="flex items-center gap-1 bg-muted border border-border p-0.5 rounded-lg">
+              {(['7d', '30d', '90d'] as const).map((key) => (
+                <Button
+                  key={key}
+                  variant={range === key ? 'default' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    'h-7 px-3 text-xs font-medium rounded-md',
+                    range === key
+                      ? 'shadow-sm bg-background text-foreground hover:bg-background'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-transparent',
+                  )}
+                  onClick={() => setRange(key)}
+                  aria-label={`Filter dashboard to ${DASHBOARD_RANGE_LABELS[key]}`}
+                  aria-pressed={range === key}
+                >
+                  {DASHBOARD_RANGE_LABELS[key]}
+                </Button>
+              ))}
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -113,22 +115,26 @@ export function FacilityManagerDashboard() {
           </div>
         }
       />
-      <div className="page-body flex flex-wrap gap-2 pb-0 sm:hidden">
-        {(['7d', '30d', '90d'] as const).map((key) => (
-          <Button
-            key={key}
-            variant={range === key ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setRange(key)}
-            aria-pressed={range === key}
-          >
-            {DASHBOARD_RANGE_LABELS[key]}
-          </Button>
-        ))}
-        <Button variant="outline" size="sm" onClick={exportSnapshot}>
-          <Download className="mr-2 h-4 w-4" aria-hidden />
-          Export
-        </Button>
+      <div className="page-body pb-0 sm:hidden">
+        <div className="flex items-center gap-1 bg-muted border border-border p-0.5 rounded-lg w-fit">
+          {(['7d', '30d', '90d'] as const).map((key) => (
+            <Button
+              key={key}
+              variant={range === key ? 'default' : 'ghost'}
+              size="sm"
+              className={cn(
+                'h-7 px-3 text-xs font-medium rounded-md',
+                range === key
+                  ? 'shadow-sm bg-background text-foreground hover:bg-background'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-transparent',
+              )}
+              onClick={() => setRange(key)}
+              aria-pressed={range === key}
+            >
+              {DASHBOARD_RANGE_LABELS[key]}
+            </Button>
+          ))}
+        </div>
       </div>
       <div className="page-body space-y-6">
         <div className="flex flex-wrap items-center gap-3">

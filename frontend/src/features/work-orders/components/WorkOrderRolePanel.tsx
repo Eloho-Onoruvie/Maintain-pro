@@ -79,10 +79,81 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
     })
   }
 
+  if (workOrder.requiresApproval && !workOrder.approvedAt && workOrder.status !== 'cancelled') {
+    if (isFinance) {
+      return (
+        <>
+          {ActionConfirmDialog}
+          <Card className="border-amber-400/30 bg-amber-400/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Approval required (US-10)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Estimated cost:{' '}
+                <strong>${(workOrder.estimatedCost ?? 0).toLocaleString()}</strong> — exceeds
+                approval threshold.
+              </p>
+              <Textarea
+                rows={2}
+                placeholder="Approval notes (optional)"
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => {
+                    updateWorkOrder(workOrder.id, {
+                      approvedAt: new Date(),
+                      approvedBy: user?.email,
+                      approvalNotes,
+                      requiresApproval: false,
+                    })
+                    toast.success('Work order approved')
+                  }}
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-destructive"
+                  onClick={() => {
+                    updateWorkOrder(workOrder.id, {
+                      status: 'cancelled',
+                      rejectionReason: approvalNotes || 'Rejected by finance',
+                    })
+                    toast.success('Work order rejected')
+                  }}
+                >
+                  Reject
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )
+    }
+
+    // Block both technician and vendor if work order requires approval but is not yet approved
+    if (isTech || isVendor || isMaintenanceReadOnly) {
+      return (
+        <Card className="border-border bg-muted/30">
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            <Clock className="mb-2 h-4 w-4" />
+            Pending finance approval before work can proceed.
+          </CardContent>
+        </Card>
+      )
+    }
+  }
+
   if (isVendor) {
-  const pending =
-    workOrder.vendorOfferStatus === 'pending_acceptance' ||
-    (workOrder.status === 'assigned' && !workOrder.vendorOfferStatus)
+    const pending =
+      workOrder.vendorOfferStatus === 'pending_acceptance' ||
+      (workOrder.status === 'assigned' && !workOrder.vendorOfferStatus)
 
     return (
       <>
@@ -311,26 +382,45 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                 onChange={(e) => setCompletionNotes(e.target.value)}
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() =>
-                requestConfirm({
-                  title: 'Add photo?',
-                  description: 'Photo will attach to this work order (demo: placeholder).',
-                  confirmLabel: 'Add',
-                  onConfirm: () => {
-                    const images = [...(workOrder.images ?? []), 'demo-photo']
-                    updateWorkOrder(workOrder.id, { images })
-                    toast.success('Photo attached')
-                  },
-                })
-              }
-            >
-              <Camera className="h-4 w-4" />
-              Upload photo
-            </Button>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                id="tech-photo-upload"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    const reader = new FileReader()
+                    reader.onloadend = () => {
+                      const base64 = reader.result as string
+                      requestConfirm({
+                        title: 'Add photo?',
+                        description: 'Attach the selected photo to this work order.',
+                        confirmLabel: 'Attach',
+                        onConfirm: () => {
+                          const images = [...(workOrder.images ?? []), base64]
+                          updateWorkOrder(workOrder.id, { images })
+                          toast.success('Photo attached')
+                        },
+                      })
+                    }
+                    reader.readAsDataURL(file)
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  document.getElementById('tech-photo-upload')?.click()
+                }}
+              >
+                <Camera className="h-4 w-4" />
+                Upload photo
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -386,74 +476,6 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
           </CardContent>
         </Card>
       </>
-    )
-  }
-
-  if (needsApproval) {
-    return (
-      <>
-        {ActionConfirmDialog}
-        <Card className="border-amber-400/30 bg-amber-400/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Approval required (US-10)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Estimated cost:{' '}
-              <strong>${(workOrder.estimatedCost ?? 0).toLocaleString()}</strong> — exceeds
-              approval threshold.
-            </p>
-            <Textarea
-              rows={2}
-              placeholder="Approval notes (optional)"
-              value={approvalNotes}
-              onChange={(e) => setApprovalNotes(e.target.value)}
-            />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => {
-                  updateWorkOrder(workOrder.id, {
-                    approvedAt: new Date(),
-                    approvedBy: user?.email,
-                    approvalNotes,
-                    requiresApproval: false,
-                  })
-                  toast.success('Work order approved')
-                }}
-              >
-                Approve
-              </Button>
-              <Button
-                variant="outline"
-                className="text-destructive"
-                onClick={() => {
-                  updateWorkOrder(workOrder.id, {
-                    status: 'cancelled',
-                    rejectionReason: approvalNotes || 'Rejected by finance',
-                  })
-                  toast.success('Work order rejected')
-                }}
-              >
-                Reject
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </>
-    )
-  }
-
-  if (isMaintenanceReadOnly && workOrder.requiresApproval && !workOrder.approvedAt) {
-    return (
-      <Card className="border-border bg-muted/30">
-        <CardContent className="p-4 text-sm text-muted-foreground">
-          <Clock className="mb-2 h-4 w-4" />
-          Pending finance approval before work can proceed.
-        </CardContent>
-      </Card>
     )
   }
 

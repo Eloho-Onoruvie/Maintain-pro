@@ -55,6 +55,7 @@ const Notifications = lazyNamed(
 const Settings = lazyNamed(() => import('@/features/settings/pages/Settings'), 'Settings')
 const UserProfile = lazyNamed(() => import('@/features/settings/pages/UserProfile'), 'UserProfile')
 const VendorTeam = lazyNamed(() => import('@/features/vendors/pages/VendorTeam'), 'VendorTeam')
+const VendorOpportunities = lazyNamed(() => import('@/features/vendors/pages/VendorOpportunities'), 'VendorOpportunities')
 const FinanceApprovals = lazyNamed(
   () => import('@/features/finance/pages/FinanceApprovals'),
   'FinanceApprovals',
@@ -98,6 +99,7 @@ const vendorTeamLeadPages: RouteObject[] = [
   { path: 'work-orders',   element: page(<WorkOrders />) },
   { path: 'work-orders/:id', element: page(<WorkOrderDetails />) },
   { path: 'team',          element: page(<VendorTeam />) },
+  { path: 'opportunities', element: page(<VendorOpportunities />) },
   { path: 'reports',       element: page(<Reports />) },
   { path: 'notifications', element: page(<Notifications />) },
   { path: 'profile',       element: page(<UserProfile />) },

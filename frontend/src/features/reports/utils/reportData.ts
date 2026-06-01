@@ -77,4 +77,16 @@ export function buildPmComplianceFromWorkOrders(workOrders: WorkOrder[]) {
   }))
 }
 
+export function buildPlannedVsActualCost(workOrders: WorkOrder[]) {
+  const buckets = new Map<string, { planned: number; actual: number }>()
+  workOrders.forEach((wo) => {
+    const key = new Date(wo.createdAt).toLocaleString('en-US', { month: 'short' })
+    const row = buckets.get(key) ?? { planned: 0, actual: 0 }
+    row.planned += wo.budgetedCost ?? wo.estimatedCost ?? 0
+    row.actual += wo.actualCost ?? 0
+    buckets.set(key, row)
+  })
+  return [...buckets.entries()].map(([month, costs]) => ({ month, ...costs }))
+}
+
 export { buildCostTrend }

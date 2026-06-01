@@ -164,7 +164,7 @@ export function computeStaffDashboardStats(requests: ServiceRequest[]) {
   return {
     total: requests.length,
     inProgress: requests.filter((r) => r.status === 'in_progress').length,
-    resolved: requests.filter((r) => r.status === 'resolved').length,
+    resolved: requests.filter((r) => r.status === 'completed' || r.status === 'closed').length,
     submitted: requests.filter((r) => r.status === 'submitted').length,
   }
 }

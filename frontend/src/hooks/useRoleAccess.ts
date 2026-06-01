@@ -97,6 +97,14 @@ export function useRoleAccess() {
     const canConvertServiceRequest = isOrgPortal && (isAdmin || isFM)
     const canManageServiceRequests = isOrgPortal && (isAdmin || isFM)
 
+    // Expanded SR workflow flags
+    const canApproveSR           = isOrgPortal && (isAdmin || isFM)
+    const canAssignTechnician    = isOrgPortal && (isAdmin || isFM)
+    const canPublishToVendors    = isOrgPortal && (isAdmin || isFM)
+    const canSelectVendor        = isOrgPortal && (isAdmin || isFM)
+    const canBidOnOpportunity    = role === USER_ROLES.VENDOR_TEAM_LEAD
+    const canAcceptAwardedWork   = role === USER_ROLES.VENDOR_TEAM_LEAD
+
     // ─────────────────────────────────────────────────────────────────────────
     // US-10 (Finance) — Approve High-Value Work Orders
     // "Approve, reject, OR REQUEST MORE INFO; Add approval notes"
@@ -199,6 +207,14 @@ export function useRoleAccess() {
       canRateServiceRequest,
       canConvertServiceRequest,
       canManageServiceRequests,
+
+      // Workflow-specific SR flags
+      canApproveSR,
+      canAssignTechnician,
+      canPublishToVendors,
+      canSelectVendor,
+      canBidOnOpportunity,
+      canAcceptAwardedWork,
 
       // Technician actions (US-04, US-05)
       canReportIssue,

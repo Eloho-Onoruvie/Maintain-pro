@@ -59,7 +59,9 @@ export interface WorkOrder {
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
+  estimates?: number; // legacy placeholder if any
   estimatedCost?: number;
+  budgetedCost?: number;
   actualCost?: number;
   laborCost?: number;
   partsCost?: number;
@@ -83,6 +85,14 @@ export interface WorkOrder {
   paymentStatus?: "pending" | "approved" | "paid";
 }
 
+export interface InvoiceAuditEntry {
+  id: string;
+  action: string;
+  actorName: string;
+  timestamp: Date;
+  notes?: string;
+}
+
 export interface VendorInvoice {
   id: string;
   workOrderId: string;
@@ -95,6 +105,7 @@ export interface VendorInvoice {
   paidAt?: Date;
   invoiceNumber?: string;
   notes?: string;
+  auditLog?: InvoiceAuditEntry[];
 }
 
 export interface Comment {
@@ -191,6 +202,7 @@ export interface Vendor {
   contractStart?: Date;
   contractEnd?: Date;
   contractValue?: number;
+  contractDocumentUrl?: string;
   slaResponseTime?: number;
   slaResolutionTime?: number;
   slaDetails?: string;
@@ -302,36 +314,83 @@ export interface ChecklistItem {
 
 // ─── Service Requests ─────────────────────────────────────────────────────────
 export type ServiceRequestStatus =
-  | "submitted"
-  | "reviewed"
-  | "approved"
-  | "in_progress"
-  | "resolved"
-  | "rejected"
-  | "reopened";
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'rejected'
+  | 'approved'
+  | 'assigned_internal'
+  | 'open_to_vendors'
+  | 'vendor_selected'
+  | 'work_order_created'
+  | 'in_progress'
+  | 'completed'
+  | 'closed'
 
 export interface ServiceRequest {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  status: ServiceRequestStatus;
-  priority: WorkOrderPriority;
-  requesterId: string;
-  requesterName: string;
-  requesterEmail: string;
-  locationId: string;
-  locationName: string;
-  images?: string[];
-  createdAt: Date;
-  resolvedAt?: Date;
-  rating?: number;
-  feedback?: string;
-  convertedToWorkOrderId?: string;
-  assignedTo?: string;
-  reviewedBy?: string;
-  isGuest?: boolean;
-  guestContactInfo?: string;
+  id: string
+  title: string
+  description: string
+  category: string
+  status: ServiceRequestStatus
+  priority: WorkOrderPriority
+  requesterId: string
+  requesterName: string
+  requesterEmail: string
+  locationId: string
+  locationName: string
+  images?: string[]
+  createdAt: Date
+  resolvedAt?: Date
+  rating?: number
+  feedback?: string
+  // Workflow fields
+  assignmentType?: 'internal' | 'vendor'
+  assignedTechnicianId?: string
+  assignedTechnicianName?: string
+  selectedVendorId?: string
+  selectedVendorName?: string
+  generatedWorkOrderId?: string
+  reviewedBy?: string
+  reviewedAt?: Date
+  approvedAt?: Date
+  reviewNotes?: string
+  opportunityId?: string
+  // Legacy compat
+  convertedToWorkOrderId?: string
+  assignedTo?: string
+  isGuest?: boolean
+  guestContactInfo?: string
+}
+
+// ─── Vendor Opportunities ─────────────────────────────────────────────────────
+export interface VendorBid {
+  id: string
+  opportunityId: string
+  vendorId: string
+  vendorName: string
+  proposedCost: number
+  estimatedDays: number
+  notes?: string
+  submittedAt: Date
+  status: 'pending' | 'accepted' | 'rejected'
+}
+
+export interface VendorOpportunity {
+  id: string
+  serviceRequestId: string
+  title: string
+  description: string
+  category: string
+  locationName: string
+  priority: WorkOrderPriority
+  estimatedBudget?: number
+  publishedAt: Date
+  deadline?: Date
+  status: 'open' | 'awarded' | 'closed'
+  bids: VendorBid[]
+  awardedVendorId?: string
+  awardedVendorName?: string
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────

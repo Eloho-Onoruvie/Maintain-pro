@@ -66,8 +66,8 @@ export function FinanceApprovals() {
   return (
     <div className="flex flex-col bg-background">
       <AppHeader
-        title="Work Order Approvals"
-        subtitle="High-value work orders requiring finance sign-off (US-10)"
+        title="Financial & Budget Approvals"
+        subtitle="High-value work orders and transactions requiring finance sign-off (US-10)"
         hideQuickCreate
       />
       <div className="page-body space-y-4">

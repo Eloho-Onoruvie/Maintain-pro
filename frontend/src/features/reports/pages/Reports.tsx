@@ -1,629 +1,574 @@
-import { useMemo, useState, useEffect } from 'react'
-import {
-  BarChart3, TrendingUp, FileText, Download, Filter, Calendar,
-  DollarSign, Wrench, Users, Shield, CheckCircle2, AlertTriangle, Clock
-} from 'lucide-react'
-import { useAuthStore } from '@/app/store'
-import { useRoleAccess } from '@/hooks/useRoleAccess'
+import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { usePortalPath } from '@/hooks/usePortal'
+import { FileText, Download, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from 'recharts'
-import { mockVendors, mockUsers } from '@/features/dashboard/services/dashboard.service'
-import { useMockDataStore } from '@/services/mockDataStore'
-import {
-  buildCategorySpend,
-  buildMonthlyCostBreakdown,
-  buildMonthlyWoTrend,
-  buildPmComplianceFromWorkOrders,
-  buildCostTrend,
-  filterWorkOrdersForReport,
-  buildPlannedVsActualCost,
-  type ReportDateRange,
-} from '@/features/reports/utils/reportData'
-import { cn } from '@/utils/helpers'
-import { formatDate } from '@/utils/formatDate'
-import { toast } from 'sonner'
 import { AppHeader } from '@/components/navigation/Navbar'
-import { useDownloadConfirm } from '@/hooks/useDownloadConfirm'
-import { downloadJson } from '@/utils/downloadFile'
-import type { DownloadConfirmRequest } from '@/hooks/useDownloadConfirm'
+import { toast } from 'sonner'
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts'
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+export function Reports() {
+  const [activeTab, setActiveTab] = useState<'generation_hub' | 'maintenance_summary' | 'inventory_report'>('generation_hub')
+  const navigate = useNavigate()
+  const reportsPath = usePortalPath('reports')
 
-const complianceItems = [
-  { name: 'Fire Extinguisher Inspection', lastDone: new Date('2024-11-01'), nextDue: new Date('2025-02-01'), status: 'compliant', ref: 'NFPA 10' },
-  { name: 'Elevator Safety Certificate', lastDone: new Date('2024-08-15'), nextDue: new Date('2025-08-15'), status: 'compliant', ref: 'ASME A17.1' },
-  { name: 'Emergency Lighting Test', lastDone: new Date('2024-10-01'), nextDue: new Date('2025-01-01'), status: 'due_soon', ref: 'NFPA 101' },
-  { name: 'Sprinkler System Inspection', lastDone: new Date('2023-12-01'), nextDue: new Date('2024-12-01'), status: 'overdue', ref: 'NFPA 25' },
-  { name: 'Electrical Panel Audit', lastDone: new Date('2024-06-01'), nextDue: new Date('2025-06-01'), status: 'compliant', ref: 'NFPA 70E' },
-]
-
-function ExportButton({
-  label,
-  data,
-  requestDownload,
-}: {
-  label: string
-  data: unknown
-  requestDownload: (request: DownloadConfirmRequest) => void
-}) {
   return (
-    <div className="flex gap-2">
-      {(['PDF', 'Excel', 'CSV'] as const).map((fmt) => (
-        <Button
-          key={fmt}
-          size="sm"
-          variant="outline"
-          className="gap-2 h-8 text-xs"
-          onClick={() =>
-            requestDownload({
-              title: `Download ${label}?`,
-              description: `Export this report as ${fmt} (JSON format) to your device.`,
-              confirmLabel: `Download ${fmt}`,
-              onDownload: () => {
-                downloadJson(`${label.toLowerCase().replace(/\s+/g, '-')}.${fmt.toLowerCase()}.json`, data)
-                toast.success(`${label} exported as ${fmt}`)
-              },
-            })
-          }
-        >
-          <Download className="h-3.5 w-3.5" />
-          {fmt}
-        </Button>
-      ))}
+    <div className="min-h-full bg-background text-foreground">
+      {/* Top Bar Header */}
+      <AppHeader
+        title={
+          activeTab === 'generation_hub'
+            ? 'Generation Hub'
+            : activeTab === 'maintenance_summary'
+            ? 'Maintenance Summary'
+            : 'Inventory Report'
+        }
+        subtitle="Reports"
+        hideQuickCreate
+      />
+
+      {/* Main Page Top Header & Sub-Navigation */}
+      <div className="border-b border-border bg-card px-8 py-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {activeTab === 'generation_hub'
+                ? 'Reports Generation Hub'
+                : activeTab === 'maintenance_summary'
+                ? 'Maintenance Summary'
+                : 'Inventory Report'}
+            </h1>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              {activeTab === 'generation_hub'
+                ? 'Instantly compile data models, audits, compliance rates, and vendor performance history.'
+                : activeTab === 'maintenance_summary'
+                ? 'Review and analyze cross-facility hardware performance, dispatch duration, and SLA rates.'
+                : 'Monitor storage reserves, parts valuation, low-stock triggers, and critical safety thresholds.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {activeTab === 'maintenance_summary' ? (
+              <Button
+                onClick={() => toast.success('Exporting PDF Report...')}
+                className="flex items-center gap-2 rounded-lg bg-[#4f46e5] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-[#4338ca] transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Export PDF Report
+              </Button>
+            ) : activeTab === 'inventory_report' ? (
+              <Button
+                onClick={() => toast.success('Restock request initialized')}
+                className="flex items-center gap-2 rounded-lg bg-[#4f46e5] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-[#4338ca] transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Create Restock Request
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="mt-5 flex items-center rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-1 text-[12px] font-semibold w-fit">
+          <button
+            onClick={() => setActiveTab('generation_hub')}
+            className={`rounded-md px-4 py-1.5 transition-colors ${activeTab === 'generation_hub' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}
+          >
+            Reports Hub
+          </button>
+          <button
+            onClick={() => setActiveTab('maintenance_summary')}
+            className={`rounded-md px-4 py-1.5 transition-colors ${activeTab === 'maintenance_summary' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}
+          >
+            Maintenance Summary
+          </button>
+          <button
+            onClick={() => setActiveTab('inventory_report')}
+            className={`rounded-md px-4 py-1.5 transition-colors ${activeTab === 'inventory_report' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}
+          >
+            Inventory Report
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tab Contents */}
+      <div className="p-8">
+        {activeTab === 'generation_hub' ? (
+          <GenerationHubView setActiveTab={setActiveTab} onOpenReport={(slug) => navigate(`${reportsPath}/${slug}`)} />
+        ) : activeTab === 'maintenance_summary' ? (
+          <MaintenanceSummaryView />
+        ) : (
+          <InventoryReportView />
+        )}
+      </div>
     </div>
   )
 }
 
-export function Reports() {
-  const { requestDownload, DownloadConfirmDialog } = useDownloadConfirm()
-  const [dateRange, setDateRange] = useState<ReportDateRange>('6m')
-  const [activeTab, setActiveTab] = useState('overview')
-
-  const user = useAuthStore((s) => s.user)
-  const { role, portal } = useRoleAccess()
-
-  const allWorkOrders = useMockDataStore((s) => s.workOrders)
-  const mockPMs = useMockDataStore((s) => s.pms)
-
-  // Scope work orders to the logged in user/vendor if they are a vendor or technician
-  const scopedWorkOrders = useMemo(() => {
-    if (role === 'vendor_team_lead' || role === 'vendor_technician' || portal === 'vendor') {
-      // Vendors should only see work orders assigned to them (where assigneeId is user.id, which matches their vendorId)
-      return allWorkOrders.filter((wo) => wo.assigneeId === user?.id)
-    }
-    if (role === 'technician') {
-      return allWorkOrders.filter((wo) => wo.assigneeId === user?.id)
-    }
-    return allWorkOrders
-  }, [allWorkOrders, role, portal, user])
-
-  const workOrdersInRange = useMemo(
-    () => filterWorkOrdersForReport(scopedWorkOrders, dateRange),
-    [scopedWorkOrders, dateRange],
-  )
-
-  const monthlyWO = useMemo(() => buildMonthlyWoTrend(workOrdersInRange), [workOrdersInRange])
-  const monthlyCost = useMemo(() => buildMonthlyCostBreakdown(workOrdersInRange), [workOrdersInRange])
-  const categorySpend = useMemo(() => buildCategorySpend(workOrdersInRange), [workOrdersInRange])
-  const pmCompliance = useMemo(
-    () => buildPmComplianceFromWorkOrders(workOrdersInRange),
-    [workOrdersInRange],
-  )
-  const costTrend = useMemo(() => buildCostTrend(workOrdersInRange), [workOrdersInRange])
-  const plannedVsActualData = useMemo(() => buildPlannedVsActualCost(workOrdersInRange), [workOrdersInRange])
-
-  const isVendor = role === 'vendor_team_lead' || role === 'vendor_technician' || portal === 'vendor'
-
-  // For vendor overview: jobs by category (count, not spend)
-  const vendorJobsByCategory = useMemo(() => {
-    if (!isVendor) return []
-    const counts = new Map<string, number>()
-    workOrdersInRange.forEach((wo) => counts.set(wo.category, (counts.get(wo.category) ?? 0) + 1))
-    return [...counts.entries()].map(([name, value]) => ({ name, value }))
-  }, [isVendor, workOrdersInRange])
-
-  const totalCost = useMemo(() => {
-    if (isVendor) {
-      return workOrdersInRange.reduce((sum, wo) => sum + (wo.actualCost ?? wo.estimatedCost ?? 0), 0)
-    }
-    return monthlyCost.reduce((s, m) => s + m.labor + m.parts + m.vendor, 0)
-  }, [isVendor, workOrdersInRange, monthlyCost])
-
-  const avgCompliance =
-    pmCompliance.length === 0
-      ? 0
-      : pmCompliance.reduce((s, p) => s + p.rate, 0) / pmCompliance.length
-
-  const vendorOnTimeRate = useMemo(() => {
-    if (!isVendor) return avgCompliance
-    const completed = workOrdersInRange.filter(wo => wo.status === 'completed')
-    if (completed.length === 0) return 96
-    const onTime = completed.filter(wo => !wo.dueDate || new Date(wo.updatedAt) <= new Date(wo.dueDate))
-    return Math.round((onTime.length / completed.length) * 100)
-  }, [isVendor, workOrdersInRange, avgCompliance])
-
-  const avgResolutionTime = useMemo(() => {
-    const completed = workOrdersInRange.filter(wo => wo.status === 'completed')
-    if (completed.length === 0) return '14.2h'
-    const totalHours = completed.reduce((sum, wo) => {
-      const hours = (new Date(wo.updatedAt).getTime() - new Date(wo.createdAt).getTime()) / (1000 * 60 * 60)
-      return sum + Math.max(1, hours)
-    }, 0)
-    return `${(totalHours / completed.length).toFixed(1)}h`
-  }, [workOrdersInRange])
-
-  const visibleTabs = useMemo(() => {
-    if (role === 'vendor_team_lead' || role === 'vendor_technician' || portal === 'vendor') {
-      return [
-        { value: 'overview', label: 'Overview', icon: BarChart3 },
-        { value: 'workorders', label: 'Work Orders', icon: Wrench },
-      ]
-    }
-    if (role === 'finance') {
-      return [
-        { value: 'overview', label: 'Overview', icon: BarChart3 },
-        { value: 'workorders', label: 'Work Orders', icon: Wrench },
-        { value: 'costs', label: 'Cost Analysis', icon: DollarSign },
-        { value: 'vendors', label: 'Vendors', icon: Users },
-      ]
-    }
-    // FMs and Admins see everything
-    return [
-      { value: 'overview', label: 'Overview', icon: BarChart3 },
-      { value: 'workorders', label: 'Work Orders', icon: Wrench },
-      { value: 'costs', label: 'Cost Analysis', icon: DollarSign },
-      { value: 'pm', label: 'PM Compliance', icon: Calendar },
-      { value: 'vendors', label: 'Vendors', icon: Users },
-      { value: 'compliance', label: 'Regulatory', icon: Shield },
-    ]
-  }, [role, portal])
-
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.value === activeTab)) {
-      setActiveTab(visibleTabs[0]?.value || 'overview')
-    }
-  }, [visibleTabs, activeTab])
-
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. GENERATION HUB VIEW
+   ───────────────────────────────────────────────────────────────────────────── */
+function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: 'generation_hub' | 'maintenance_summary' | 'inventory_report') => void; onOpenReport: (slug: string) => void }) {
   return (
-    <div className="flex flex-col bg-background">
-      {DownloadConfirmDialog}
-      <AppHeader
-        title="Reports & Analytics"
-        subtitle="Operational insights, cost analysis & compliance tracking"
-        hideQuickCreate
-        actions={
-          <>
-            <Select
-              value={dateRange}
-              onValueChange={(v) => setDateRange(v as ReportDateRange)}
-            >
-              <SelectTrigger className="h-9 w-full sm:w-[130px]">
-                <SelectValue />
+    <div className="space-y-6">
+      {/* Global Report Filters Card */}
+      <div className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-bold text-[#0f172a]">Global Report Filters</h2>
+          <span className="text-[11px] text-[#94a3b8]">Apply parameters prior to file extraction</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[13px]">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase text-[#64748b]">SELECT FACILITY</label>
+            <Select defaultValue="all">
+              <SelectTrigger className="h-9 border-[#e2e8f0] bg-[#f8fafc]">
+                <SelectValue placeholder="All Facilities" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1m">Last Month</SelectItem>
-                <SelectItem value="3m">Last 3 Months</SelectItem>
-                <SelectItem value="6m">Last 6 Months</SelectItem>
-                <SelectItem value="1y">Last Year</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
+                <SelectItem value="all">All Facilities</SelectItem>
+                <SelectItem value="hq">HQ Office Tower</SelectItem>
+                <SelectItem value="west">West Campus</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase text-[#64748b]">DATE RANGE</label>
+            <Select defaultValue="30d">
+              <SelectTrigger className="h-9 border-[#e2e8f0] bg-[#f8fafc]">
+                <SelectValue placeholder="Last 30 Days (Jan 1 - Jan 30)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30d">Last 30 Days (Jan 1 - Jan 30)</SelectItem>
+                <SelectItem value="90d">Last 90 Days</SelectItem>
+                <SelectItem value="ytd">Year to Date</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase text-[#64748b]">EXPORT FORMAT</label>
+            <Select defaultValue="pdf">
+              <SelectTrigger className="h-9 border-[#e2e8f0] bg-[#f8fafc]">
+                <SelectValue placeholder="Adobe PDF Document (.pdf)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pdf">Adobe PDF Document (.pdf)</SelectItem>
+                <SelectItem value="csv">CSV Spreadsheet (.csv)</SelectItem>
+                <SelectItem value="excel">Excel Workbook (.xlsx)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* 6 Report Generation Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[
+          {
+            title: 'Maintenance Summary',
+            desc: 'Overall health index, count of requests vs. completions, and active labor cost estimations.',
+            actionLabel: 'Generate Summary',
+            tabTarget: 'maintenance_summary' as const,
+          },
+          {
+            title: 'Work Order Analysis',
+            desc: 'Distribution of tickets by severity level, priority category, average times, and backlog age.',
+            actionLabel: 'Generate Analysis',
+            reportSlug: 'work-order-analysis',
+          },
+          {
+            title: 'SLA Compliance Report',
+            desc: 'Vendor performance benchmarks, emergency response success, and breach warning tallies.',
+            actionLabel: 'Generate SLA Report',
+            reportSlug: 'sla-compliance',
+          },
+          {
+            title: 'PM Compliance Report',
+            desc: 'Preventive task adherence index, missed checkup lists, and mechanical lifecycles remaining.',
+            actionLabel: 'Generate PM Report',
+            reportSlug: 'pm-compliance',
+          },
+          {
+            title: 'Inventory Report',
+            desc: 'Total stock valuation, low thresholds list, replacement frequency, and safety margins.',
+            actionLabel: 'Generate Inventory Report',
+            tabTarget: 'inventory_report' as const,
+          },
+          {
+            title: 'Vendor Performance Report',
+            desc: 'Rating summaries, dispatch frequency, invoice accuracies, and technician evaluations.',
+            actionLabel: 'Generate Vendor Report',
+            reportSlug: 'vendor-performance',
+          },
+        ].map((card, idx) => (
+          <div key={idx} className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between space-y-4">
+            <div className="space-y-1.5">
+              <h3 className="text-[15px] font-bold text-[#0f172a]">{card.title}</h3>
+              <p className="text-[12.5px] text-[#64748b] leading-relaxed">{card.desc}</p>
+            </div>
             <Button
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              onClick={() =>
-                requestDownload({
-                  title: 'Export all reports?',
-                  description:
-                    'Download a combined JSON file with work orders, costs, compliance, and vendor data for the selected date range.',
-                  confirmLabel: 'Download export',
-                  onDownload: () => {
-                    downloadJson('reports-export-all.json', {
-                      dateRange,
-                      monthlyWO,
-                      monthlyCost,
-                      categorySpend,
-                      pmCompliance,
-                      complianceItems,
-                    })
-                    toast.success('Reports exported')
-                  },
-                })
-              }
+              onClick={() => {
+                if (card.tabTarget) setActiveTab(card.tabTarget)
+                else if (card.reportSlug) onOpenReport(card.reportSlug)
+              }}
+              className="w-fit rounded-lg bg-[#4f46e5] px-4 py-2 text-[12.5px] font-semibold text-white shadow-sm hover:bg-[#4338ca]"
             >
-              <Download className="h-4 w-4" />Export All
+              {card.actionLabel}
             </Button>
-          </>
-        }
-      />
+          </div>
+        ))}
+      </div>
 
-      <div className="page-body">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-muted border border-border mb-6 flex-wrap h-auto gap-1 p-1">
-            {visibleTabs.map((t) => (
-              <TabsTrigger key={t.value} value={t.value} className="gap-2">
-                <t.icon className="h-3.5 w-3.5" />
-                {t.label}
-              </TabsTrigger>
+      {/* Recently Generated Reports Table */}
+      <div className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm space-y-4">
+        <div>
+          <h2 className="text-[15px] font-bold text-[#0f172a]">Recently Generated Reports</h2>
+          <p className="text-[12px] text-[#64748b]">Download previously compiled report executions from history cache</p>
+        </div>
+
+        <table className="w-full text-left text-[13px]">
+          <thead className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase text-[#64748b]">
+            <tr>
+              <th className="py-2.5 px-4">REPORT NAME</th>
+              <th className="py-2.5 px-4">REPORT TYPE</th>
+              <th className="py-2.5 px-4">DATE RANGE</th>
+              <th className="py-2.5 px-4">GENERATED BY</th>
+              <th className="py-2.5 px-4">GENERATION DATE</th>
+              <th className="py-2.5 px-4 text-right">DOWNLOAD</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#f1f5f9]">
+            {[
+              { name: 'HQ_Tower_Jan_SLA_Compliance_v2', type: 'SLA Compliance Report', range: 'Jan 1, 2026 - Jan 31, 2026', by: 'Samuel Dane', date: 'Jan 30, 2026' },
+              { name: 'PM_Preventive_Quarterly_Compiled', type: 'PM Compliance Report', range: 'Oct 1, 2025 - Dec 31, 2025', by: 'Dave Miller', date: 'Jan 28, 2026' },
+              { name: 'Full_Organization_Inventory_Valuation', type: 'Inventory Report', range: 'As of Jan 25, 2026', by: 'Sarah Jenkins', date: 'Jan 25, 2026' },
+              { name: 'HQ_HVAC_SLA_Audit_Anomalies', type: 'SLA Compliance Report', range: 'Jan 1, 2026 - Jan 20, 2026', by: 'System (Auto)', date: 'Jan 20, 2026' },
+              { name: 'West_Campus_Backlog_Analysis_Q4', type: 'Work Order Analysis', range: 'Oct 1, 2025 - Dec 31, 2025', by: 'John Doe', date: 'Jan 15, 2026' },
+            ].map((row, idx) => (
+              <tr key={idx} className="hover:bg-[#f8fafc] transition-colors">
+                <td className="py-3 px-4 font-bold text-[#0f172a] flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#64748b]" />
+                  {row.name}
+                </td>
+                <td className="py-3 px-4 text-[#475569]">{row.type}</td>
+                <td className="py-3 px-4 text-[#64748b]">{row.range}</td>
+                <td className="py-3 px-4 text-[#475569] font-medium">{row.by}</td>
+                <td className="py-3 px-4 text-[#64748b]">{row.date}</td>
+                <td className="py-3 px-4 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toast.success(`Downloading ${row.name}.pdf`)}
+                    className="h-7 rounded bg-[#e0f2fe] px-2.5 text-[11px] font-bold text-[#0284c7] hover:bg-[#bae6fd]"
+                  >
+                    PDF
+                  </Button>
+                </td>
+              </tr>
             ))}
-          </TabsList>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
-          {/* OVERVIEW */}
-          <TabsContent value="overview" className="space-y-6 mt-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Total Work Orders', value: workOrdersInRange.length, icon: Wrench,        color: 'text-blue-400',    sub: isVendor ? 'assigned to you' : 'in selected range' },
-                { label: isVendor ? 'Total Earnings' : 'Total Spend',       value: `$${(totalCost/1000).toFixed(0)}k`, icon: DollarSign, color: 'text-amber-400', sub: isVendor ? 'from completed jobs' : 'all categories' },
-                { label: isVendor ? 'On-Time Rate' : 'PM Compliance',     value: `${(isVendor ? vendorOnTimeRate : avgCompliance).toFixed(0)}%`, icon: CheckCircle2, color: (isVendor ? vendorOnTimeRate : avgCompliance) >= 90 ? 'text-emerald-400' : 'text-amber-400', sub: 'on-time completion' },
-                { label: 'Avg Resolution',    value: avgResolutionTime, icon: Clock,          color: 'text-purple-400', sub: isVendor ? 'avg per completed job' : 'across all priorities' },
-              ].map(k => (
-                <Card key={k.label} className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-muted-foreground">{k.label}</p>
-                        <p className={cn('text-2xl font-semibold mt-1', k.color)}>{k.value}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{k.sub}</p>
-                      </div>
-                      <k.icon className={cn('h-5 w-5', k.color)} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. MAINTENANCE SUMMARY VIEW
+   ───────────────────────────────────────────────────────────────────────────── */
+function MaintenanceSummaryView() {
+  const trend = [
+    { day: 'Jan 08', created: 18, completed: 14 }, { day: 'Jan 10', created: 22, completed: 19 },
+    { day: 'Jan 12', created: 16, completed: 21 }, { day: 'Jan 14', created: 25, completed: 20 },
+    { day: 'Jan 16', created: 19, completed: 23 }, { day: 'Jan 18', created: 14, completed: 18 },
+  ]
+  const categories = [{ name: 'HVAC', value: 42 }, { name: 'Electrical', value: 28 }, { name: 'Plumbing', value: 19 }, { name: 'Other', value: 11 }]
+  const colors = ['#4f46e5', '#0ea5e9', '#f59e0b', '#94a3b8']
+  return (
+    <div className="space-y-6">
+      {/* 5 Filter Bar Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-44 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Facility: All Facilities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Facility: All</SelectItem>
+            <SelectItem value="hq">HQ Office Tower</SelectItem>
+          </SelectContent>
+        </Select>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Work Orders by Type</CardTitle>
-                  <ExportButton label="WO Chart" data={monthlyWO} requestDownload={requestDownload} />
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={monthlyWO}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <Tooltip cursor={{ fill: 'var(--accent)', opacity: 0.16 }} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="reactive"   fill="#3b82f6" radius={[2,2,0,0]} />
-                      <Bar dataKey="preventive" fill="#10b981" radius={[2,2,0,0]} />
-                      <Bar dataKey="emergency"  fill="#ef4444" radius={[2,2,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+        <Select defaultValue="30d">
+          <SelectTrigger className="h-9 w-48 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Date Range: Last 30 Days" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="30d">Date Range: Last 30 Days</SelectItem>
+          </SelectContent>
+        </Select>
 
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-medium">
-                    {isVendor ? 'Jobs by Category' : 'Spend by Category'}
-                  </CardTitle>
-                  <ExportButton
-                    label={isVendor ? 'Jobs by Category' : 'Spend Chart'}
-                    data={isVendor ? vendorJobsByCategory : categorySpend}
-                    requestDownload={requestDownload}
-                  />
-                </CardHeader>
-                <CardContent className="flex items-center">
-                  {isVendor ? (
-                    vendorJobsByCategory.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-8 mx-auto">No jobs in selected range</p>
-                    ) : (
-                      <>
-                        <ResponsiveContainer width="50%" height={220}>
-                          <PieChart>
-                            <Pie data={vendorJobsByCategory} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={2}>
-                              {vendorJobsByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip formatter={(v: number) => `${v} job${v !== 1 ? 's' : ''}`} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="flex-1 space-y-2">
-                          {vendorJobsByCategory.map((c, i) => (
-                            <div key={c.name} className="flex items-center gap-2 text-xs">
-                              <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                              <span className="flex-1 text-muted-foreground">{c.name}</span>
-                              <span className="font-medium">{c.value} job{c.value !== 1 ? 's' : ''}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <ResponsiveContainer width="50%" height={220}>
-                        <PieChart>
-                          <Pie data={categorySpend} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={2}>
-                            {categorySpend.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="flex-1 space-y-2">
-                        {categorySpend.map((c, i) => (
-                          <div key={c.name} className="flex items-center gap-2 text-xs">
-                            <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                            <span className="flex-1 text-muted-foreground">{c.name}</span>
-                            <span className="font-medium">${(c.value/1000).toFixed(0)}k</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-44 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Priority: All Priorities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Priority: All</SelectItem>
+          </SelectContent>
+        </Select>
 
-          {/* WORK ORDERS */}
-          <TabsContent value="workorders" className="space-y-6 mt-0">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-medium">Work Order Report</h2>
-              <ExportButton label="WO Report" data={workOrdersInRange} requestDownload={requestDownload} />
-            </div>
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Volume Trend</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={monthlyWO}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                    <Tooltip cursor={{ stroke: 'var(--border)', strokeWidth: 1 }} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="reactive"   stroke="#3b82f6" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="preventive" stroke="#10b981" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="emergency"  stroke="#ef4444" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className="bg-card border-border">
-              <div className="data-table-wrap">
-          <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    {['ID','Title','Type','Priority','Status','Assignee','Cost','Created'].map(h => (
-                      <TableHead key={h} className="text-muted-foreground text-xs">{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workOrdersInRange.slice(0, 10).map(wo => (
-                    <TableRow key={wo.id} className="border-border">
-                      <TableCell className="font-mono text-xs">{wo.id}</TableCell>
-                      <TableCell className="text-sm max-w-[180px] truncate">{wo.title}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs capitalize">{(wo as any).type || 'reactive'}</Badge></TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs capitalize">{wo.priority}</Badge></TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs capitalize">{wo.status.replace('_',' ')}</Badge></TableCell>
-                      <TableCell className="text-sm">{wo.assigneeName || '—'}</TableCell>
-                      <TableCell className="text-sm">{wo.estimatedCost ? `$${wo.estimatedCost.toLocaleString()}` : '—'}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatDate(wo.createdAt)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-48 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Category: All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Category: All</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-44 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Status: All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Status: All</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Operational graphs */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+        <div className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm xl:col-span-3">
+          <div className="mb-3"><h2 className="text-[15px] font-bold text-[#0f172a]">Work order flow</h2><p className="text-[12px] text-[#64748b]">Created versus completed in the selected period</p></div>
+          <div className="h-64"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ left: -20, right: 8 }}><defs><linearGradient id="reportCreated" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={.25}/><stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11}/><YAxis tickLine={false} axisLine={false} fontSize={11}/><Tooltip/><Area type="monotone" dataKey="created" stroke="#4f46e5" fill="url(#reportCreated)" strokeWidth={2}/><Area type="monotone" dataKey="completed" stroke="#10b981" fill="transparent" strokeWidth={2}/></AreaChart></ResponsiveContainer></div>
         </div>
-        </Card>
-          </TabsContent>
-
-          {/* COST ANALYSIS */}
-          <TabsContent value="costs" className="space-y-6 mt-0">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-medium">Cost Analysis</h2>
-              <ExportButton label="Cost Report" data={monthlyCost} requestDownload={requestDownload} />
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Monthly Spend Breakdown</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={monthlyCost}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <Tooltip cursor={{ fill: 'var(--accent)', opacity: 0.16 }} formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="labor"  stackId="a" fill="#3b82f6" />
-                      <Bar dataKey="parts"  stackId="a" fill="#10b981" />
-                      <Bar dataKey="vendor" stackId="a" fill="#f59e0b" radius={[2,2,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Planned vs Actual Cost Comparison (US-11)</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={plannedVsActualData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <Tooltip cursor={{ fill: 'var(--accent)', opacity: 0.16 }} formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12 }} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="planned" name="Planned / Budgeted Spend" fill="#8b5cf6" radius={[2,2,0,0]} />
-                      <Bar dataKey="actual" name="Actual Spend" fill="#06b6d4" radius={[2,2,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              {[{ label: 'Labor', key: 'labor', color: '#3b82f6' }, { label: 'Parts', key: 'parts', color: '#10b981' }, { label: 'Vendor', key: 'vendor', color: '#f59e0b' }].map(c => {
-                const total = monthlyCost.reduce((s, m) => s + m[c.key as 'labor' | 'parts' | 'vendor'], 0)
-                return (
-                  <Card key={c.label} className="bg-card border-border">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-3 h-3 rounded-sm" style={{ background: c.color }} />
-                        <span className="text-xs text-muted-foreground">{c.label} Cost</span>
-                      </div>
-                      <p className="text-2xl font-semibold">${(total/1000).toFixed(0)}k</p>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </TabsContent>
-
-          {/* PM COMPLIANCE */}
-          <TabsContent value="pm" className="space-y-6 mt-0">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-medium">PM Compliance Report</h2>
-              <ExportButton label="PM Report" data={pmCompliance} requestDownload={requestDownload} />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label: 'Overall Compliance', value: `${avgCompliance.toFixed(0)}%`, color: avgCompliance >= 90 ? 'text-emerald-400' : 'text-amber-400' },
-                { label: 'Scheduled This Month', value: pmCompliance.reduce((s,p) => s+p.scheduled, 0), color: 'text-foreground' },
-                { label: 'Completed On Time',    value: pmCompliance.reduce((s,p) => s+p.completed, 0), color: 'text-emerald-400' },
-              ].map(k => (
-                <Card key={k.label} className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground">{k.label}</p>
-                    <p className={cn('text-3xl font-semibold mt-1', k.color)}>{k.value}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">Compliance by Category</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                {pmCompliance.map(p => (
-                  <div key={p.category}>
-                    <div className="flex justify-between text-sm mb-1.5">
-                      <span className="font-medium">{p.category}</span>
-                      <div className="flex items-center gap-3 text-muted-foreground text-xs">
-                        <span>{p.completed}/{p.scheduled} completed</span>
-                        <span className={cn('font-semibold', p.rate === 100 ? 'text-emerald-400' : p.rate >= 85 ? 'text-amber-400' : 'text-red-400')}>{p.rate.toFixed(0)}%</span>
-                      </div>
-                    </div>
-                    <Progress value={p.rate} className="h-2" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* VENDOR PERFORMANCE */}
-          <TabsContent value="vendors" className="space-y-6 mt-0">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-medium">Vendor Performance Report</h2>
-              <ExportButton label="Vendor Report" data={mockVendors} requestDownload={requestDownload} />
-            </div>
-            <Card className="bg-card border-border">
-              <div className="data-table-wrap">
-          <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    {['Vendor','Category','Rating','Jobs Done','Response Avg','Completion Rate','Total Spend'].map(h => (
-                      <TableHead key={h} className="text-muted-foreground text-xs">{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockVendors.filter(v => v.status === 'active').map(v => {
-                    const vendorWOs = allWorkOrders.filter(
-                      (wo) => wo.assigneeId === v.id || wo.assigneeName === v.name
-                    )
-                    const completedWOs = vendorWOs.filter((wo) => wo.status === 'completed')
-                    
-                    const completionRate = vendorWOs.length 
-                      ? Math.round((completedWOs.length / vendorWOs.length) * 100)
-                      : (v.completedJobs ? 95 : 100)
-
-                    const onTimeWOs = completedWOs.filter(
-                      (wo) => !wo.dueDate || new Date(wo.updatedAt) <= new Date(wo.dueDate)
-                    )
-                    const onTimeRate = completedWOs.length
-                      ? Math.round((onTimeWOs.length / completedWOs.length) * 100)
-                      : 92
-
-                    const totalSpend = vendorWOs.reduce((sum, wo) => sum + (wo.actualCost ?? wo.estimatedCost ?? 0), 0)
-                    const finalSpend = totalSpend || v.totalSpend || 0
-
-                    return (
-                      <TableRow key={v.id} className="border-border">
-                        <TableCell className="font-medium text-sm">{v.name}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">{v.category}</Badge></TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <span className="text-amber-400 text-sm font-semibold">{v.rating.toFixed(1)}</span>
-                            <span className="text-xs text-muted-foreground">/5</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm">{Math.max(v.completedJobs || 0, completedWOs.length)}</TableCell>
-                        <TableCell className="text-sm">{(v.slaResponseTime || 4)}h avg</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress value={onTimeRate} className="h-1.5 w-16" />
-                            <span className="text-xs">{onTimeRate}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm font-medium">${(finalSpend/1000).toFixed(0)}k</TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+        <div className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm xl:col-span-2">
+          <div className="mb-3"><h2 className="text-[15px] font-bold text-[#0f172a]">Requests by category</h2><p className="text-[12px] text-[#64748b]">Share of maintenance volume</p></div>
+          <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={categories} dataKey="value" nameKey="name" innerRadius={54} outerRadius={82} paddingAngle={3}>{categories.map((entry, index) => <Cell key={entry.name} fill={colors[index]}/>)}</Pie><Tooltip/><Legend verticalAlign="bottom" height={28}/></PieChart></ResponsiveContainer></div>
         </div>
-        </Card>
-          </TabsContent>
+      </div>
 
-          {/* REGULATORY COMPLIANCE */}
-          <TabsContent value="compliance" className="space-y-6 mt-0">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-medium">Regulatory Compliance Report</h2>
-              <ExportButton label="Compliance Report" data={complianceItems} requestDownload={requestDownload} />
-            </div>
-            <Card className="bg-card border-border">
-              <div className="data-table-wrap">
-          <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    {['Inspection','Regulatory Reference','Last Done','Next Due','Status'].map(h => (
-                      <TableHead key={h} className="text-muted-foreground text-xs">{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {complianceItems.map(item => (
-                    <TableRow key={item.name} className="border-border">
-                      <TableCell className="font-medium text-sm">{item.name}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-xs font-mono">{item.ref}</Badge></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(item.lastDone)}</TableCell>
-                      <TableCell className={cn('text-sm font-medium', item.status === 'overdue' ? 'text-red-400' : item.status === 'due_soon' ? 'text-amber-400' : '')}>{formatDate(item.nextDue)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn('text-xs gap-1',
-                          item.status === 'compliant' ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20' :
-                          item.status === 'due_soon'  ? 'bg-amber-400/10 text-amber-400 border-amber-400/20' :
-                          'bg-red-400/10 text-red-400 border-red-400/20')}>
-                          {item.status === 'compliant' ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                          {item.status === 'compliant' ? 'Compliant' : item.status === 'due_soon' ? 'Due Soon' : 'Overdue'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+      {/* 4 Metric Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Work Orders', val: '148', sub: '◆ +12% from last month', isPositive: true },
+          { label: 'Completed Orders', val: '124', sub: '◆ 83.7% completion rate', isPositive: true },
+          { label: 'Avg. Resolution Time', val: '4h 12m', sub: '◆ -22m since last week', isPositive: true },
+          { label: 'SLA Compliance Rate', val: '94.2%', sub: '◆ Target SLA is 92%', isPositive: true },
+        ].map((kpi, idx) => (
+          <div key={idx} className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm space-y-1">
+            <p className="text-[12px] font-medium text-[#64748b]">{kpi.label}</p>
+            <p className="text-3xl font-extrabold text-[#0f172a]">{kpi.val}</p>
+            <p className="text-[11px] font-medium text-[#16a34a]">{kpi.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Work Orders Ledger Table */}
+      <div className="overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-sm">
+        <table className="w-full text-left text-[13px]">
+          <thead className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[11px] font-bold uppercase text-[#64748b]">
+            <tr>
+              <th className="px-6 py-3.5">WO #</th>
+              <th className="px-6 py-3.5">FACILITY</th>
+              <th className="px-6 py-3.5">LOCATION</th>
+              <th className="px-6 py-3.5">ASSET</th>
+              <th className="px-6 py-3.5">CATEGORY</th>
+              <th className="px-6 py-3.5">PRIORITY</th>
+              <th className="px-6 py-3.5">STATUS</th>
+              <th className="px-6 py-3.5">ASSIGNED TO</th>
+              <th className="px-6 py-3.5">CREATED</th>
+              <th className="px-6 py-3.5">RESOLVED</th>
+              <th className="px-6 py-3.5 text-right">RES. TIME</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#f1f5f9]">
+            {[
+              { id: 'WO-4810', fac: 'HQ Office Tower', loc: 'Conf Room B', asset: 'Carrier HVAC v4', cat: 'HVAC', pri: 'CRITICAL', stat: 'PROGRESS', tech: 'Sarah Jenkins', cr: 'Jan 12, 09:00', res: 'Jan 12, 13:12', time: '4h 12m' },
+              { id: 'WO-4809', fac: 'West Campus', loc: 'Elevator Shaft B', asset: 'Otis Lift 2000', cat: 'Elevator', pri: 'HIGH', stat: 'COMPLETED', tech: 'Dave Miller', cr: 'Jan 11, 10:15', res: 'Jan 11, 12:45', time: '2h 30m' },
+              { id: 'WO-4808', fac: 'North Logistics', loc: 'Basement Pump Room', asset: 'Grundfos Seal Pump', cat: 'Plumbing', pri: 'CRITICAL', stat: 'HOLD', tech: 'John Doe', cr: 'Jan 10, 08:30', res: '—', time: '—' },
+              { id: 'WO-4807', fac: 'HQ Office Tower', loc: 'Cafeteria Kitchen', asset: 'Hobart Dishwasher', cat: 'Appliances', pri: 'MEDIUM', stat: 'COMPLETED', tech: 'Unassigned', cr: 'Jan 10, 14:20', res: 'Jan 10, 17:50', time: '3h 30m' },
+              { id: 'WO-4806', fac: 'East Warehouses', loc: 'Dock Gate 3', asset: 'Linear Safety Loop', cat: 'Security', pri: 'HIGH', stat: 'PROGRESS', tech: 'John Doe', cr: 'Jan 09, 11:10', res: '—', time: '—' },
+              { id: 'WO-4805', fac: 'HQ Office Tower', loc: 'All Floors', asset: 'Honeywell Alarm Gen3', cat: 'Fire Safety', pri: 'HIGH', stat: 'COMPLETED', tech: 'Sarah Jenkins', cr: 'Jan 09, 08:00', res: 'Jan 09, 10:15', time: '2h 15m' },
+              { id: 'WO-4804', fac: 'Silicon Valley Lab', loc: 'Room 102', asset: 'APC Backup UPS 10k', cat: 'Electrical', pri: 'CRITICAL', stat: 'PROGRESS', tech: 'Dave Miller', cr: 'Jan 08, 12:00', res: '—', time: '—' },
+              { id: 'WO-4803', fac: 'HQ Office Tower', loc: 'Lobby Front', asset: 'Philips LED Panel', cat: 'Lighting', pri: 'LOW', stat: 'COMPLETED', tech: 'Unassigned', cr: 'Jan 08, 15:45', res: 'Jan 08, 16:30', time: '45m' },
+            ].map(row => (
+              <tr key={row.id} className="hover:bg-[#f8fafc] transition-colors">
+                <td className="px-6 py-4 font-mono font-bold text-[#0f172a]">{row.id}</td>
+                <td className="px-6 py-4 text-[#475569]">{row.fac}</td>
+                <td className="px-6 py-4 text-[#475569]">{row.loc}</td>
+                <td className="px-6 py-4 text-[#0f172a] font-medium">{row.asset}</td>
+                <td className="px-6 py-4 text-[#475569]">{row.cat}</td>
+                <td className="px-6 py-4">
+                  <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${row.pri === 'CRITICAL' || row.pri === 'HIGH' ? 'bg-[#fee2e2] text-[#ef4444]' : 'bg-[#fef3c7] text-[#d97706]'}`}>
+                    {row.pri}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${row.stat === 'COMPLETED' ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#e0f2fe] text-[#0284c7]'}`}>
+                    {row.stat}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-[#475569] font-medium">{row.tech}</td>
+                <td className="px-6 py-4 text-[#64748b]">{row.cr}</td>
+                <td className="px-6 py-4 text-[#64748b]">{row.res}</td>
+                <td className="px-6 py-4 text-right font-bold text-[#0f172a]">{row.time}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-[#e2e8f0] bg-white px-6 py-4 text-[13px] text-[#64748b]">
+          <div>
+            Showing <span className="font-semibold text-[#0f172a]">1-8</span> of{' '}
+            <span className="font-semibold text-[#0f172a]">148</span> entries
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">Previous</Button>
+            <Button size="sm" className="h-8 rounded-md bg-[#4f46e5] px-3 text-[12px] font-semibold text-white">1</Button>
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">2</Button>
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">3</Button>
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">Next</Button>
+          </div>
         </div>
-        </Card>
-          </TabsContent>
-        </Tabs>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. INVENTORY REPORT VIEW
+   ───────────────────────────────────────────────────────────────────────────── */
+function InventoryReportView() {
+  const stockLevels = [{ name: 'In stock', value: 68 }, { name: 'Low stock', value: 14 }, { name: 'Out of stock', value: 3 }]
+  return (
+    <div className="space-y-6">
+      {/* 4 Filter Bar Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-44 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Facility: All Facilities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Facility: All</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-52 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Location: All Storage Rooms" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Location: All Rooms</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select defaultValue="all">
+          <SelectTrigger className="h-9 w-48 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Category: Spare Parts" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Category: Spare Parts</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select defaultValue="low">
+          <SelectTrigger className="h-9 w-52 border-[#e2e8f0] bg-white text-[13px]">
+            <SelectValue placeholder="Stock Status: Low & Critical" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Stock Status: Low & Critical</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm"><h2 className="text-[15px] font-bold text-[#0f172a]">Stock health</h2><p className="mb-3 text-[12px] text-[#64748b]">Items by replenishment state</p><div className="h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={stockLevels} margin={{ left: -20 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11}/><YAxis tickLine={false} axisLine={false} fontSize={11}/><Tooltip/><Bar dataKey="value" fill="#4f46e5" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div></div>
+        <div className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm"><h2 className="text-[15px] font-bold text-[#0f172a]">Inventory value outlook</h2><p className="mb-3 text-[12px] text-[#64748b]">Current value remains concentrated in healthy stock</p><div className="h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{name:'Healthy value',value:42850},{name:'At-risk value',value:6200}]} dataKey="value" innerRadius={54} outerRadius={82} paddingAngle={3}><Cell fill="#10b981"/><Cell fill="#f59e0b"/></Pie><Tooltip formatter={(value: number) => `$${value.toLocaleString()}`}/></PieChart></ResponsiveContainer></div></div>
+      </div>
+
+      {/* 4 Metric Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Monitored Items', val: '482', sub: 'Across 8 storage units', color: '#0284c7' },
+          { label: 'Low Stock Warnings', val: '14', sub: 'Needs replenishment action', isWarn: true },
+          { label: 'Out of Stock', val: '3', sub: 'Severe backlog risk', isCrit: true },
+          { label: 'Total Inventory Value', val: '$42,850', sub: 'Audit completed yesterday', isSuccess: true },
+        ].map((kpi, idx) => (
+          <div key={idx} className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm space-y-1">
+            <p className="text-[12px] font-medium text-[#64748b]">{kpi.label}</p>
+            <p className="text-3xl font-extrabold text-[#0f172a]">{kpi.val}</p>
+            <p className={`text-[11px] font-medium ${kpi.isWarn ? 'text-[#d97706]' : kpi.isCrit ? 'text-[#ef4444]' : kpi.isSuccess ? 'text-[#16a34a]' : 'text-[#64748b]'}`}>
+              {kpi.sub}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Inventory Report Table */}
+      <div className="overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-sm">
+        <table className="w-full text-left text-[13px]">
+          <thead className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[11px] font-bold uppercase text-[#64748b]">
+            <tr>
+              <th className="px-6 py-3.5">ITEM NAME / SKU</th>
+              <th className="px-6 py-3.5">CATEGORY</th>
+              <th className="px-6 py-3.5">FACILITY</th>
+              <th className="px-6 py-3.5 text-center">CURRENT STOCK</th>
+              <th className="px-6 py-3.5 text-center">MIN STOCK</th>
+              <th className="px-6 py-3.5 text-center">MAX STOCK</th>
+              <th className="px-6 py-3.5">UNIT COST</th>
+              <th className="px-6 py-3.5">TOTAL VALUE</th>
+              <th className="px-6 py-3.5 text-right">STATUS</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#f1f5f9]">
+            {[
+              { sku: 'FLT-CH-8201', cat: 'HVAC Filters', fac: 'Silicon Valley Lab', stock: 2, min: 10, max: 40, cost: '$45.00', val: '$90.00', stat: 'CRITICAL LOW', sColor: { bg: '#fee2e2', text: '#ef4444' } },
+              { sku: 'BULB-4FT-09', cat: 'Electrical', fac: 'HQ Office Tower', stock: 15, min: 40, max: 200, cost: '$8.50', val: '$225.00', stat: 'LOW STOCK', sColor: { bg: '#fef3c7', text: '#d97706' } },
+              { sku: 'BLT-HVAC-12', cat: 'Mechanical', fac: 'North Logistics', stock: 4, min: 12, max: 50, cost: '$18.00', val: '$72.00', stat: 'LOW STOCK', sColor: { bg: '#fef3c7', text: '#d97706' } },
+              { sku: 'LIFT-G-002', cat: 'Elevator Parts', fac: 'West Campus', stock: 0, min: 4, max: 20, cost: '—', val: '—', stat: 'OUT OF STOCK', sColor: { bg: '#fee2e2', text: '#ef4444' } },
+              { sku: 'GAS-R410A-C', cat: 'HVAC Gas', fac: 'All Facilities', stock: 18, min: 8, max: 30, cost: '$110.00', val: '$1,980.00', stat: 'IN STOCK', sColor: { bg: '#dcfce7', text: '#16a34a' } },
+              { sku: 'SL-PMP-G9', cat: 'Plumbing Accessories', fac: 'North Logistics', stock: 42, min: 20, max: 100, cost: '$3.20', val: '$134.40', stat: 'IN STOCK', sColor: { bg: '#dcfce7', text: '#16a34a' } },
+              { sku: 'GLS-EM-EX0', cat: 'Safety Hardwares', fac: 'HQ Office Tower', stock: 1, min: 10, max: 25, cost: '$35.00', val: '$35.00', stat: 'CRITICAL LOW', sColor: { bg: '#fee2e2', text: '#ef4444' } },
+              { sku: 'CBL-C6-SPL', cat: 'Cabling', fac: 'Silicon Valley Lab', stock: 8, min: 5, max: 15, cost: '$145.00', val: '$1,160.00', stat: 'IN STOCK', sColor: { bg: '#dcfce7', text: '#16a34a' } },
+            ].map((row, idx) => (
+              <tr key={idx} className="hover:bg-[#f8fafc] transition-colors">
+                <td className="px-6 py-4 font-bold text-[#0f172a]">{row.sku}</td>
+                <td className="px-6 py-4 text-[#475569]">{row.cat}</td>
+                <td className="px-6 py-4 text-[#475569]">{row.fac}</td>
+                <td className="px-6 py-4 text-center font-bold text-[#0f172a]">{row.stock}</td>
+                <td className="px-6 py-4 text-center text-[#64748b]">{row.min}</td>
+                <td className="px-6 py-4 text-center text-[#64748b]">{row.max}</td>
+                <td className="px-6 py-4 font-medium text-[#475569]">{row.cost}</td>
+                <td className="px-6 py-4 font-bold text-[#0f172a]">{row.val}</td>
+                <td className="px-6 py-4 text-right">
+                  <span className="rounded px-2 py-0.5 text-[10px] font-bold uppercase" style={{ backgroundColor: row.sColor.bg, color: row.sColor.text }}>
+                    {row.stat}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-[#e2e8f0] bg-white px-6 py-4 text-[13px] text-[#64748b]">
+          <div>
+            Showing <span className="font-semibold text-[#0f172a]">1-8</span> of{' '}
+            <span className="font-semibold text-[#0f172a]">482</span> entries
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">Previous</Button>
+            <Button size="sm" className="h-8 rounded-md bg-[#4f46e5] px-3 text-[12px] font-semibold text-white">1</Button>
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">2</Button>
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">3</Button>
+            <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">Next</Button>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -1,32 +1,26 @@
-# Split repository CI
+# MaintainPro repository and CI boundary
 
-MaintainPro is deployed from two repositories. Keep the workflows beside the code they verify.
+MaintainPro is intentionally split into two repositories. Each repository owns
+its code, workflow, dependencies, secrets, deployment, and release history.
+
+## Frontend repository (this repository)
+
+- Contains `frontend/`, frontend documentation, and `.github/workflows/frontend-ci.yml`.
+- Validates deterministic install, lint, type-check, production build, and
+  route audit.
+- Receives only the deployed API base URL through frontend environment
+  configuration.
+- Does not track `backend/`, backend secrets, backend deployment files, or
+  backend CI.
 
 ## Backend repository
 
-Copy the contents of `backend/` into the backend repository root, including:
+- Contains its own API, worker, container configuration, documentation, and
+  `.github/workflows/ci.yml`.
+- Validates deterministic install, type-check, lint, build, dependency audit,
+  MongoDB/Redis-backed tests, and production container build.
+- Owns all server-side and provider credentials.
 
-- `.github/workflows/ci.yml`
-- `package.json`
-- `package-lock.json`
-- `src/`
-- `Dockerfile`
-
-The backend workflow starts disposable MongoDB and Redis services, then runs the backend type-check, lint, build, audit, and tests.
-
-## Frontend repository
-
-The current `MaintainPro` repository is the frontend repository root. Keep the workflow at the repository root, while its commands target the existing `frontend/` application directory:
-
-- `.github/workflows/frontend-ci.yml`
-- `frontend/package.json`
-- `frontend/package-lock.json`
-- `frontend/src/`
-
-The frontend workflow runs lint, production build, and route-audit checks.
-
-## Running either workflow
-
-Push the workflow to the target repository, open **Actions**, select **Backend CI** or **Frontend CI**, and choose **Run workflow**. Both workflows also run automatically on pushes and pull requests to `main` and `develop`.
-
-The frontend should receive the deployed backend URL through its repository environment configuration, not by importing backend code or secrets.
+Do not copy source files, workflows, or secrets between repositories. Cross
+repository compatibility is enforced through the versioned HTTP API contract
+and deployed-environment smoke tests.

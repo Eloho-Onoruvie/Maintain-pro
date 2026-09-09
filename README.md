@@ -2,7 +2,8 @@
 
 MaintainPro is a modern, enterprise-grade Facility and Maintenance Management System designed to streamline maintenance operations, automate preventive maintenance scheduling, manage vendor contracts, trace invoices, and track costs. 
 
-The project is structured as a monorepo utilizing **npm workspaces**, dividing core operations between a rich, highly reactive React 19 Frontend and an Express-based Backend.
+This repository contains the React frontend. The API is maintained, deployed,
+and released independently in the [MaintainPro backend repository](https://github.com/Samuel1604/maintain_pro_backend).
 
 ---
 
@@ -10,18 +11,16 @@ The project is structured as a monorepo utilizing **npm workspaces**, dividing c
 
 ```
 MaintainPro/
-├── frontend/             # React 19 + TypeScript + Vite 6 (100% Implemented)
-├── backend/              # Express + Node.js API (Planned/Under Development)
-├── package.json          # Workspace configuration and unified scripts
-└── README.md             # Project documentation
+├── docs/                 # Frontend engineering documentation
+├── frontend/             # React + TypeScript + Vite application
+├── .github/workflows/    # Frontend validation workflow
+└── README.md             # Frontend repository guide
 ```
 
-Unified monorepo scripts are available from the root folder:
-* `npm run install:all` — Installs dependencies across both frontend and backend workspaces.
-* `npm run dev` — Launches both the frontend dev server and the backend API concurrently.
-* `npm run dev:frontend` — Boots only the frontend application.
-* `npm run dev:backend` — Boots only the backend API.
-* `npm run build` — Bundles the frontend production assets.
+The frontend and backend have separate dependency trees, CI pipelines, release
+tags, deployment environments, and secrets. The nested `backend/` working
+directory is ignored by this repository so a local side-by-side checkout cannot
+accidentally become part of a frontend commit.
 
 ---
 
@@ -87,29 +86,22 @@ cp .env.example .env
 ```
 Inside your `.env` file, you can configure your backend bridge or keep the persisted mock server active:
 ```ini
-VITE_API_BASE_URL=http://localhost:3001/api/v1
-VITE_MOCK_AUTH=true  # Set to true for a fully functional, offline database experience
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_DEMO_MODE=true  # Set to true for a fully functional, offline demo
 ```
 
 #### 2. Install & Run
-Run from the root directory to leverage workspaces:
+Run from the frontend application directory:
 ```bash
-npm run install:all
-npm run dev:frontend
+cd frontend
+npm ci
+npm run dev
 ```
 Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
 ---
 
-## 🗄️ Backend API (Planned)
+## Backend API
 
-The backend directory (`/backend`) is designed to house the RESTful Web API and database engines to support long-term persistent storage, multi-user concurrency, and secure integrations.
-
-### 🗺️ Planned Technical Stack
-* **Runtime & Framework**: Node.js & Express.
-* **Language**: TypeScript / JavaScript.
-* **Database**: PostgreSQL (Prisma or TypeORM) / MongoDB.
-* **Authentication**: JWT-based stateless tokens.
-
-### ⚙️ Backend Setup & Configuration
-*(Once the backend workspace development is initiated, detailed configuration procedures, migration commands, and API routing structures will be detailed in this section.)*
+Backend setup, environment configuration, worker operations, webhooks, and
+deployment instructions belong to the [backend repository](https://github.com/Samuel1604/maintain_pro_backend). Configure this frontend's API base URL through `frontend/.env`; never copy backend secrets into this repository.

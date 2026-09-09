@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+# The backend is an independent Git repository with its own release history.
+backend/
+
+# Build output
+frontend/dist/
+
+# Environment files — never commit these
+.env
+frontend/.env
+backend/.env
+
+# zips
+*.zip
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+.aider*

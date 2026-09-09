@@ -6,8 +6,8 @@ its code, workflow, dependencies, secrets, deployment, and release history.
 ## Frontend repository (this repository)
 
 - Contains `frontend/`, frontend documentation, and `.github/workflows/frontend-ci.yml`.
-- Validates deterministic install, lint, type-check, production build, and
-  route audit.
+- Validates deterministic install, lint, type-check, tests, production build,
+  and route audit.
 - Receives only the deployed API base URL through frontend environment
   configuration.
 - Does not track `backend/`, backend secrets, backend deployment files, or

@@ -27,6 +27,7 @@ export function CheckoutPage() {
   const [successData, setSuccessData] = useState<SubscriptionResponseData | null>(null);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [catalogPrice, setCatalogPrice] = useState<number | null>(null);
+  const [trialDays, setTrialDays] = useState(0);
 
   usePageSeo({
     title: "Checkout",
@@ -41,8 +42,9 @@ export function CheckoutPage() {
       if (!cancelled) {
         const selected = catalog.plans.find((item) => item.id === plan);
         setCatalogPrice(selected ? (billingCycle === "annual" ? selected.annualPrice : selected.monthlyPrice) : 0);
+        setTrialDays(selected?.trialDays ?? 0);
       }
-    }).catch(() => { if (!cancelled) setCatalogPrice(null); });
+    }).catch(() => { if (!cancelled) { setCatalogPrice(null); setTrialDays(0); } });
     return () => { cancelled = true; };
   }, [audience, billingCycle, plan]);
 
@@ -51,6 +53,9 @@ export function CheckoutPage() {
       ? (plan === "starter" ? (billingCycle === "annual" ? 24 : 29) : plan === "enterprise" ? (billingCycle === "annual" ? 49 : 59) : 0)
       : (plan === "starter" ? (billingCycle === "annual" ? 15 : 19) : plan === "professional" ? (billingCycle === "annual" ? 32 : 39) : 0))
     : 0);
+  const displayedTrialDays = isDemoMode
+    ? (plan === "free" ? 0 : plan === "starter" ? 90 : plan === "professional" ? 180 : 270)
+    : trialDays;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,7 +144,7 @@ export function CheckoutPage() {
               </div>
               {successData.trialEndsAt && (
                 <div className="flex justify-between border-t border-border-subtle pt-2 mt-2">
-                  <span className="text-outline">Trial End Date ({trialDays} Days):</span>
+                  <span className="text-outline">Trial End Date ({displayedTrialDays} Days):</span>
                   <span className="text-primary font-bold">{new Date(successData.trialEndsAt).toLocaleDateString()}</span>
                 </div>
               )}
@@ -341,7 +346,7 @@ export function CheckoutPage() {
               <div className="flex justify-between text-xs text-on-surface-variant">
                 <span>Trial Period:</span>
                 <span className="font-medium text-status-success">
-                  {trialDays === 0 ? "No trial (Instant Access)" : `${trialDays} Days Complimentary Trial`}
+                  {displayedTrialDays === 0 ? "No trial (Instant Access)" : `${displayedTrialDays} Days Complimentary Trial`}
                 </span>
               </div>
               <div className="flex justify-between text-xs text-on-surface-variant">
@@ -353,7 +358,7 @@ export function CheckoutPage() {
             <div className="space-y-3 text-xs text-on-surface-variant">
               <div className="flex items-center gap-2">
                 <MaterialIcon name="check" className="text-status-success text-sm shrink-0" />
-                {trialDays > 0 ? `Zero commitment during ${trialDays}-day trial period` : "Immediate active operational provisioning"}
+                {displayedTrialDays > 0 ? `Zero commitment during ${displayedTrialDays}-day trial period` : "Immediate active operational provisioning"}
               </div>
               <div className="flex items-center gap-2">
                 <MaterialIcon name="check" className="text-status-success text-sm shrink-0" />
@@ -368,7 +373,7 @@ export function CheckoutPage() {
             <div className="border-t border-border-subtle pt-4 flex justify-between items-center font-headline-md text-on-surface">
               <span>Total Due Today</span>
               <span className="text-primary font-bold font-mono text-lg">
-                {currentPrice === 0 ? "$0.00" : trialDays > 0 ? "$0.00 (Trial)" : `$${currentPrice}.00`}
+                {currentPrice === 0 ? "$0.00" : displayedTrialDays > 0 ? "$0.00 (Trial)" : `$${currentPrice}.00`}
               </span>
             </div>
           </div>

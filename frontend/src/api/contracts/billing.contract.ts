@@ -21,11 +21,24 @@ export const checkoutResponseSchema = z.object({
   status: z.string(),
 });
 
+export const planCatalogSchema = z.object({
+  audience: z.enum(['organization', 'vendor']),
+  currency: z.string(),
+  annualDiscountPercent: z.number(),
+  plans: z.array(z.object({
+    id: z.enum(['free', 'starter', 'professional', 'enterprise']),
+    monthlyPrice: z.number(),
+    annualPrice: z.number(),
+    trialDays: z.number(),
+  })),
+});
+
 export type SubscriptionResponseContract = z.infer<typeof subscriptionResponseSchema>;
 export type CheckoutResponseContract = z.infer<typeof checkoutResponseSchema>;
+export type PlanCatalogContract = z.infer<typeof planCatalogSchema>;
 
-export function toSubscriptionResponse(value: unknown): SubscriptionResponseContract {
-  return subscriptionResponseSchema.parse(value);
+export function toSubscriptionResponse(value: unknown): SubscriptionResponseContract | null {
+  return value == null ? null : subscriptionResponseSchema.parse(value);
 }
 
 export function toCheckoutResponse(value: unknown): CheckoutResponseContract {

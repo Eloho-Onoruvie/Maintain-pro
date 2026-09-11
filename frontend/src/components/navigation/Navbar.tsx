@@ -66,6 +66,12 @@ export function AppHeader({
   const loginPath = '/login'
   const signupPath = '/signup'
 
+  const handleQuickCreate = () => {
+    if (canManageAssets) return navigate(newAssetPath)
+    if (canManageVendors) return navigate(newVendorPath)
+    if (canManagePm) return navigate(pmPath)
+  }
+
   const { notifications, unreadCount, markAllRead } = useUserNotifications()
 
   const user = useAuthStore((state) => state.user)

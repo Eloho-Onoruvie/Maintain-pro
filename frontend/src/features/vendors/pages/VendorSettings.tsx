@@ -19,6 +19,7 @@ import { PageError } from '@/components/feedback/PageError'
 import { isDemoMode } from '@/config/runtime'
 import { usePaymentMethods } from '@/features/billing/hooks/useBilling'
 import { useSubscription } from '@/features/billing/hooks/useBilling'
+import type { PaymentMethodData } from '@/services/billingService'
 
 type TabKey =
   | 'profile'
@@ -42,10 +43,11 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
   const navigate = useNavigate()
   const vendorSettings = useVendorSettings()
   const paymentMethodsQuery = usePaymentMethods()
-  const paymentMethod = paymentMethodsQuery.data?.find((item) => item.isDefault) ?? paymentMethodsQuery.data?.[0]
+  const paymentMethod = paymentMethodsQuery.data?.find((item: PaymentMethodData) => item.isDefault) ?? paymentMethodsQuery.data?.[0]
   const vendorProfile = useVendorProfile()
   const vendorProfileUpdate = useVendorProfileMutation()
   const subscriptionQuery = useSubscription()
+  const hasValidSubscription = subscriptionQuery.data?.status === 'active' || subscriptionQuery.data?.status === 'trial'
   const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
   // Profile Form State
   const [companyName, setCompanyName] = useState('')
@@ -464,9 +466,9 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
               <div className="space-y-6">
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-6">
                   <div>
-                    <h3 className="text-base font-bold text-foreground">Subscription Plan</h3>
+                    <h3 className="text-base font-bold text-foreground">Billing &amp; Subscription</h3>
                     <p className="text-[13px] text-muted-foreground">
-                      Review your MaintainPro SaaS license, dispatch seat capacity, and recurring payment specifications.
+                      Manage your subscription package, team seat allowance, and provider payment details.
                     </p>
                   </div>
 
@@ -482,16 +484,19 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[13px]">
-                    <div className="space-y-1.5">
+                    <div className="rounded-xl border border-border bg-background p-4 space-y-1.5">
                       <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">LICENSED TEAM DISPATCH SEATS</Label>
                     <Input value={isDemoMode ? '8 of 15 Active Seats Used' : 'Seat usage is not part of the billing contract'} disabled className="bg-background border-border font-semibold text-foreground opacity-100" />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">ACTIVE PAYMENT METHOD</Label>
+                    <div className="rounded-xl border border-border bg-background p-4 space-y-1.5">
+                      <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">REGISTERED PAYMENT METHOD</Label>
                       <div className="rounded-md border border-border bg-background px-3 py-2.5 text-[13px] font-semibold text-foreground">
                         {paymentMethodsQuery.isLoading ? 'Loading payment method…' : paymentMethod ? `${paymentMethod.brand} ending in ${paymentMethod.last4} (Exp. ${String(paymentMethod.expMonth).padStart(2, '0')}/${paymentMethod.expYear})` : subscriptionQuery.data?.provider ? `${subscriptionQuery.data.provider} provider checkout` : 'No payment method recorded'}
                       </div>
                       {!paymentMethod && !subscriptionQuery.data?.provider && <p className="text-[11px] text-muted-foreground">A provider checkout will be recorded after the first successful payment.</p>}
+                      <Button disabled={hasValidSubscription} onClick={() => navigate('/checkout?plan=starter&audience=vendor&cycle=monthly')} className="mt-3 w-full bg-primary text-primary-foreground text-[12px] font-semibold hover:bg-primary/90">
+                        {hasValidSubscription ? 'Payment method active' : 'Add payment method'}
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -499,7 +504,7 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
                 {/* SaaS Billing History Table */}
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-base font-bold text-foreground">SaaS Billing History</h3>
+                    <h3 className="text-base font-bold text-foreground">Subscription Invoices History</h3>
                     <p className="text-[13px] text-muted-foreground">Access PDF invoices and historical receipts for subscription software seat charges.</p>
                   </div>
 

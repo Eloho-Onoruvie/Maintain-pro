@@ -1,12 +1,25 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { queryTiming } from '@/lib/query-options'
-import { reportsApi, type ReportQuery } from '../api/reports.api'
+import { reportsApi, type ReportQuery, type MaintenanceSummary, type TrendPoint, type WorkOrderReportRow, type Paginated, type PreventiveMaintenanceReport, type SlaComplianceReport, type VendorPerformanceReport } from '../api/reports.api'
+import { isDemoMode } from '@/config/runtime'
+import { mockWorkOrders } from '@/features/dashboard/services/dashboard.service'
 
 export function useReports(query: ReportQuery) {
-  const report = useQuery({
+  type ReportPayload = { summary: MaintenanceSummary; trends: TrendPoint[]; workOrders: Paginated<WorkOrderReportRow>; preventiveMaintenance: PreventiveMaintenanceReport | null }
+  const report = useQuery<ReportPayload>({
     queryKey: ['reports', query],
     queryFn: async () => {
+      if (isDemoMode) {
+        const filtered = mockWorkOrders.filter((item) => (!query.priority || item.priority === query.priority) && (!query.status || item.status === query.status))
+        const completed = filtered.filter((item) => item.status === 'completed').length
+        return {
+          summary: { startDate: query.startDate, endDate: query.endDate, totalWorkOrders: filtered.length, completedWorkOrders: completed, openWorkOrders: filtered.length - completed, overdueWorkOrders: 0, completionRate: filtered.length ? Math.round((completed / filtered.length) * 100) : 0, byPriority: {}, byStatus: {} },
+          trends: [{ period: 'Jan', created: 18, completed: 14 }, { period: 'Feb', created: 24, completed: 20 }, { period: 'Mar', created: 16, completed: 15 }, { period: 'Apr', created: 29, completed: 23 }, { period: 'May', created: 21, completed: 19 }, { period: 'Jun', created: 26, completed: 24 }],
+          workOrders: { items: filtered.map((item) => ({ id: item.id, title: item.title, status: item.status, priority: item.priority, serviceCategory: item.category, facilityId: item.facilityId ?? '', locationId: item.locationId, assetId: item.assetId, createdAt: item.createdAt.toISOString(), dueDate: item.dueDate?.toISOString(), completedAt: item.status === 'completed' ? item.updatedAt.toISOString() : undefined })), page: 1, pageSize: filtered.length || 1, total: filtered.length, totalPages: 1 },
+          preventiveMaintenance: null,
+        }
+      }
       const [summary, trends, workOrders, preventiveMaintenance] = await Promise.all([
         reportsApi.summary(query),
         reportsApi.trends(query),
@@ -16,6 +29,7 @@ export function useReports(query: ReportQuery) {
       return { summary, trends, workOrders, preventiveMaintenance }
     },
     ...queryTiming.report,
+    enabled: true,
     placeholderData: keepPreviousData,
     retry: false,
   })
@@ -31,9 +45,9 @@ export function useReports(query: ReportQuery) {
 }
 
 export function useSlaComplianceReport(query: ReportQuery) {
-  return useQuery({ queryKey: ['reports', 'sla-compliance', query], queryFn: () => reportsApi.slaCompliance(query), ...queryTiming.report, retry: false })
+  return useQuery<SlaComplianceReport>({ queryKey: ['reports', 'sla-compliance', query], queryFn: () => reportsApi.slaCompliance(query), ...queryTiming.report, enabled: !isDemoMode, retry: false })
 }
 
 export function useVendorPerformanceReport(query: ReportQuery) {
-  return useQuery({ queryKey: ['reports', 'vendor-performance', query], queryFn: () => reportsApi.vendorPerformance(query), ...queryTiming.report, retry: false })
+  return useQuery<VendorPerformanceReport>({ queryKey: ['reports', 'vendor-performance', query], queryFn: () => reportsApi.vendorPerformance(query), ...queryTiming.report, enabled: !isDemoMode, retry: false })
 }

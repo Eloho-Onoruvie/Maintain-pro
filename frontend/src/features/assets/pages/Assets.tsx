@@ -1,29 +1,10 @@
-import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { EmptyState } from "@/components/feedback/EmptyState";
-import { PageError } from "@/components/feedback/PageError";
-import { PageLoader } from "@/components/feedback/PageLoader";
-import { AppHeader } from "@/components/navigation/Navbar";
-import { usePortalPath } from "@/hooks/usePortal";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
-import {
-  Plus,
-  Search,
-  Filter,
-  QrCode,
-  FileDown,
-  FileUp,
-  Cpu,
-  CheckCircle2,
-  AlertTriangle,
-  Wrench,
-  Archive,
-  MoreVertical,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SearchInput } from "@/components/ui/search-input";
+import { StatusBadge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -31,20 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -54,538 +21,459 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
-import { AssetHistoryDialog } from "@/features/assets/components/AssetHistoryDialog";
-import { EditAssetDialog } from "@/features/assets/components/EditAssetDialog";
-import { ExportAssetsDialog } from "@/features/assets/components/ExportAssetsDialog";
-import { ImportAssetsDialog } from "@/features/assets/components/ImportAssetsDialog";
-import { AssetAdvancedFiltersDialog } from "@/features/assets/components/AssetAdvancedFiltersDialog";
-import { useActionConfirm } from "@/hooks/useActionConfirm";
+import { PageLoader } from "@/components/feedback/PageLoader";
+import { PageError } from "@/components/feedback/PageError";
+import { usePortalPath } from "@/hooks/usePortal";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useAssets } from "../hooks/useAssets";
-import type { Asset } from "@/types/common.types";
-import { useMockDataStore } from "@/services/mockDataStore";
-import type { AssetStatus } from "@/types/common.types";
-import { cn } from "@/utils/helpers";
-import { formatDate } from "@/utils/formatDate";
 import { toast } from "sonner";
+import { useAuthStore } from "@/app/store";
+import { useFacilities } from "@/features/facilities/hooks/useFacilities";
+import { useLocationsApi } from "@/features/locations/hooks/useLocationsApi";
+import { useBackendAssetMutations } from "../hooks/useAssetsApi";
+import { isDemoMode } from "@/config/runtime";
 
-const SERVICE_CATEGORIES = [
-  "HVAC",
-  "Electrical",
-  "Plumbing",
-  "Fire Safety",
-  "Elevator",
-  "Security",
-  "Cleaning",
-  "General",
-];
+import { AppHeader } from "@/components/navigation/Navbar";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { PageIntro } from "@/components/layout/PageIntro";
+import type { Location } from "@/features/locations/types/location.types";
+import type { Facility } from "@/features/facilities/types/facility.types";
 
-const statusConfig: Record<
-  AssetStatus,
-  { label: string; color: string; icon: React.ElementType }
-> = {
-  active: {
-    label: "active",
-    color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-    icon: CheckCircle2,
-  },
-  needs_maintenance: {
-    label: "Needs Maintenance",
-    color: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-    icon: AlertTriangle,
-  },
-  under_repair: {
-    label: "Under Repair",
-    color: "text-blue-400 bg-blue-400/10 border-blue-400/20",
-    icon: Wrench,
-  },
-  decommissioned: {
-    label: "Decommissioned",
-    color: "text-muted-foreground bg-muted border-border",
-    icon: Archive,
-  },
-  down: {
-    label: "down",
-    color: "text-red-400 bg-red-400/10 border-red-400/20",
-    icon: AlertTriangle,
-  },
-};
+const ASSET_CATEGORIES = [
+  "hardware",
+  "software",
+  "infrastructure",
+  "other",
+] as const;
+const ASSET_STATUSES = [
+  "active",
+  "inactive",
+  "under_maintenance",
+  "retired",
+] as const;
 
 export function Assets() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const assetsPath = usePortalPath("assets");
-  const { canManageAssets, isAssignedAssetsOnly } = useRoleAccess();
+  const facilitiesPath = usePortalPath("facilities");
+  const { canManageAssets } = useRoleAccess();
+  const user = useAuthStore((state) => state.user);
+  const { data: facilitiesResponse } = useFacilities();
+  const { data: locationsResponse } = useLocationsApi();
+  const assetMutations = useBackendAssetMutations();
+  const facilityId = user?.facilityId ?? facilitiesResponse?.data?.[0]?.id;
+  const queryFacilityId = isDemoMode ? undefined : facilityId;
+  const facilityLocations = (locationsResponse ?? []).filter(
+    (location: Location) => !facilityId || location.facilityId === facilityId,
+  );
+
   const locationFromQuery = searchParams.get("location");
-  const allAssets = useMockDataStore((s) => s.assets)
-  const mockLocations = useMockDataStore((s) => s.locations)
-  const { assets, stats, filters, setFilters, isLoading, error, refetch } = useAssets(
-    locationFromQuery ? { locationId: locationFromQuery } : {},
-  );
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const manufacturers = useMemo(
-    () =>
-      [...new Set(allAssets.map((a) => a.manufacturer).filter(Boolean) as string[])].sort(),
-    [allAssets],
-  );
-  const advancedFilterCount = [
-    filters.locationId,
-    filters.manufacturer,
-    filters.installDateFrom,
-    filters.installDateTo,
-    filters.warrantyStatus,
-    filters.maintenanceDue,
-  ].filter(Boolean).length;
-  const [showCreate, setShowCreate] = useState(false);
-  const [editAsset, setEditAsset] = useState<Asset | null>(null);
-  const [historyAsset, setHistoryAsset] = useState<Asset | null>(null);
-  const [deleteAsset, setDeleteAsset] = useState<Asset | null>(null);
-  const [showImport, setShowImport] = useState(false);
-  const [showExport, setShowExport] = useState(false);
+  const {
+    assets: apiAssets,
+    isLoading,
+    error,
+    refetch,
+    setFilters,
+  } = useAssets({
+    ...(locationFromQuery ? { locationId: locationFromQuery } : {}),
+    ...(queryFacilityId ? { facilityId: queryFacilityId } : {}),
+  });
+  useEffect(() => {
+    if (queryFacilityId)
+      setFilters((current) => ({ ...current, facilityId: queryFacilityId }));
+  }, [queryFacilityId, setFilters]);
+
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [conditionFilter, setConditionFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+  const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState({
+    assetTag: "",
     name: "",
+    facilityId: "",
+    locationId: "",
     category: "",
+    manufacturer: "",
     model: "",
     serialNumber: "",
-    manufacturer: "",
-    locationId: "",
-    status: "active",
-    purchaseCost: "",
-    warrantyExpiry: "",
-    installDate: "",
     description: "",
   });
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, conditionFilter, statusFilter]);
 
-  const { requestConfirm, ActionConfirmDialog } = useActionConfirm();
-  const readOnly = !canManageAssets;
+  if (!facilityId && !isDemoMode)
+    return (
+      <div className="min-h-full bg-background text-foreground">
+        <AppHeader title="Assets" hideQuickCreate />
+        <main className="p-8">
+          <PageIntro
+            title="Assets"
+            description="Track equipment, ownership, condition, location, and maintenance history in one registry."
+          />
+          <div className="h-5" />
+          <div
+            role="status"
+            className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center"
+          >
+            <h2 className="text-base font-semibold text-foreground">
+              Facility context required
+            </h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
+              Select or configure a facility before viewing and registering
+              assets. Assets must belong to a facility so their locations,
+              maintenance history, and work orders remain properly connected.
+            </p>
+            <Button className="mt-5" onClick={() => navigate(facilitiesPath)}>
+              Open Facilities
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
 
-  const handleSave = () => {
-    requestConfirm({
-      title: "Register asset?",
-      description: `Register "${form.name}" and add it to your asset registry.`,
-      confirmLabel: "Register",
-      onConfirm: () => {
-        toast.success("Asset registered");
-        setShowCreate(false);
-        setForm({
-          name: "",
-          category: "",
-          model: "",
-          serialNumber: "",
-          manufacturer: "",
-          locationId: "",
-          status: "active",
-          purchaseCost: "",
-          warrantyExpiry: "",
-          installDate: "",
-          description: "",
-        });
-      },
-    });
-  };
+  if (isLoading) return <PageLoader label="Loading assets..." />;
+  if (error) return <PageError message={error.message} onRetry={refetch} />;
+
+  const displayRows = apiAssets.map((asset) => ({
+    id: asset.id,
+    name: asset.name,
+    assetTag: asset.assetTag,
+    category: asset.category,
+    locationName:
+        locationsResponse?.find((location: Location) => location.id === asset.locationId)
+        ?.name ?? "—",
+    facility:
+      facilitiesResponse?.data?.find(
+        (facility: Facility) => facility.id === asset.facilityId,
+      )?.name ??
+      facilitiesResponse?.data?.[0]?.name ??
+      "Unknown facility",
+    status: asset.status,
+    condition: asset.condition
+      ? `${asset.condition.charAt(0).toUpperCase()}${asset.condition.slice(1)}`
+      : "Unknown",
+  }));
+
+  const filtered = displayRows.filter((item) => {
+    const matchSearch =
+      item.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.assetTag.toLowerCase().includes(search.toLowerCase());
+    const matchCategory =
+      categoryFilter === "all" || item.category === categoryFilter;
+    const matchStatus = statusFilter === "all" || item.status === statusFilter;
+    const matchCondition =
+      conditionFilter === "all" ||
+      item.condition.toLowerCase() === conditionFilter.toLowerCase();
+    return matchSearch && matchCategory && matchStatus && matchCondition;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedRows = filtered.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
+
+  function getConditionStyle(condition: string) {
+    if (condition === "Excellent") return "text-success font-semibold";
+    if (condition === "Good") return "text-muted-foreground font-medium";
+    if (condition === "Fair") return "text-warning font-medium";
+    if (condition === "Poor") return "text-destructive font-semibold";
+    return "text-muted-foreground";
+  }
 
   return (
-    <div className="flex flex-col bg-background">
-      {ActionConfirmDialog}
-      <EditAssetDialog
-        asset={editAsset}
-        open={!!editAsset}
-        onOpenChange={(o) => !o && setEditAsset(null)}
-        onSaved={() => refetch()}
-      />
-      <AssetHistoryDialog asset={historyAsset} open={!!historyAsset} onOpenChange={(o) => !o && setHistoryAsset(null)} />
-      <ImportAssetsDialog
-        open={showImport}
-        onOpenChange={setShowImport}
-        onImported={() => refetch()}
-      />
-      <ExportAssetsDialog
-        open={showExport}
-        onOpenChange={setShowExport}
-        filteredAssets={assets}
-        allAssets={allAssets}
-      />
-      <AssetAdvancedFiltersDialog
-        open={showAdvancedFilters}
-        onOpenChange={setShowAdvancedFilters}
-        filters={filters}
-        manufacturers={manufacturers}
-        onApply={(patch) => setFilters((f) => ({ ...f, ...patch }))}
-      />
-      <ConfirmDialog
-        open={!!deleteAsset}
-        onOpenChange={(o) => !o && setDeleteAsset(null)}
-        title="Decommission asset?"
-        description={deleteAsset ? `Submit decommission request for ${deleteAsset.name}?` : ''}
-        confirmLabel="Decommission"
-        destructive
-        onConfirm={() => {
-          if (deleteAsset) toast.success(`Decommission request created for ${deleteAsset.name}`);
-          setDeleteAsset(null);
-        }}
-      />
-      <AppHeader
-        title={isAssignedAssetsOnly ? "My Assets" : "Assets"}
-        subtitle={
-          isAssignedAssetsOnly
-            ? "Equipment on your active work orders"
-            : "Manage all equipment and infrastructure"
-        }
-        hideQuickCreate
-        actions={
-          <>
-            {!readOnly && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => setShowImport(true)}
-              >
-                <FileDown className="h-4 w-4" />
-                Import
-              </Button>
+    <div className="min-h-full bg-background text-foreground">
+      <AppHeader title="Assets" hideQuickCreate />
+      {/* ── Top Header / Breadcrumb ── */}
+      <div className="border-b border-border bg-card px-8 py-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <PageIntro
+              title="Assets"
+              description="Track equipment, ownership, condition, location, and maintenance history in one registry."
+            />
+            {!facilityId && (
+              <p className="mt-2 text-sm font-medium text-warning">
+                A facility context is required before assets can be registered.
+              </p>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowExport(true)}
-            >
-              <FileUp className="h-4 w-4" />
-              Export
-            </Button>
-            {!readOnly && (
-              <Button
-                size="sm"
-                className="gap-2"
-                onClick={() => setShowCreate(true)}
-              >
-                <Plus className="h-4 w-4" /> Add Asset
-              </Button>
-            )}
-          </>
-        }
-      />
+          </div>
 
-      {isLoading ? (
-        <PageLoader label="Loading assets…" />
-      ) : error ? (
-        <PageError message={error.message} onRetry={refetch} />
-      ) : (
-      <div className="space-y-6 page-body">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[
-            {
-              label: "Total Assets",
-              value: stats.total,
-              icon: Cpu,
-              color: "text-foreground",
-            },
-            {
-              label: "active",
-              value: stats.active,
-              icon: CheckCircle2,
-              color: "text-emerald-400",
-            },
-            {
-              label: "Needs Maintenance",
-              value: stats.needsMaintenance,
-              icon: AlertTriangle,
-              color: "text-amber-400",
-            },
-            {
-              label: "Under Repair",
-              value: stats.underRepair,
-              icon: Wrench,
-              color: "text-blue-400",
-            },
-            {
-              label: "Decommissioned",
-              value: stats.decommissioned,
-              icon: Archive,
-              color: "text-muted-foreground",
-            },
-          ].map((s) => (
-            <Card key={s.label} className="bg-card border-border">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{s.label}</p>
-                    <p className={cn("text-2xl font-semibold mt-1", s.color)}>
-                      {s.value}
-                    </p>
-                  </div>
-                  <s.icon className={cn("h-5 w-5", s.color)} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {canManageAssets && (
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add Asset
+            </Button>
+          )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search assets or serial number..."
-              className="pl-9"
-              value={filters.search || ""}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, search: e.target.value }))
-              }
+        {/* ── Filter Bar ── */}
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="w-64">
+            <SearchInput
+              placeholder="Search: HVAC Chiller..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 rounded-lg border-border text-[13px]"
             />
           </div>
-          <Select
-            value={filters.status || "all"}
-            onValueChange={(v) => setFilters((f) => ({ ...f, status: v }))}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Status" />
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="h-9 w-40 rounded-lg border-border bg-card text-[13px]">
+              <SelectValue placeholder="Category: HVAC" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">active</SelectItem>
-              <SelectItem value="needs_maintenance">
-                Needs Maintenance
-              </SelectItem>
-              <SelectItem value="under_repair">Under Repair</SelectItem>
-              <SelectItem value="decommissioned">Decommissioned</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.category || "all"}
-            onValueChange={(v) => setFilters((f) => ({ ...f, category: v }))}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {SERVICE_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
+              <SelectItem value="all">Category: All</SelectItem>
+              {ASSET_CATEGORIES.map((category) => (
+                <SelectItem
+                  key={category}
+                  value={category}
+                  className="capitalize"
+                >
+                  {category}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            className="relative"
-            onClick={() => setShowAdvancedFilters(true)}
-            aria-label={
-              advancedFilterCount > 0
-                ? `Advanced filters, ${advancedFilterCount} active`
-                : 'Open advanced asset filters'
-            }
-          >
-            <Filter className="h-4 w-4" aria-hidden />
-            {advancedFilterCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                {advancedFilterCount}
-              </span>
-            )}
-          </Button>
-        </div>
 
-        {/* Table */}
-        <Card className="bg-card border-border">
-          <div className="data-table-wrap">
+          <Select value={conditionFilter} onValueChange={setConditionFilter}>
+            <SelectTrigger className="h-9 w-36 rounded-lg border-border bg-card text-[13px]">
+              <SelectValue placeholder="Condition: All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Condition: All</SelectItem>
+              <SelectItem value="good">Good</SelectItem>
+              <SelectItem value="fair">Fair</SelectItem>
+              <SelectItem value="poor">Poor</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-44 rounded-lg border-border bg-card text-[13px]">
+              <SelectValue placeholder="Status: Operational" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Status: All</SelectItem>
+              {ASSET_STATUSES.map((status) => (
+                <SelectItem key={status} value={status} className="capitalize">
+                  {status.replace("_", " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* ── Table Container ── */}
+      <div className="p-8">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <Table>
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                {[
-                  "Asset",
-                  "Category",
-                  "Location",
-                  "Status",
-                  "Install Date",
-                  "Next Maintenance",
-                  "Actions",
-                ].map((h) => (
-                  <TableHead key={h} className="text-muted-foreground text-xs">
-                    {h}
-                  </TableHead>
-                ))}
+            <TableHeader className="bg-muted/40">
+              <TableRow>
+                <TableHead>Asset Name / ID</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Facility</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Condition</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assets.map((asset) => {
-                const s = statusConfig[asset.status];
-                const Icon = s.icon;
+              {paginatedRows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    No assets match the current filters.
+                  </TableCell>
+                </TableRow>
+              )}
+              {paginatedRows.map((item) => {
                 return (
-                  <TableRow key={asset.id} className="border-border group">
+                  <TableRow key={item.id}>
                     <TableCell>
-                      <Link
-                        to={`${assetsPath}/${asset.id}`}
-                        className="block transition-colors hover:opacity-90"
+                      <p className="font-bold text-foreground">{item.name}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                        {item.assetTag}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.category}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.locationName}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.facility}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={item.status} />
+                    </TableCell>
+                    <TableCell
+                      className={`text-[13px] ${getConditionStyle(
+                        item.condition,
+                      )}`}
+                    >
+                      {item.condition}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          navigate(
+                            `${assetsPath}/${encodeURIComponent(
+                              item.assetTag,
+                            )}`,
+                          )
+                        }
+                        className="h-8 rounded-md bg-muted px-3 text-[12px] font-semibold text-foreground hover:bg-accent"
                       >
-                        <p className="font-medium text-foreground">
-                          {asset.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {asset.manufacturer && `${asset.manufacturer} · `}
-                          {asset.model || "—"}
-                        </p>
-                        {asset.serialNumber && (
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {asset.serialNumber}
-                          </p>
-                        )}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {asset.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {asset.locationName}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn("gap-1 text-xs", s.color)}
-                      >
-                        <Icon className="h-3 w-3" />
-                        {s.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {asset.installDate
-                          ? formatDate(asset.installDate)
-                          : "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "text-sm",
-                          asset.nextMaintenanceDate &&
-                            new Date(asset.nextMaintenanceDate) < new Date()
-                            ? "text-red-400"
-                            : "",
-                        )}
-                      >
-                        {asset.nextMaintenanceDate
-                          ? formatDate(asset.nextMaintenanceDate)
-                          : "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label={`Actions for asset ${asset.name}`}
-                          >
-                            <MoreVertical className="h-4 w-4" aria-hidden />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link to={`${assetsPath}/${asset.id}`}>View Details</Link>
-                          </DropdownMenuItem>
-                          {!readOnly && (
-                            <>
-                              <DropdownMenuItem onClick={() => setEditAsset(asset)}>
-                                Edit Asset
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="gap-2"
-                                onClick={() =>
-                                  requestConfirm({
-                                    title: "Generate QR code?",
-                                    description: `Generate a QR code label for ${asset.name}.`,
-                                    confirmLabel: "Generate",
-                                    onConfirm: () => toast.success(`QR generated for ${asset.name}`),
-                                  })
-                                }
-                              >
-                                <QrCode className="h-4 w-4" />
-                                Generate QR
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setHistoryAsset(asset)}>
-                                View History
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteAsset(asset)}>
-                                Decommission
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
-          </div>
-          {assets.length === 0 && (
-            <EmptyState
-              icon={Cpu}
-              title="No assets found"
-              description="Adjust filters or register a new asset."
-              actionLabel={!readOnly ? "Add asset" : undefined}
-              onAction={!readOnly ? () => setShowCreate(true) : undefined}
-            />
-          )}
-        </Card>
-      </div>
-      )}
 
-      {/* Create Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-2xl bg-card border-border">
+          {/* ── Table Footer / Pagination ── */}
+          <div className="flex items-center justify-between border-t border-border bg-card px-6 py-4 text-[13px] text-muted-foreground">
+            <div>
+              Showing{" "}
+              <span className="font-semibold text-foreground">
+                {paginatedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0}-
+                {Math.min(page * PAGE_SIZE, filtered.length)}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-foreground">
+                {filtered.length}
+              </span>{" "}
+              entries
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Add Asset Modal ── */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto bg-card border-border !max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Register New Asset</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              Register New Asset
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-2">
-            {[
-              {
-                label: "Asset Name *",
-                key: "name",
-                placeholder: "e.g. Carrier HVAC Unit #A3-01",
-              },
-              {
-                label: "Manufacturer",
-                key: "manufacturer",
-                placeholder: "e.g. Carrier",
-              },
-              { label: "Model", key: "model", placeholder: "e.g. AHU-500X" },
-              {
-                label: "Serial Number",
-                key: "serialNumber",
-                placeholder: "e.g. SN-2024-00123",
-              },
-              {
-                label: "Purchase Cost ($)",
-                key: "purchaseCost",
-                placeholder: "0.00",
-              },
-              { label: "Install Date", key: "installDate", type: "date" },
-              { label: "Warranty Expiry", key: "warrantyExpiry", type: "date" },
-            ].map((f) => (
-              <div key={f.key} className="space-y-1.5">
-                <Label className="text-xs">{f.label}</Label>
-                <Input
-                  type={f.type || "text"}
-                  placeholder={f.placeholder}
-                  value={(form as Record<string, string>)[f.key]}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                  }
-                />
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-4 py-2 text-[13px]">
             <div className="space-y-1.5">
-              <Label className="text-xs">Category *</Label>
+              <Label className="text-[12px] font-semibold text-foreground">
+                Asset Name *
+              </Label>
+              <Input
+                placeholder="e.g. HVAC Chiller Unit #3"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">
+                Linked Location *
+              </Label>
+              <Select
+                value={form.locationId}
+                onValueChange={(v) => setForm((p) => ({ ...p, locationId: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mandatory location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {facilityLocations.map((location: Location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">
+                Asset Tag *
+              </Label>
+              <Input
+                placeholder="e.g. AST-10024"
+                value={form.assetTag}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, assetTag: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">
+                Manufacturer
+              </Label>
+              <Input
+                placeholder="e.g. Carrier Systems"
+                value={form.manufacturer}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, manufacturer: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">
+                Model Number
+              </Label>
+              <Input
+                placeholder="e.g. Aquasnap 30RAP"
+                value={form.model}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, model: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">
+                Serial Number
+              </Label>
+              <Input
+                placeholder="e.g. CARR-4810239-X"
+                value={form.serialNumber}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, serialNumber: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">
+                Category *
+              </Label>
               <Select
                 value={form.category}
                 onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
@@ -594,56 +482,25 @@ export function Assets() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SERVICE_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
+                  {ASSET_CATEGORIES.map((category) => (
+                    <SelectItem
+                      key={category}
+                      value={category}
+                      className="capitalize"
+                    >
+                      {category}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Location *</Label>
-              <Select
-                value={form.locationId}
-                onValueChange={(v) => setForm((p) => ({ ...p, locationId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockLocations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">active</SelectItem>
-                  <SelectItem value="needs_maintenance">
-                    Needs Maintenance
-                  </SelectItem>
-                  <SelectItem value="under_repair">Under Repair</SelectItem>
-                  <SelectItem value="decommissioned">Decommissioned</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs">Description</Label>
+              <Label className="text-[12px] font-semibold text-foreground">
+                Description / Notes
+              </Label>
               <Textarea
-                placeholder="Optional notes about this asset..."
                 rows={2}
+                placeholder="Optional notes about this asset..."
                 value={form.description}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, description: e.target.value }))
@@ -652,14 +509,67 @@ export function Assets() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>
+            <Button variant="outline" onClick={() => setShowAddModal(false)}>
               Cancel
             </Button>
             <Button
-              onClick={handleSave}
-              disabled={!form.name || !form.category || !form.locationId}
+              disabled={
+                !form.name ||
+                !form.locationId ||
+                !form.assetTag ||
+                !form.category ||
+                assetMutations.create.isPending
+              }
+              onClick={async () => {
+                try {
+                  if (!facilityId) {
+                    toast.error(
+                      "A facility context is required before registering an asset.",
+                    );
+                    return;
+                  }
+                  await assetMutations.create.mutateAsync({
+                    facilityId,
+                    locationId: form.locationId,
+                    assetTag: form.assetTag.trim(),
+                    name: form.name.trim(),
+                    description: form.description || undefined,
+                    category:
+                      form.category as (typeof ASSET_CATEGORIES)[number],
+                    manufacturer: form.manufacturer || undefined,
+                    modelNumber: form.model || undefined,
+                    serialNumber: form.serialNumber || undefined,
+                    status: "active",
+                    condition: "good",
+                    ownership: "owned",
+                  });
+                  toast.success(`Asset "${form.name}" registered successfully`);
+                  await refetch();
+                  setShowAddModal(false);
+                  setForm({
+                    assetTag: "",
+                    name: "",
+                    facilityId: "",
+                    locationId: "",
+                    category: "",
+                    manufacturer: "",
+                    model: "",
+                    serialNumber: "",
+                    description: "",
+                  });
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to register asset",
+                  );
+                }
+              }}
+              className="bg-primary text-primary-foreground"
             >
-              Register Asset
+              {assetMutations.create.isPending
+                ? "Registering…"
+                : "Register Asset"}
             </Button>
           </DialogFooter>
         </DialogContent>

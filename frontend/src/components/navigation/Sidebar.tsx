@@ -66,7 +66,7 @@ export function AppSidebar({ portal, onNavigate }: AppSidebarProps) {
       .join("")
       .toUpperCase() || (isVendorRole ? "VE" : "OG");
 
-  const primaryItems = filterNavItemsByRole(navConfig.primary, user?.role);
+  const primaryItems = filterNavItemsByRole(navConfig.primary, user?.role, portal);
 
   // Finance portal: show Dashboard + all finance-specific items in correct order
   const financeNavOrder = [
@@ -84,7 +84,7 @@ export function AppSidebar({ portal, onNavigate }: AppSidebarProps) {
           .filter(Boolean) as typeof primaryItems)
       : primaryItems;
 
-  const secondaryItems = filterNavItemsByRole(navConfig.secondary, user?.role);
+  const secondaryItems = filterNavItemsByRole(navConfig.secondary, user?.role, portal);
 
   const fullName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(" ") || "User"

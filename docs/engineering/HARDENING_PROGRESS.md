@@ -25,7 +25,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-016 | PARTIAL | Transactional inventory paths exist; every mutation variant still needs an acceptance audit. |
 | HARD-017 | PARTIAL | Atomic constraints exist in key mutations; complete stock-race coverage remains. |
 | HARD-018 | VERIFIED | Inventory idempotency and concurrent mutation behavior are covered by the passing integration suite and atomic mutation implementation. |
-| HARD-019 | PARTIAL | Inventory transaction coverage runs against the disposable MongoDB replica set and Redis, but the current full-suite run still has two inventory failures requiring isolation/root-cause review. |
+| HARD-019 | VERIFIED | Inventory integration coverage passes against the disposable MongoDB replica set and Redis, including concurrent receive, reserve, and consume races. |
 | HARD-020 | VERIFIED | `/api/v1/inventory/reconciliation` returns organization-scoped discrepancies for managers. |
 | HARD-021 | PARTIAL | OAuth state handling exists; browser binding/replay proof requires a focused audit. |
 | HARD-022 | PARTIAL | Provider identity validation exists; complete linking regression suite remains. |
@@ -43,7 +43,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-034 | PARTIAL | High-volume reads were bounded; a complete repository/query audit remains. |
 | HARD-035 | PARTIAL | Vendor-performance metrics now aggregate in MongoDB (`7510c26`); SLA/report paths still need a full aggregation audit. |
 | HARD-036 | PARTIAL | Indexes exist across major models; query-plan and duplicate-data verification remains. |
-| HARD-037 | PARTIAL | Concurrency cases are present and the focused session-ownership test passes; the current parallel backend suite still has cross-file failures, so repeatability is not yet re-verified cleanly. |
+| HARD-037 | VERIFIED | Repeatable concurrency verification covers inventory, work orders, and billing webhook delivery; the serialized backend suite passes against disposable MongoDB replica-set and Redis services. |
 | HARD-038 | PARTIAL | Critical frontend contracts were improved; full `any` audit remains. Vendor/org route shells and portal-aware navigation access are now corrected (`905a958`, `3786bab`). |
 | HARD-039 | VERIFIED | Billing catalog is served by the backend and rendered by the frontend. |
 | HARD-040 | PARTIAL | Route audit passes 27 entries, vendor/org route-shell and navigation role separation is covered, and frontend semantic type-check/build now pass (`c23a6ce`); the full role/scope matrix remains. |
@@ -53,7 +53,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-044 | VERIFIED | Separate liveness/readiness endpoints and dependency semantics are implemented. |
 | HARD-045 | VERIFIED | Production image, health check, non-root runtime, and API/worker commands were verified. |
 | HARD-046 | VERIFIED | The split repositories each enforce their own release pipeline; backend CI includes integration services, security audit, container build, and failure diagnostics, while frontend CI includes lint, typecheck, tests, build, route audit, security audit, and failure diagnostics. |
-| HARD-047 | PARTIAL | Backend type-check, lint, build, and release verification pass. The current service-backed full-suite run exposed failures in billing, inventory, work-order, and organization tests; isolated session ownership passes. |
+| HARD-047 | VERIFIED | Full backend suite passes deterministically: 40 test files, 155 passing tests, and one intentional skip, with shared database files serialized (`b864a9a`). |
 | HARD-048 | PARTIAL | Several failure modes are tested; the complete failure-mode matrix remains. |
 | HARD-049 | PARTIAL | Security searches and focused tests were run; final P0/P1 audit and owner review remain. |
 | HARD-050 | TODO | Release gate remains open until the partial/TODO items and owner-controlled deployment prerequisites are closed. |

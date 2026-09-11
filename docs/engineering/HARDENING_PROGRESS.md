@@ -44,9 +44,9 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-035 | PARTIAL | Vendor-performance metrics now aggregate in MongoDB (`7510c26`); SLA/report paths still need a full aggregation audit. |
 | HARD-036 | PARTIAL | Indexes exist across major models; query-plan and duplicate-data verification remains. |
 | HARD-037 | VERIFIED | Repeatable concurrency verification covers inventory, work orders, and billing webhook delivery; the backend suite passed with disposable MongoDB replica-set and Redis services. |
-| HARD-038 | PARTIAL | Critical frontend contracts were improved; full `any` audit remains. |
+| HARD-038 | PARTIAL | Critical frontend contracts were improved; full `any` audit remains. Vendor/org route shells and portal-aware navigation access are now corrected (`905a958`, `3786bab`). |
 | HARD-039 | VERIFIED | Billing catalog is served by the backend and rendered by the frontend. |
-| HARD-040 | PARTIAL | Route audit and auth tests exist; complete role/scope matrix remains. |
+| HARD-040 | PARTIAL | Route audit passes 27 entries, and vendor/org route-shell and navigation role separation is covered; full role/scope matrix and compiler verification remain. |
 | HARD-041 | PARTIAL | Critical workflow coverage exists; complete billing/inventory/work-order/service-request matrix remains. |
 | HARD-042 | VERIFIED | Active logger emits structured JSON records with sensitive metadata redaction; focused test passes (`514c604`). |
 | HARD-043 | VERIFIED | Request correlation header is generated/propagated and covered by tests; async propagation is present in event/job envelopes. |

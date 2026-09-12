@@ -31,7 +31,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-022 | PARTIAL | Provider identity validation now checks cross-account collisions and database-level unique sparse provider indexes, with a focused regression test (`6846403`, `02883c3`, `de774c0`); complete linking regression suite remains. |
 | HARD-023 | PARTIAL | Redis fallback remains restricted to non-production, and regression coverage now proves production increment failures propagate while development may fall back (`0e87b4c`); the complete security-state operation matrix remains. |
 | HARD-024 | PARTIAL | Redis-backed limiting is present; login, registration, OTP, refresh, password change, and email-change verification are covered by dedicated budgets (`0b06b33`); all sensitive endpoint dimensions still need audit. |
-| HARD-025 | PARTIAL | Authentication security tests exist; authenticated security mutations now have HTTP rate limits (`0b06b33`) and OAuth identity collisions are blocked (`6846403`, `02883c3`); complete matrix remains. |
+| HARD-025 | PARTIAL | Authentication security tests exist; authenticated security mutations now have HTTP rate limits (`0b06b33`), OAuth identity collisions are blocked (`6846403`, `02883c3`, `de774c0`), and production CSRF/CORS invariants are covered (`42cdb15`); complete matrix remains. |
 | HARD-026 | VERIFIED | Transactional outbox model, repository, indexes, and worker exist. |
 | HARD-027 | PARTIAL | Critical mutation paths use transactions/outbox; complete business-event inventory remains. |
 | HARD-028 | VERIFIED | Durable outbox/event workers are wired into the worker process. |

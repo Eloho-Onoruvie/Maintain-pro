@@ -29,7 +29,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-020 | VERIFIED | `/api/v1/inventory/reconciliation` returns organization-scoped discrepancies for managers. |
 | HARD-021 | PARTIAL | OAuth state handling now has replay and same-nonce/different-state regression coverage (`fc9cff2`); full controller-level browser-cookie integration proof remains. |
 | HARD-022 | PARTIAL | Provider identity validation exists; complete linking regression suite remains. |
-| HARD-023 | PARTIAL | Redis fallback behavior is normalized; security-state fail-closed behavior needs full verification. |
+| HARD-023 | PARTIAL | Redis fallback remains restricted to non-production, and regression coverage now proves production increment failures propagate while development may fall back (`0e87b4c`); the complete security-state operation matrix remains. |
 | HARD-024 | PARTIAL | Redis-backed limiting is present; all sensitive endpoint dimensions need audit. |
 | HARD-025 | PARTIAL | Authentication security tests exist; complete matrix remains. |
 | HARD-026 | VERIFIED | Transactional outbox model, repository, indexes, and worker exist. |

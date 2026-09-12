@@ -27,7 +27,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-018 | VERIFIED | Inventory idempotency and concurrent mutation behavior are covered by the passing integration suite and atomic mutation implementation. |
 | HARD-019 | VERIFIED | Inventory integration coverage passes against the disposable MongoDB replica set and Redis, including concurrent receive, reserve, and consume races. |
 | HARD-020 | VERIFIED | `/api/v1/inventory/reconciliation` returns organization-scoped discrepancies for managers. |
-| HARD-021 | PARTIAL | OAuth state handling now has replay and same-nonce/different-state regression coverage (`fc9cff2`); full controller-level browser-cookie integration proof remains. |
+| HARD-021 | PARTIAL | OAuth state handling now validates the browser nonce before provider exchange and has replay, same-nonce/different-state, and callback-order regression coverage (`fc9cff2`, `2938bcf`); broader controller-level integration remains. |
 | HARD-022 | PARTIAL | Provider identity validation now checks cross-account collisions and database-level unique sparse provider indexes, with a focused regression test (`6846403`, `02883c3`, `de774c0`); complete linking regression suite remains. |
 | HARD-023 | PARTIAL | Redis fallback remains restricted to non-production, and regression coverage now proves production increment failures propagate while development may fall back (`0e87b4c`); the complete security-state operation matrix remains. |
 | HARD-024 | PARTIAL | Redis-backed limiting is present; login, registration, OTP, refresh, password change, and email-change verification are covered by dedicated budgets (`0b06b33`); all sensitive endpoint dimensions still need audit. |

@@ -22,7 +22,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-013 | VERIFIED | Stable checkout idempotency contract is implemented and tested in billing paths. |
 | HARD-014 | VERIFIED | Provider event identity and duplicate handling are implemented; live-provider verification remains owner-controlled. |
 | HARD-015 | PARTIAL | Billing tests cover core failures and checkout rollback (`22309c6`, `42486dd`); the complete concurrency/provider matrix remains. |
-| HARD-016 | PARTIAL | Transactional inventory paths exist; every mutation variant still needs an acceptance audit. |
+| HARD-016 | PARTIAL | Transactional inventory paths exist; transfer idempotency now returns the same mapped transaction shape on first execution and replay (`1a059f6`); every mutation variant still needs an acceptance audit. |
 | HARD-017 | PARTIAL | Atomic constraints exist in key mutations; complete stock-race coverage remains. |
 | HARD-018 | VERIFIED | Inventory idempotency and concurrent mutation behavior are covered by the passing integration suite and atomic mutation implementation. |
 | HARD-019 | VERIFIED | Inventory integration coverage passes against the disposable MongoDB replica set and Redis, including concurrent receive, reserve, and consume races. |

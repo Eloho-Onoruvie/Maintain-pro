@@ -40,7 +40,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-031 | PARTIAL | Work-order transitions are guarded in reviewed paths; complete lifecycle matrix remains. |
 | HARD-032 | VERIFIED | Sparse unique `WorkOrder.serviceRequestId` index exists; migration/data-duplicate handling still needs deployment-owner verification. |
 | HARD-033 | PARTIAL | Work-order tests exist; required concurrency cases remain. |
-| HARD-034 | PARTIAL | High-volume reads were bounded, and work-order technician candidates plus marketplace relationship/policy reads now have explicit caps (`d30a1b0`); a complete repository/query audit remains. |
+| HARD-034 | PARTIAL | High-volume reads were bounded, and work-order technician candidates plus marketplace relationship/policy reads now have explicit caps (`d30a1b0`); work-order attachments, time logs, and parts now have 100-record caps (`154561e`); a complete repository/query audit remains. |
 | HARD-035 | PARTIAL | Vendor-performance metrics now aggregate in MongoDB (`7510c26`); SLA/report paths still need a full aggregation audit. |
 | HARD-036 | PARTIAL | Indexes exist across major models; query-plan and duplicate-data verification remains. |
 | HARD-037 | VERIFIED | Repeatable concurrency verification covers inventory, work orders, and billing webhook delivery; the serialized backend suite passes against disposable MongoDB replica-set and Redis services. |

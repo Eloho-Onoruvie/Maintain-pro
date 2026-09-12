@@ -54,7 +54,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-045 | VERIFIED | Production image, health check, non-root runtime, and API/worker commands were verified. |
 | HARD-046 | VERIFIED | The split repositories each enforce their own release pipeline; backend CI includes type-check, lint, build, production dependency audit, release verification, image build, disposable MongoDB/Redis integration services, and failure diagnostics (`9780f73`, `1db59b7`), while frontend CI includes lint, typecheck, tests, build, route audit, security audit, and failure diagnostics. |
 | HARD-047 | VERIFIED | Full backend suite passes deterministically: 40 test files, 155 passing tests, and one intentional skip, with shared database files serialized (`b864a9a`). |
-| HARD-048 | PARTIAL | Several failure modes are tested; the complete failure-mode matrix remains. |
+| HARD-048 | PARTIAL | Several failure modes are tested; API and worker shutdown are now idempotent under repeated termination signals (`da8b934`), but the complete failure-mode matrix remains. |
 | HARD-049 | PARTIAL | Security searches and focused tests were run; final P0/P1 audit and owner review remain. |
 | HARD-050 | PARTIAL | Frontend and backend release gates are now green, including type-checks, builds, deterministic backend integration tests, route audit, container contract, and Compose validation. Release remains open only for the remaining partial security/data-integrity audits and owner-controlled deployment prerequisites. |
 

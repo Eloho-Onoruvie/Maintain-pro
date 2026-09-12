@@ -17,11 +17,11 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-008 | VERIFIED | Tenant/facility/vendor authorization regression coverage is present and passed in the backend integration run (`155` passing tests). |
 | HARD-009 | VERIFIED | Production validation rejects mock billing configuration. |
 | HARD-010 | PARTIAL | Ownership uniqueness/index work exists; production duplicate detection/remediation evidence remains. |
-| HARD-011 | PARTIAL | Billing transitions are constrained in critical paths; complete state-machine coverage remains. |
+| HARD-011 | PARTIAL | Billing transitions are constrained by `SubscriptionPolicy`; terminal subscriptions can no longer change plans (`29750c2`), while the complete provider/state matrix remains. |
 | HARD-012 | PARTIAL | Transactional payment/subscription paths exist; provider initialization failures now mark checkout attempts failed for retry, with focused coverage (`22309c6`, `42486dd`); provider-specific rollback coverage remains. |
 | HARD-013 | VERIFIED | Stable checkout idempotency contract is implemented and tested in billing paths. |
 | HARD-014 | VERIFIED | Provider event identity and duplicate handling are implemented; live-provider verification remains owner-controlled. |
-| HARD-015 | PARTIAL | Billing tests cover core failures and checkout rollback (`22309c6`, `42486dd`); the complete concurrency/provider matrix remains. |
+| HARD-015 | PARTIAL | Billing tests cover core failures, checkout rollback, limiter behavior, and subscription policy: 2 files/21 tests passed against MongoDB replica set and Redis (`29750c2`); the complete concurrency/provider matrix remains. |
 | HARD-016 | PARTIAL | Transactional inventory paths exist; transfer idempotency now returns the same mapped transaction shape on first execution and replay (`1a059f6`); every mutation variant still needs an acceptance audit. |
 | HARD-017 | PARTIAL | Atomic constraints exist in key mutations; complete stock-race coverage remains. |
 | HARD-018 | VERIFIED | Inventory idempotency and concurrent mutation behavior are covered by the passing integration suite and atomic mutation implementation. |
@@ -30,8 +30,8 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-021 | PARTIAL | OAuth state handling now validates the browser nonce before provider exchange and has replay, same-nonce/different-state, and callback-order regression coverage (`fc9cff2`, `2938bcf`); broader controller-level integration remains. |
 | HARD-022 | PARTIAL | Provider identity validation now checks cross-account collisions and database-level unique sparse provider indexes, with a focused regression test (`6846403`, `02883c3`, `de774c0`); complete linking regression suite remains. |
 | HARD-023 | PARTIAL | Redis fallback remains restricted to non-production, and regression coverage now proves production increment failures propagate while development may fall back (`0e87b4c`); the complete security-state operation matrix remains. |
-| HARD-024 | PARTIAL | Redis-backed limiting is present; login, registration, OTP, refresh, password change, and email-change verification are covered by dedicated budgets (`0b06b33`); all sensitive endpoint dimensions still need audit. |
-| HARD-025 | PARTIAL | Authentication security tests exist; authenticated security mutations now have HTTP rate limits (`0b06b33`), OAuth identity collisions are blocked (`6846403`, `02883c3`, `de774c0`), and production CSRF/CORS invariants are covered (`42cdb15`); complete matrix remains. |
+| HARD-024 | PARTIAL | Redis-backed limiting covers login, registration, OTP, refresh, password change, email-change verification, and billing/payment mutations (`0b06b33`, `9027a4a`, `29750c2`); all sensitive endpoint dimensions still need audit. |
+| HARD-025 | PARTIAL | Authentication security tests exist; authenticated security and billing mutations have scoped HTTP rate limits (`0b06b33`, `9027a4a`, `29750c2`), OAuth identity collisions are blocked (`6846403`, `02883c3`, `de774c0`), and production CSRF/CORS invariants are covered (`42cdb15`); complete matrix remains. |
 | HARD-026 | VERIFIED | Transactional outbox model, repository, indexes, and worker exist. |
 | HARD-027 | PARTIAL | Critical mutation paths use transactions/outbox; complete business-event inventory remains. |
 | HARD-028 | VERIFIED | Durable outbox/event workers are wired into the worker process. |
@@ -46,7 +46,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-037 | VERIFIED | Repeatable concurrency verification covers inventory, work orders, and billing webhook delivery; the serialized backend suite passes against disposable MongoDB replica-set and Redis services. |
 | HARD-038 | PARTIAL | Critical frontend contracts were improved; full `any` audit remains. Vendor/org route shells and portal-aware navigation access are now corrected (`905a958`, `3786bab`). |
 | HARD-039 | VERIFIED | Billing catalog is served by the backend and rendered by the frontend. |
-| HARD-040 | PARTIAL | Route audit passes 27 entries, vendor/org route-shell and navigation role separation is covered, and frontend semantic type-check/build now pass (`c23a6ce`); the full role/scope matrix remains. |
+| HARD-040 | PARTIAL | Route audit passes 27 entries, vendor/org route-shell and navigation role separation is covered, vendor global search is scoped to assigned work orders (`436203b`), and frontend semantic type-check/build now pass (`c23a6ce`); the full role/scope matrix remains. |
 | HARD-041 | PARTIAL | Critical workflow coverage exists; complete billing/inventory/work-order/service-request matrix remains. AppHeader no longer exposes work-order/service-request creation globally (`a6ea0d5`). |
 | HARD-042 | VERIFIED | Active logger emits structured JSON records with sensitive metadata redaction; focused test passes (`514c604`). |
 | HARD-043 | VERIFIED | Request correlation header is generated/propagated and covered by tests; async propagation is present in event/job envelopes. |
@@ -56,7 +56,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-047 | VERIFIED | Full backend suite passes deterministically: 40 test files, 155 passing tests, and one intentional skip, with shared database files serialized (`b864a9a`). |
 | HARD-048 | PARTIAL | Several failure modes are tested; API and worker shutdown are now idempotent under repeated termination signals (`da8b934`), but the complete failure-mode matrix remains. |
 | HARD-049 | PARTIAL | Security searches and focused tests were run; final P0/P1 audit and owner review remain. |
-| HARD-050 | PARTIAL | Frontend and backend release gates are now green, including type-checks, builds, deterministic backend integration tests, route audit, container contract, and Compose validation. Release remains open only for the remaining partial security/data-integrity audits and owner-controlled deployment prerequisites. |
+| HARD-050 | PARTIAL | Frontend and backend release gates are green, including type-checks, builds, deterministic backend integration tests, focused billing verification (21/21), route audit, container contract, and Compose validation. Release remains open for the remaining partial security/data-integrity audits and owner-controlled deployment prerequisites. |
 
 ## Recent focused commits
 
@@ -64,6 +64,9 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 - `b99e87c` — `fix: parse redis disable flag consistently`
 - `f33d764` — `chore: add production deployment artifacts`
 - `3374989` — `ci: use replica-set URI for transactional tests`
+- `436203b` — `fix: scope global search for vendor users`
+- `9027a4a` — `security: rate limit billing mutations`
+- `29750c2` — `fix: scope billing limiter and terminal plan changes`
 
 ## Release-owner prerequisites
 

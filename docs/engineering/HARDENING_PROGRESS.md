@@ -30,8 +30,8 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-021 | PARTIAL | OAuth state handling now validates the browser nonce before provider exchange and has replay, same-nonce/different-state, and callback-order regression coverage (`fc9cff2`, `2938bcf`); broader controller-level integration remains. |
 | HARD-022 | PARTIAL | Provider identity validation now checks cross-account collisions and database-level unique sparse provider indexes, with a focused regression test (`6846403`, `02883c3`, `de774c0`); complete linking regression suite remains. |
 | HARD-023 | PARTIAL | Redis fallback remains restricted to non-production, and regression coverage now proves production increment failures propagate while development may fall back (`0e87b4c`); the complete security-state operation matrix remains. |
-| HARD-024 | PARTIAL | Redis-backed limiting covers login, registration, OTP, refresh, password change, email-change verification, and billing/payment mutations (`0b06b33`, `9027a4a`, `29750c2`); all sensitive endpoint dimensions still need audit. |
-| HARD-025 | PARTIAL | Authentication security tests exist; authenticated security and billing mutations have scoped HTTP rate limits (`0b06b33`, `9027a4a`, `29750c2`), OAuth identity collisions are blocked (`6846403`, `02883c3`, `de774c0`), and production CSRF/CORS invariants are covered (`42cdb15`); complete matrix remains. |
+| HARD-024 | PARTIAL | Redis-backed limiting covers login, registration, OTP, refresh, password change, email-change verification, billing/payment mutations, logout, logout-all, and session revocation (`0b06b33`, `9027a4a`, `29750c2`, `947fec1`); all sensitive endpoint dimensions still need audit. |
+| HARD-025 | PARTIAL | Authentication security tests exist; authenticated security and billing/session mutations have scoped HTTP rate limits (`0b06b33`, `9027a4a`, `29750c2`, `947fec1`), OAuth identity collisions are blocked (`6846403`, `02883c3`, `de774c0`), and production CSRF/CORS invariants are covered (`42cdb15`); complete matrix remains. |
 | HARD-026 | VERIFIED | Transactional outbox model, repository, indexes, and worker exist. |
 | HARD-027 | PARTIAL | Critical mutation paths use transactions/outbox; complete business-event inventory remains. |
 | HARD-028 | VERIFIED | Durable outbox/event workers are wired into the worker process. |
@@ -56,7 +56,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-047 | VERIFIED | Full backend suite passes deterministically: 40 test files, 155 passing tests, and one intentional skip, with shared database files serialized (`b864a9a`). |
 | HARD-048 | PARTIAL | Several failure modes are tested; API and worker shutdown are now idempotent under repeated termination signals (`da8b934`), but the complete failure-mode matrix remains. |
 | HARD-049 | PARTIAL | Security searches and focused tests were run; final P0/P1 audit and owner review remain. |
-| HARD-050 | PARTIAL | Frontend and backend release gates are green, including type-checks, builds, deterministic backend integration tests, focused billing verification (21/21), route audit, container contract, and Compose validation. Release remains open for the remaining partial security/data-integrity audits and owner-controlled deployment prerequisites. |
+| HARD-050 | PARTIAL | Frontend and backend release gates are green, including type-checks, builds, deterministic backend integration tests, focused billing verification (21/21), auth/session verification (14/14), route audit, container contract, and Compose validation. Release remains open for the remaining partial security/data-integrity audits and owner-controlled deployment prerequisites. |
 
 ## Recent focused commits
 
@@ -67,6 +67,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 - `436203b` — `fix: scope global search for vendor users`
 - `9027a4a` — `security: rate limit billing mutations`
 - `29750c2` — `fix: scope billing limiter and terminal plan changes`
+- `947fec1` — `security: rate limit session mutations`
 
 ## Release-owner prerequisites
 

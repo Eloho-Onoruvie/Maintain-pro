@@ -52,7 +52,7 @@ actually run. `PARTIAL` means only part of the acceptance criteria is covered.
 | HARD-043 | VERIFIED | Request correlation header is generated/propagated and covered by tests; async propagation is present in event/job envelopes. |
 | HARD-044 | VERIFIED | Separate liveness/readiness endpoints and dependency semantics are implemented. |
 | HARD-045 | VERIFIED | Production image, health check, non-root runtime, and API/worker commands were verified. |
-| HARD-046 | VERIFIED | The split repositories each enforce their own release pipeline; backend CI includes integration services, security audit, container build, and failure diagnostics, while frontend CI includes lint, typecheck, tests, build, route audit, security audit, and failure diagnostics. |
+| HARD-046 | VERIFIED | The split repositories each enforce their own release pipeline; backend CI includes type-check, lint, build, disposable MongoDB/Redis integration services, and failure diagnostics (`9780f73`), while frontend CI includes lint, typecheck, tests, build, route audit, security audit, and failure diagnostics. |
 | HARD-047 | VERIFIED | Full backend suite passes deterministically: 40 test files, 155 passing tests, and one intentional skip, with shared database files serialized (`b864a9a`). |
 | HARD-048 | PARTIAL | Several failure modes are tested; the complete failure-mode matrix remains. |
 | HARD-049 | PARTIAL | Security searches and focused tests were run; final P0/P1 audit and owner review remain. |

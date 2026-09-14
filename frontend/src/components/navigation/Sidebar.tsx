@@ -144,7 +144,7 @@ export function AppSidebar({ portal, onNavigate }: AppSidebarProps) {
     { label: "Commercial", segments: ["opportunities", "applications", "contracts", "slas"] },
     { label: "Team", segments: ["team"] },
     { label: "Insights", segments: ["reports"] },
-    { label: "Account", segments: ["settings", "billing"] },
+    { label: "Account", segments: ["notifications", "settings", "billing"] },
   ]
     .map((group) => ({
       ...group,

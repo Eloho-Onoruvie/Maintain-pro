@@ -75,6 +75,7 @@ export const PORTAL_NAV: Record<Portal, PortalNavConfig> = {
       { name: 'Contracts', segment: 'contracts', icon: ScrollText, roles: [VENDOR_LEAD, VENDOR_MANAGER] },
       { name: 'SLAs', segment: 'slas', icon: ShieldCheck, roles: [VENDOR_LEAD, VENDOR_MANAGER] },
       { name: 'Reports', segment: 'reports', icon: BarChart2, roles: [VENDOR_LEAD, VENDOR_MANAGER] },
+      { name: 'Notifications', segment: 'notifications', icon: Bell, roles: [VENDOR_LEAD, VENDOR_MANAGER, VENDOR_TECHNICIAN] },
       { name: 'Settings', segment: 'settings', icon: Settings, roles: [VENDOR_LEAD, VENDOR_MANAGER] },
       { name: 'Billing', segment: 'billing', icon: DollarSign, roles: [VENDOR_LEAD, VENDOR_MANAGER] },
     ],

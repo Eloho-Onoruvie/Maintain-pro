@@ -7,7 +7,6 @@ import { useAuthStore } from '@/app/store'
 import { useRoleDashboardDateRange } from '@/features/dashboard/hooks/useRoleDashboardDateRange'
 import { useVendorProfile } from '@/features/vendors/hooks/useVendorProfile'
 import { usePortalPath } from '@/hooks/usePortal'
-import { isDemoMode } from '@/config/runtime'
 import { useQuery } from '@tanstack/react-query'
 import { workOrdersService } from '@/features/work-orders/services/workOrders.service'
 import { apiClient } from '@/api/client'
@@ -62,19 +61,19 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
   const user = useAuthStore((state) => state.user)
   const { data: vendorProfile } = useVendorProfile()
   const { workOrdersInRange, stats } = useRoleDashboardDateRange('30d')
-  const opportunitiesQuery = useQuery<{ data: WorkOrder[] }>({ queryKey: ['dashboard', 'vendor-opportunities', user?.id], queryFn: () => workOrdersService.listMarketplace({ limit: 10 }), enabled: Boolean(user?.id) && !isDemoMode, staleTime: 60_000 })
-  const applicationsQuery = useQuery({ queryKey: ['dashboard', 'vendor-applications', user?.id], queryFn: () => apiClient.get<Array<{ id: string; workOrderId: string; status: string }>>('/vendor-applications/mine'), enabled: Boolean(user?.id) && !isDemoMode, staleTime: 60_000 })
+  const opportunitiesQuery = useQuery<{ data: WorkOrder[] }>({ queryKey: ['dashboard', 'vendor-opportunities', user?.id], queryFn: () => workOrdersService.listMarketplace({ limit: 10 }), enabled: Boolean(user?.id), staleTime: 60_000 })
+  const applicationsQuery = useQuery({ queryKey: ['dashboard', 'vendor-applications', user?.id], queryFn: () => apiClient.get<Array<{ id: string; workOrderId: string; status: string }>>('/vendor-applications/mine'), enabled: Boolean(user?.id), staleTime: 60_000 })
   const workOrdersPath = usePortalPath('work-orders')
   const opportunitiesPath = usePortalPath('opportunities')
 
   const vendorCompanyName = vendorProfile?.name || (user as (typeof user & { vendorName?: string }))?.vendorName || 'Vendor Company'
 
   const activeCount = stats.openWorkOrders ?? workOrdersInRange.filter((workOrder) => !['completed', 'cancelled'].includes(workOrder.status)).length
-  const applicationsCount = 0
+  const applicationsCount = applicationsQuery.data?.length ?? 0
   const contractsCount = 0
   const slaPct = '—'
   const teamCount = 0
-  const activeDispatchRows = isDemoMode ? ACTIVE_DISPATCH_WO_STATIC : workOrdersInRange.filter((workOrder) => !['completed', 'cancelled'].includes(workOrder.status)).slice(0, 10).map((workOrder) => ({
+  const activeDispatchRows = workOrdersInRange.filter((workOrder) => !['completed', 'cancelled'].includes(workOrder.status)).slice(0, 10).map((workOrder) => ({
     id: workOrder.id,
     location: workOrder.locationName || 'Location unavailable',
     desc: workOrder.title,
@@ -84,10 +83,10 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
     sla: workOrder.dueDate ? `Due ${new Date(workOrder.dueDate).toLocaleDateString()}` : 'SLA unavailable',
     tech: workOrder.assigneeName || 'Unassigned',
   }))
-  const opportunityRows = isDemoMode ? SERVICE_OPPORTUNITIES_STATIC : (opportunitiesQuery.data?.data ?? []).map((opportunity: WorkOrder) => ({ id: opportunity.id, title: opportunity.title, distance: opportunity.locationName || 'Location unavailable', desc: opportunity.description || opportunity.category, details: `${opportunity.priority.toUpperCase()} priority` }))
-  const applicationRows = isDemoMode ? OPEN_APPLICATIONS_STATIC : (applicationsQuery.data ?? []).slice(0, 10).map((application: { id: string; workOrderId: string; status: string }) => ({ id: application.id, title: `Work order ${application.workOrderId.slice(0, 8)}`, desc: 'Submitted marketplace application', badge: application.status.replace('_', ' '), badgeBg: 'var(--muted)', badgeColor: 'var(--foreground)', time: 'Live application' }))
-  const contractRows = isDemoMode ? CONTRACT_SLA_STATIC : []
-  const technicianRows = isDemoMode ? TECH_WORKLOAD_STATIC : []
+  const opportunityRows = (opportunitiesQuery.data?.data ?? []).map((opportunity: WorkOrder) => ({ id: opportunity.id, title: opportunity.title, distance: opportunity.locationName || 'Location unavailable', desc: opportunity.description || opportunity.category, details: `${opportunity.priority.toUpperCase()} priority` }))
+  const applicationRows = (applicationsQuery.data ?? []).slice(0, 10).map((application: { id: string; workOrderId: string; status: string }) => ({ id: application.id, title: `Work order ${application.workOrderId.slice(0, 8)}`, desc: 'Submitted marketplace application', badge: application.status.replace('_', ' '), badgeBg: 'var(--muted)', badgeColor: 'var(--foreground)', time: 'Live application' }))
+  const contractRows: typeof CONTRACT_SLA_STATIC = []
+  const technicianRows: typeof TECH_WORKLOAD_STATIC = []
 
   return (
     <>
@@ -96,8 +95,10 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
       <div className="dashboard-page min-h-full bg-background px-8 py-6 pb-12 text-foreground">
         {/* ── Page Header Banner ── */}
         <div className="mb-6">
-          <HandWaveGreeting userName={user?.firstName} />
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Your team operations and service delivery at a glance.</p>
+          <HandWaveGreeting
+            userName={user?.firstName}
+            subtext="Your team operations and service delivery at a glance."
+          />
         </div>
 
         {/* ── 5 KPI Cards Row ── */}
@@ -105,32 +106,32 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
           <KPICard
             title="Active Work Orders"
             value={activeCount}
-            changeLabel={isDemoMode ? '5 critical priorities' : 'Live assigned work'}
+            changeLabel="Live assigned work"
             icon="work-orders"
           />
           <KPICard
             title="Open Applications"
             value={applicationsCount}
-            changeLabel={isDemoMode ? 'Waiting on bid response' : 'Live applications'}
+            changeLabel="Live applications"
             icon="compliance"
           />
           <KPICard
             title="Awarded Contracts"
             value={contractsCount}
-            changeLabel={isDemoMode ? 'Active SLA partners' : 'Live contracts'}
+            changeLabel="Live contracts"
             icon="completed"
           />
           <KPICard
             title="SLA Compliance"
             value={slaPct}
-            changeLabel={isDemoMode ? 'Target > 95.0%' : 'Not available'}
+            changeLabel="Not available"
             icon="compliance"
             variant="success"
           />
           <KPICard
             title="Team Members"
             value={teamCount}
-            changeLabel={isDemoMode ? '5 technicians dispatched' : 'Live team roster'}
+            changeLabel="Live team roster"
             icon="work-orders"
           />
         </div>

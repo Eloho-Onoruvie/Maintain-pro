@@ -20,8 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useMockDataStore } from '@/services/mockDataStore'
 import type { PMFrequency, PreventiveMaintenance } from '@/types/common.types'
+import { preventiveMaintenanceApi } from '@/features/preventive-maintenance/api/preventiveMaintenance.api'
 
 const FREQUENCIES: PMFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom']
 
@@ -32,7 +32,6 @@ interface EditPMScheduleDialogProps {
 }
 
 export function EditPMScheduleDialog({ schedule, open, onOpenChange }: EditPMScheduleDialogProps) {
-  const updatePm = useMockDataStore((s) => s.updatePm)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -55,15 +54,9 @@ export function EditPMScheduleDialog({ schedule, open, onOpenChange }: EditPMSch
     e.preventDefault()
     if (!schedule) return
     setSaving(true)
-    updatePm(schedule.id, {
-      title: form.title,
-      description: form.description,
-      frequency: form.frequency,
-      isActive: form.isActive,
-    })
-    setSaving(false)
-    toast.success(`Schedule "${schedule.title}" updated`)
-    onOpenChange(false)
+    try { await preventiveMaintenanceApi.update(schedule.id, { title: form.title, description: form.description, frequency: form.frequency }); toast.success(`Schedule "${schedule.title}" updated`); onOpenChange(false) }
+    catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to update schedule') }
+    finally { setSaving(false) }
   }
 
   return (

@@ -19,7 +19,6 @@ import { useAuthStore } from "@/app/store";
 import { usePortalPath } from "@/hooks/usePortal";
 import { useLocationsApi } from "@/features/locations/hooks/useLocationsApi";
 import { useRoleDashboardDateRange } from "@/features/dashboard/hooks/useRoleDashboardDateRange";
-import { isDemoMode } from "@/config/runtime";
 import type { WorkOrder } from "@/types/common.types";
 
 // ─── Static placeholder data matching Figma ───────────────────────────────────
@@ -376,7 +375,7 @@ function FacilityHealthPanel({
 }: {
   locations: { id: string; name: string }[];
 }) {
-  if (!isDemoMode) {
+  if (true) {
     return (
       <SectionCard
         title="Facility Health Summary"
@@ -395,8 +394,6 @@ function FacilityHealthPanel({
           ...(FACILITY_HEALTH[i] ?? FACILITY_HEALTH[0]),
           name: loc.name,
         }))
-      : isDemoMode
-      ? FACILITY_HEALTH
       : [];
 
   return (
@@ -436,7 +433,7 @@ function FacilityHealthPanel({
 }
 
 function TechnicianWorkloadPanel() {
-  if (!isDemoMode) {
+  if (true) {
     return (
       <SectionCard
         title="Technician Dispatch Workload"
@@ -479,7 +476,7 @@ function TechnicianWorkloadPanel() {
 }
 
 function PreferredVendorsPanel() {
-  if (!isDemoMode) {
+  if (true) {
     return (
       <SectionCard
         title="Preferred Vendors"

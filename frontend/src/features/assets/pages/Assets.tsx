@@ -31,7 +31,6 @@ import { useAuthStore } from "@/app/store";
 import { useFacilities } from "@/features/facilities/hooks/useFacilities";
 import { useLocationsApi } from "@/features/locations/hooks/useLocationsApi";
 import { useBackendAssetMutations } from "../hooks/useAssetsApi";
-import { isDemoMode } from "@/config/runtime";
 
 import { AppHeader } from "@/components/navigation/Navbar";
 import { Pagination } from "@/components/ui/pagination";
@@ -71,7 +70,7 @@ export function Assets() {
   const { data: locationsResponse } = useLocationsApi();
   const assetMutations = useBackendAssetMutations();
   const facilityId = user?.facilityId ?? facilitiesResponse?.data?.[0]?.id;
-  const queryFacilityId = isDemoMode ? undefined : facilityId;
+  const queryFacilityId = facilityId;
   const facilityLocations = (locationsResponse ?? []).filter(
     (location: Location) => !facilityId || location.facilityId === facilityId,
   );

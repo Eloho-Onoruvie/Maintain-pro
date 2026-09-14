@@ -1,101 +1,63 @@
-import { useMemo, useState } from 'react'
-
-import { useAuthStore } from '@/app/store'
-import { usePortal } from '@/hooks/usePortal'
-import { scopeAssetsForUser } from '@/features/dashboard/utils/roleScope'
-import { useMockDataStore } from '@/services/mockDataStore'
-import type { Asset } from '@/types/common.types'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { assetsApi, type AssetListParams } from '../api/assets.api'
+import type { BackendAsset, BackendAssetCategory, BackendAssetStatus } from '../api/assets.contract'
 import type { AssetFilters } from '../types/asset.types'
 
-export function useAssets(initial: AssetFilters = {}) {
-  const [filters, setFilters] = useState<AssetFilters>(initial)
-  const allAssets = useMockDataStore((s) => s.assets)
-  const workOrders = useMockDataStore((s) => s.workOrders)
-  const user = useAuthStore((state) => state.user)
-  const portal = usePortal()
+const BACKEND_STATUSES: BackendAssetStatus[] = ['active', 'inactive', 'under_maintenance', 'retired']
+const BACKEND_CATEGORIES: BackendAssetCategory[] = ['hardware', 'software', 'infrastructure', 'other']
 
-  const visibleAssets = useMemo(
-    () => scopeAssetsForUser(user, portal, allAssets, workOrders),
-    [allAssets, portal, user, workOrders],
-  )
+function toListParams(filters: AssetFilters): AssetListParams {
+  const status = BACKEND_STATUSES.includes(filters.status as BackendAssetStatus)
+    ? (filters.status as BackendAssetStatus)
+    : undefined
+  const category = BACKEND_CATEGORIES.includes(filters.category as BackendAssetCategory)
+    ? (filters.category as BackendAssetCategory)
+    : undefined
+  return {
+    page: 1,
+    limit: 100,
+    search: filters.search,
+    status,
+    category,
+    locationId: filters.locationId,
+    facilityId: filters.facilityId,
+  }
+}
 
-  const assets = useMemo<Asset[]>(() => {
-    const now = new Date()
-    const dueSoonCutoff = new Date(now)
-    dueSoonCutoff.setDate(dueSoonCutoff.getDate() + 30)
+export function useAssets(initialFilters: AssetFilters = {}) {
+  const [filters, setFilters] = useState<AssetFilters>(initialFilters)
+  const [assets, setAssets] = useState<BackendAsset[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-    return visibleAssets.filter((a) => {
-      if (filters.status && filters.status !== 'all' && a.status !== filters.status) return false
-      if (filters.category && filters.category !== 'all' && a.category !== filters.category) return false
-      if (filters.locationId && a.locationId !== filters.locationId) return false
-      if (filters.manufacturer && a.manufacturer !== filters.manufacturer) return false
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await assetsApi.list(toListParams(filters))
+      setAssets(result.data ?? [])
+    } catch (cause) {
+      setAssets([])
+      setError(cause instanceof Error ? cause : new Error('Unable to load assets'))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [filters])
 
-      if (filters.installDateFrom && a.installDate) {
-        if (a.installDate < new Date(filters.installDateFrom)) return false
-      }
-      if (filters.installDateTo && a.installDate) {
-        const to = new Date(filters.installDateTo)
-        to.setHours(23, 59, 59, 999)
-        if (a.installDate > to) return false
-      }
-      if (filters.installDateFrom && !a.installDate) return false
-      if (filters.installDateTo && !a.installDate) return false
-
-      if (filters.warrantyStatus) {
-        const hasWarranty = Boolean(a.warrantyExpiry)
-        const isActive = hasWarranty && a.warrantyExpiry! >= now
-        if (filters.warrantyStatus === 'active' && !isActive) return false
-        if (filters.warrantyStatus === 'expired' && (!hasWarranty || a.warrantyExpiry! >= now))
-          return false
-        if (filters.warrantyStatus === 'none' && hasWarranty) return false
-      }
-
-      if (filters.maintenanceDue) {
-        const next = a.nextMaintenanceDate
-        if (filters.maintenanceDue === 'none' && next) return false
-        if (filters.maintenanceDue === 'overdue' && (!next || next >= now)) return false
-        if (
-          filters.maintenanceDue === 'due_soon' &&
-          (!next || next < now || next > dueSoonCutoff)
-        ) {
-          return false
-        }
-      }
-
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        if (
-          !a.name.toLowerCase().includes(q) &&
-          !a.serialNumber?.toLowerCase().includes(q) &&
-          !a.manufacturer?.toLowerCase().includes(q)
-        ) {
-          return false
-        }
-      }
-      return true
-    })
-  }, [visibleAssets, filters])
+  useEffect(() => {
+    void load()
+  }, [load])
 
   const stats = useMemo(
     () => ({
-      total: visibleAssets.length,
-      active: visibleAssets.filter((a) => a.status === 'active').length,
-      needsMaintenance: visibleAssets.filter((a) => a.status === 'needs_maintenance').length,
-      underRepair: visibleAssets.filter((a) => a.status === 'under_repair').length,
-      decommissioned: visibleAssets.filter((a) => a.status === 'decommissioned').length,
+      total: assets.length,
+      active: assets.filter((asset) => asset.status === 'active').length,
+      underMaintenance: assets.filter((asset) => asset.status === 'under_maintenance').length,
+      inactive: assets.filter((asset) => asset.status === 'inactive').length,
+      retired: assets.filter((asset) => asset.status === 'retired').length,
     }),
-    [visibleAssets],
+    [assets],
   )
 
-  const refetch = () => {}
-
-  return {
-    assets,
-    stats,
-    filters,
-    setFilters,
-    isLoading: false,
-    error: null as Error | null,
-    refetch,
-  }
+  return { assets, stats, filters, setFilters, isLoading, error, refetch: load }
 }

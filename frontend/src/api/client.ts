@@ -132,6 +132,11 @@ function unwrap<T>(result: ApplicationResult<T>): T {
 }
 
 export const apiClient = {
+  async download(url: string, filename: string): Promise<void> {
+    const response = await client.get(url, { responseType: "blob" });
+    const objectUrl = URL.createObjectURL(response.data as Blob);
+    const link = document.createElement("a"); link.href = objectUrl; link.download = filename; link.click(); URL.revokeObjectURL(objectUrl);
+  },
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const { data } = await client.get<ApplicationResult<T>>(url, config);
     return unwrap(data);

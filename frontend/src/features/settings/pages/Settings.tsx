@@ -270,7 +270,6 @@ export function OrganizationSettings() {
   const [membersError, setMembersError] = useState<string | null>(null);
 
   const loadMembers = async () => {
-    if (isDemoMode) return;
     setMembersLoading(true);
     setMembersError(null);
     try {
@@ -319,7 +318,7 @@ export function OrganizationSettings() {
     useState<string | null>(null);
 
   useEffect(() => {
-    if (activeTab !== "notifications" || isDemoMode) return;
+    if (activeTab !== "notifications") return;
     setNotificationPreferencesError(null);
     void notificationsApi
       .getPreferences()
@@ -473,10 +472,7 @@ export function OrganizationSettings() {
         organizationSettings.update.mutateAsync({
           notificationPolicies: notifPolicies,
         }),
-        ...(isDemoMode
-          ? []
-          : [
-              notificationsApi.updatePreferences({
+        notificationsApi.updatePreferences({
                 channels: {
                   ...existing,
                   work_order: channel(
@@ -509,7 +505,6 @@ export function OrganizationSettings() {
                   ),
                 },
               }),
-            ]),
       ]);
       toast.success("Notification policies updated!");
     } catch {
@@ -819,17 +814,7 @@ export function OrganizationSettings() {
             )}
 
             {/* 2. MEMBERS MANAGEMENT TAB */}
-            {activeTab === "members" &&
-              (isDemoMode ? (
-                <LiveMembersPanel
-                  members={DEMO_MEMBERS}
-                  search={memberSearch}
-                  onSearch={setMemberSearch}
-                  loading={false}
-                  error={null}
-                  onRetry={() => undefined}
-                />
-              ) : (
+            {activeTab === "members" && (
                 <>
                   <LiveMembersPanel
                     members={members}
@@ -1075,7 +1060,7 @@ export function OrganizationSettings() {
                     </div>
                   </div>
                 </>
-              ))}
+              )}
 
             {/* 3. ROLES & PERMISSIONS TAB */}
             {false && (

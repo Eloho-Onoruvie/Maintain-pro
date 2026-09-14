@@ -102,6 +102,14 @@ export function Reports() {
    1. GENERATION HUB VIEW
    ───────────────────────────────────────────────────────────────────────────── */
 function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: 'generation_hub' | 'maintenance_summary' | 'inventory_report') => void; onOpenReport: (slug: string) => void }) {
+  const reportRangeLabel = useMemo(() => {
+    const end = new Date()
+    const start = new Date(end)
+    start.setDate(start.getDate() - 29)
+    const format = (date: Date) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+    return `Last 30 Days (${format(start)} - ${format(end)})`
+  }, [])
+
   return (
     <div className="space-y-6">
       {/* Global Report Filters Card */}
@@ -130,10 +138,10 @@ function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: '
             <label className="text-[11px] font-bold uppercase text-muted-foreground">DATE RANGE</label>
             <Select defaultValue="30d">
               <SelectTrigger className="h-9 border-border bg-muted/30">
-                <SelectValue placeholder="Last 30 Days (Jan 1 - Jan 30)" />
+                <SelectValue placeholder={reportRangeLabel} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="30d">Last 30 Days (Jan 1 - Jan 30)</SelectItem>
+                <SelectItem value="30d">{reportRangeLabel}</SelectItem>
                 <SelectItem value="90d">Last 90 Days</SelectItem>
                 <SelectItem value="ytd">Year to Date</SelectItem>
               </SelectContent>
@@ -332,7 +340,7 @@ function MaintenanceSummaryView() {
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div>
           <p className="font-medium text-foreground">Export this report</p>
-          <p className="text-sm text-muted-foreground">Download the live results for the selected reporting period.</p>
+          <p className="text-sm text-muted-foreground">Download the currently loaded report results for the selected reporting period.</p>
         </div>
         <Button onClick={exportCsv} variant="outline" className="shrink-0">
           <Download className="mr-2 h-4 w-4" />

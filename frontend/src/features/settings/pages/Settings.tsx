@@ -46,6 +46,11 @@ import { useFacilities } from "@/features/facilities/hooks/useFacilities";
 import { useSubscription, usePaymentMethods, usePaymentMethodMutations } from "@/features/billing/hooks/useBilling";
 import type { PaymentMethodData } from "@/services/billingService";
 import type { Facility } from "@/features/facilities/types/facility.types";
+
+type SettingsFacility = Pick<Facility, "id" | "name" | "status"> & {
+  description?: string;
+  locationCount?: number;
+};
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
 
 type TabKey =
@@ -1293,7 +1298,7 @@ export function OrganizationSettings() {
                 </div>
 
                 <div className="space-y-4">
-                  {(isDemoMode
+                  {((isDemoMode
                     ? [
                         {
                           id: "demo-hq",
@@ -1325,7 +1330,7 @@ export function OrganizationSettings() {
                         },
                       ]
                     : facilitiesQuery.data?.data ?? []
-                  ).map((facility: Facility) => (
+                  ) as SettingsFacility[]).map((facility) => (
                     <div
                       key={facility.name}
                       className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4"

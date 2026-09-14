@@ -653,6 +653,12 @@ export function AdminDashboard() {
       ).length,
     [activeWorkOrders],
   );
+  // Demo cards and panels must use the same local collection. The report
+  // query is disabled in demo mode, so an old persisted summary can otherwise
+  // leave the KPI at zero while the active-work-order panels contain data.
+  const displayStats = isDemoMode
+    ? { ...stats, openWorkOrders: activeWorkOrders.length }
+    : stats;
   const trendData = useMemo(() => {
     if (reportTrends.length > 0)
       return reportTrends.map((point) => ({
@@ -724,7 +730,7 @@ export function AdminDashboard() {
           >
             <KPICard
               title="Open Work Orders"
-              value={stats.openWorkOrders}
+              value={displayStats.openWorkOrders}
               changeLabel={`${highPriorityCount} high priority`}
               icon="work-orders"
             />
@@ -743,7 +749,7 @@ export function AdminDashboard() {
           </Link>
           <KPICard
             title="SLA Compliance"
-            value={`${stats.pmCompliance}%`}
+            value={`${displayStats.pmCompliance}%`}
             changeLabel="↑ Target > 92%"
             icon="compliance"
             variant="success"

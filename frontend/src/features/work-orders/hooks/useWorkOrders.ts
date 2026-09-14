@@ -1,58 +1,77 @@
-import { useMemo, useState } from 'react'
-
-import { useAuthStore } from '@/app/store'
-import { usePortal } from '@/hooks/usePortal'
-import { scopeWorkOrdersForUser } from '@/features/dashboard/utils/roleScope'
-import { useMockDataStore } from '@/services/mockDataStore'
-import type { WorkOrder } from '@/types/common.types'
-import type { WorkOrderFilters } from '../types/workOrder.types'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { WorkOrder } from "@/types/common.types";
+import type { WorkOrderFilters } from "../types/workOrder.types";
+import { workOrdersService } from "../services/workOrders.service";
+import { usePortal } from "@/hooks/usePortal";
 
 export function useWorkOrders(initialFilters: WorkOrderFilters = {}) {
-  const [filters, setFilters] = useState<WorkOrderFilters>(initialFilters)
-  const allOrders = useMockDataStore((s) => s.workOrders)
-  const user = useAuthStore((state) => state.user)
-  const portal = usePortal()
+  const [filters, setFilters] = useState<WorkOrderFilters>(initialFilters);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const portal = usePortal();
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: 20,
+    totalPages: 1,
+  });
 
-  const scopedOrders = useMemo(
-    () => scopeWorkOrdersForUser(user, portal, allOrders),
-    [allOrders, portal, user],
-  )
-
-  const workOrders = useMemo<WorkOrder[]>(() => {
-    return scopedOrders.filter((order) => {
-      if (filters.status && filters.status !== 'all' && order.status !== filters.status) return false
-      if (filters.priority && filters.priority !== 'all' && order.priority !== filters.priority)
-        return false
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        if (!order.title.toLowerCase().includes(q) && !order.id.toLowerCase().includes(q)) return false
+  const load = useCallback(
+    async (isManualRefresh = false) => {
+      if (isManualRefresh) setIsRefreshing(true);
+      else setIsLoading(true);
+      setError(null);
+      try {
+        const result = await (portal === "vendor"
+          ? workOrdersService.listForVendor(filters)
+          : workOrdersService.list(filters));
+        setWorkOrders(result.data);
+        setPagination({
+          total: result.total,
+          page: result.page,
+          pageSize: result.pageSize,
+          totalPages: result.totalPages,
+        });
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause
+            : new Error("Unable to load work orders"),
+        );
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-      return true
-    })
-  }, [scopedOrders, filters])
+    },
+    [filters, portal],
+  );
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const stats = useMemo(
     () => ({
-      total: scopedOrders.length,
-      open: scopedOrders.filter((o) => o.status === 'open').length,
-      inProgress: scopedOrders.filter((o) => o.status === 'in_progress').length,
-      completed: scopedOrders.filter((o) => o.status === 'completed').length,
-      critical: scopedOrders.filter((o) => o.priority === 'critical').length,
+      total: workOrders.length,
+      open: workOrders.filter((o) => o.status === "open").length,
+      inProgress: workOrders.filter((o) => o.status === "in_progress").length,
+      completed: workOrders.filter((o) => o.status === "completed").length,
+      critical: workOrders.filter((o) => o.priority === "critical").length,
     }),
-    [scopedOrders],
-  )
-
-  const refetch = () => {
-    /* store updates trigger re-render automatically */
-  }
+    [workOrders],
+  );
 
   return {
     workOrders,
     stats,
     filters,
     setFilters,
-    isLoading: false,
-    error: null as Error | null,
-    refetch,
-  }
+    ...pagination,
+    isLoading,
+    isRefreshing,
+    error,
+    refetch: () => load(true),
+  };
 }

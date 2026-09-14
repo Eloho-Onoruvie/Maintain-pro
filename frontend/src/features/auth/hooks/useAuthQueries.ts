@@ -21,57 +21,7 @@ import type {
 import { useVerificationModalStore } from "../store/useVerificationModalStore";
 import { organizationApi } from "@/features/organization/api/organization.api";
 import { vendorsApi } from "@/features/vendors/api/vendors.api";
-import { isDemoMode } from "@/config/runtime";
-import { USER_ROLES, type User, type UserRole } from "@/types/user.types";
-
-function resolveRoleFromEmail(email: string): UserRole {
-  const lower = email.toLowerCase();
-  if (lower.includes("vendor_technician") || lower.includes("vendor-technician") || lower.includes("vendor.technician")) {
-    return USER_ROLES.VENDOR_TECHNICIAN;
-  }
-  if (lower.includes("vendor_manager") || lower.includes("vendor-manager") || lower.includes("vendor.manager")) {
-    return USER_ROLES.VENDOR_MANAGER;
-  }
-  if (lower.includes("vendor_lead") || lower.includes("vendor-lead") || lower.includes("vendor.lead")) {
-    return USER_ROLES.VENDOR_LEAD;
-  }
-  if (lower.includes("vendor")) {
-    return USER_ROLES.VENDOR_LEAD;
-  }
-  if (lower.includes("facility_manager") || lower.includes("facility-manager") || lower.includes("facility.manager") || lower.includes("facility")) {
-    return USER_ROLES.FACILITY_MANAGER;
-  }
-  if (lower.includes("technician")) {
-    return USER_ROLES.TECHNICIAN;
-  }
-  if (lower.includes("finance")) {
-    return USER_ROLES.FINANCE;
-  }
-  if (lower.includes("staff")) {
-    return USER_ROLES.STAFF;
-  }
-  return USER_ROLES.ADMIN;
-}
-
-function demoUser(email: string): User {
-  const role = resolveRoleFromEmail(email || "");
-  const [first = "Demo", last = "Admin"] = (email || "demo@maintainpro.local").split("@")[0].split(/[._-]/).map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : part);
-  return {
-    id: "demo-user",
-    role,
-    ...(role.startsWith("vendor")
-      ? { vendorId: "demo-vendor", vendorSlug: "current" }
-      : { organizationId: "demo-organization", organizationSlug: "current" }),
-    firstName: first,
-    lastName: last,
-    email: email || "demo@maintainpro.local",
-    provider: "local",
-    isVerified: true,
-    status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-}
+import type { User } from "@/types/user.types";
 
 function useApplyAuthenticatedSession() {
   const navigate = useNavigate();
@@ -89,15 +39,7 @@ function useApplyAuthenticatedSession() {
   ) => {
     // The user object from login/register is the source of truth.
     setUser(user);
-    if (isDemoMode) {
-      if (user.role.startsWith("vendor")) {
-        localStorage.setItem("maintainpro_vendor_slug", "current");
-        updateUser({ vendorSlug: "current" });
-      } else {
-        localStorage.setItem("maintainpro_organization_slug", "current");
-        updateUser({ organizationSlug: "current" });
-      }
-    } else {
+    {
       // In live mode, we can trust the slugs returned from the backend user object
       if (user.organizationSlug) {
         localStorage.setItem("maintainpro_organization_slug", user.organizationSlug);
@@ -141,7 +83,7 @@ export function useLogin() {
   const applyAuthenticatedSession = useApplyAuthenticatedSession();
 
   return useMutation({
-    mutationFn: (credentials: LoginRequest) => isDemoMode ? Promise.resolve({ user: demoUser(credentials.email) }) : authService.login(credentials),
+    mutationFn: (credentials: LoginRequest) => authService.login(credentials),
     onSuccess: (data: { user: User }) => applyAuthenticatedSession(data.user),
   });
 }
@@ -157,9 +99,6 @@ export function useRegisterOrganization() {
     ) => {
       const payload = "payload" in input ? input.payload : input;
       const targetPath = "targetPath" in input ? input.targetPath : undefined;
-      if (isDemoMode) {
-        return Promise.resolve({ data: { user: demoUser(payload.email) }, targetPath });
-      }
       return authService
         .registerOrganization(payload)
         .then((data) => ({ data, targetPath }));
@@ -180,9 +119,6 @@ export function useRegisterVendor() {
     ) => {
       const payload = "payload" in input ? input.payload : input;
       const targetPath = "targetPath" in input ? input.targetPath : undefined;
-      if (isDemoMode) {
-        return Promise.resolve({ data: { user: demoUser(payload.email) }, targetPath });
-      }
       return authService
         .registerVendor(payload)
         .then((data) => ({ data, targetPath }));
@@ -204,7 +140,7 @@ export function useLogout() {
   };
 
   return useMutation({
-    mutationFn: () => isDemoMode ? Promise.resolve() : authService.logout(),
+    mutationFn: () => authService.logout(),
     onSuccess: finishLogout,
     onError: finishLogout,
   });
@@ -212,15 +148,13 @@ export function useLogout() {
 
 export function useForgotPassword() {
   return useMutation({
-    mutationFn: (payload: ForgotPasswordRequest) =>
-      isDemoMode ? Promise.resolve() : authService.forgotPassword(payload),
+    mutationFn: (payload: ForgotPasswordRequest) => authService.forgotPassword(payload),
   });
 }
 
 export function useResetPassword() {
   return useMutation({
-    mutationFn: (payload: ResetPasswordRequest) =>
-      isDemoMode ? Promise.resolve() : authService.resetPassword(payload),
+    mutationFn: (payload: ResetPasswordRequest) => authService.resetPassword(payload),
   });
 }
 
@@ -228,8 +162,7 @@ export function useAcceptInvitation() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (payload: AcceptInvitationRequest) =>
-      isDemoMode ? Promise.resolve() : authService.acceptInvitation(payload),
+    mutationFn: (payload: AcceptInvitationRequest) => authService.acceptInvitation(payload),
     onSuccess: () => {
       navigate("/login", { replace: true });
     },
@@ -242,8 +175,7 @@ export function useVerifyEmail() {
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
-    mutationFn: (payload: VerifyEmailRequest) =>
-      isDemoMode ? Promise.resolve() : authService.verifyEmail(payload),
+    mutationFn: (payload: VerifyEmailRequest) => authService.verifyEmail(payload),
     onSuccess: () => {
       // Optimistically update the user state
       const currentUser = queryClient.getQueryData<any>(authKeys.me);
@@ -259,8 +191,7 @@ export function useVerifyEmail() {
 
 export function useResendVerification() {
   return useMutation({
-    mutationFn: (payload: ResendVerificationRequest) =>
-      isDemoMode ? Promise.resolve() : authService.resendVerification(payload),
+    mutationFn: (payload: ResendVerificationRequest) => authService.resendVerification(payload),
   });
 }
 
@@ -270,8 +201,7 @@ export function useVerifyEmailLink() {
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
-    mutationFn: (payload: VerifyEmailLinkRequest) =>
-      isDemoMode ? Promise.resolve() : authService.verifyEmailLink(payload),
+    mutationFn: (payload: VerifyEmailLinkRequest) => authService.verifyEmailLink(payload),
     onSuccess: () => {
       // Optimistically update the user state
       const currentUser = queryClient.getQueryData<any>(authKeys.me);
@@ -287,17 +217,14 @@ export function useVerifyEmailLink() {
 
 export function useRegenerateVerificationLink() {
   return useMutation({
-    mutationFn: (payload: RegenerateVerificationRequest) =>
-      isDemoMode
-        ? Promise.resolve({ expiresInSeconds: 900, verificationUrl: "https://maintainpro.local/auth/verify?token=demo" })
-        : authService.regenerateVerificationLink(payload),
+    mutationFn: (payload: RegenerateVerificationRequest) => authService.regenerateVerificationLink(payload),
   });
 }
 
 export function useCurrentUser() {
   return useQuery({
     queryKey: authKeys.me,
-    queryFn: () => isDemoMode ? Promise.resolve(demoUser('demo@maintainpro.local')) : authService.me(),
+    queryFn: () => authService.me(),
     retry: false,
     staleTime: 5 * 60 * 1000,
   });

@@ -86,6 +86,25 @@ function normalizePMDates(pms: PreventiveMaintenance[]): PreventiveMaintenance[]
   })
 }
 
+function normalizeServiceRequestDates(requests: ServiceRequest[]): ServiceRequest[] {
+  return requests.map((request, index) => {
+    const createdAt = daysAgo([2, 1, 4, 6, 8, 10][index % 6])
+    const reviewedAt = request.reviewedAt ? daysAgo(Math.max(0, index + 1)) : undefined
+    const approvedAt = request.approvedAt ? daysAgo(Math.max(0, index + 1)) : undefined
+    const resolvedAt = request.resolvedAt ? daysAgo(Math.max(0, index + 2)) : undefined
+    return { ...request, createdAt, reviewedAt, approvedAt, resolvedAt }
+  })
+}
+
+function normalizeVendorOpportunityDates(opportunities: VendorOpportunity[]): VendorOpportunity[] {
+  return opportunities.map((opportunity) => ({
+    ...opportunity,
+    publishedAt: daysAgo(4),
+    deadline: daysFromNow(10),
+    bids: opportunity.bids.map((bid) => ({ ...bid, submittedAt: daysAgo(2) })),
+  }))
+}
+
 function createInitialState() {
   return {
     workOrders: normalizeWorkOrderDates(structuredClone(seedWorkOrders)),
@@ -93,20 +112,22 @@ function createInitialState() {
     locations: structuredClone(seedLocations),
     inventory: structuredClone(seedInventory),
     pms: normalizePMDates(structuredClone(seedPMs)),
-    serviceRequests: structuredClone(seedServiceRequests).map((sr) => ({
+    serviceRequests: normalizeServiceRequestDates(structuredClone(seedServiceRequests).map((sr) => ({
       ...sr,
       createdAt: new Date(sr.createdAt),
+      reviewedAt: sr.reviewedAt ? new Date(sr.reviewedAt) : undefined,
+      approvedAt: sr.approvedAt ? new Date(sr.approvedAt) : undefined,
       resolvedAt: sr.resolvedAt ? new Date(sr.resolvedAt) : undefined,
-    })),
+    }))),
     vendorInvoices: structuredClone(SEED_VENDOR_INVOICES),
     escalationRules: structuredClone(SEED_ESCALATION_RULES),
     vendorTeamMembers: structuredClone(SEED_VENDOR_TEAM_MEMBERS),
-    vendorOpportunities: structuredClone(seedVendorOpportunities).map((opp) => ({
+    vendorOpportunities: normalizeVendorOpportunityDates(structuredClone(seedVendorOpportunities).map((opp) => ({
       ...opp,
       publishedAt: new Date(opp.publishedAt),
       deadline: opp.deadline ? new Date(opp.deadline) : undefined,
       bids: opp.bids.map((b) => ({ ...b, submittedAt: new Date(b.submittedAt) })),
-    })) as VendorOpportunity[],
+    })) as VendorOpportunity[]),
   }
 }
 

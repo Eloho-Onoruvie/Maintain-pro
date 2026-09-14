@@ -105,12 +105,27 @@ function normalizeVendorOpportunityDates(opportunities: VendorOpportunity[]): Ve
   }))
 }
 
+function normalizeAssetDates(assets: Asset[]): Asset[] {
+  return assets.map((asset, index) => ({
+    ...asset,
+    lastMaintenanceDate: asset.lastMaintenanceDate ? daysAgo(index + 2) : undefined,
+    nextMaintenanceDate: asset.nextMaintenanceDate ? daysFromNow(14 + index * 7) : undefined,
+  }))
+}
+
+function normalizeInventoryDates(items: InventoryItem[]): InventoryItem[] {
+  return items.map((item, index) => ({
+    ...item,
+    lastRestocked: item.lastRestocked ? daysAgo(index + 3) : undefined,
+  }))
+}
+
 function createInitialState() {
   return {
     workOrders: normalizeWorkOrderDates(structuredClone(seedWorkOrders)),
-    assets: structuredClone(seedAssets),
+    assets: normalizeAssetDates(structuredClone(seedAssets)),
     locations: structuredClone(seedLocations),
-    inventory: structuredClone(seedInventory),
+    inventory: normalizeInventoryDates(structuredClone(seedInventory)),
     pms: normalizePMDates(structuredClone(seedPMs)),
     serviceRequests: normalizeServiceRequestDates(structuredClone(seedServiceRequests).map((sr) => ({
       ...sr,

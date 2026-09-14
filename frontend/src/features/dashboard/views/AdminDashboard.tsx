@@ -27,6 +27,7 @@ import { useState } from "react";
 import type { WorkOrder } from "@/types/common.types";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { PageError } from "@/components/feedback/PageError";
+import { HandWaveGreeting } from "@/components/ui/HandWaveGreeting";
 import { isDemoMode } from "@/config/runtime";
 import { facilitiesApi } from "@/features/facilities/api/facilities.api";
 import { useQuery } from "@tanstack/react-query";
@@ -252,27 +253,6 @@ function CriticalIssuesPanel({
           location: o.locationName ?? CRITICAL_LOCATIONS[i] ?? "—",
           time: relativeTime(o.updatedAt),
         }))
-      : isDemoMode
-      ? [
-          {
-            id: "1",
-            title: "HVAC failure in Server Room B",
-            location: "Main HQ",
-            time: "10m ago",
-          },
-          {
-            id: "2",
-            title: "Primary elevator stuck (Floor 4)",
-            location: "West Campus",
-            time: "25m ago",
-          },
-          {
-            id: "3",
-            title: "Water leak reported in basement",
-            location: "North Logistics",
-            time: "1h ago",
-          },
-        ]
       : [];
 
   return (
@@ -280,7 +260,6 @@ function CriticalIssuesPanel({
       title="Critical Issues"
       subtitle="Unresolved safety or operations anomalies needing instant dispatch"
       noPadding
-      demoData={isDemoMode && orders.length === 0}
     >
       <div className="divide-y divide-border">
         {rows.map((row) => (
@@ -309,7 +288,6 @@ function CriticalIssuesPanel({
 }
 
 function VendorSLAPanel() {
-  if (!isDemoMode)
     return (
       <SectionCard
         title="Vendor SLA Compliance"
@@ -320,49 +298,6 @@ function VendorSLAPanel() {
         </p>
       </SectionCard>
     );
-  return (
-    <SectionCard
-      title="Vendor SLA Compliance"
-      subtitle="Contract response/resolution health"
-      noPadding
-      demoData
-    >
-      <div className="divide-y divide-border">
-        {VENDOR_SLA.map((v) => (
-          <div key={v.name} className="px-5 py-3">
-            <div className="flex items-center justify-between gap-2 mb-1.5">
-              <div>
-                <p className="text-[13px] font-semibold text-foreground">
-                  {v.name}
-                </p>
-                <p className="text-[12px] text-muted-foreground">{v.service}</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {v.pct < 90 && (
-                  <AlertTriangle
-                    className="h-3.5 w-3.5 text-amber-500 shrink-0"
-                    aria-label="Below target"
-                  />
-                )}
-                <span
-                  className="text-[13px] font-bold"
-                  style={{ color: v.color }}
-                >
-                  {v.pct}%
-                </span>
-              </div>
-            </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${v.pct}%`, backgroundColor: v.barFill }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
 }
 
 function StatusBreakdownPanel({ workOrders }: { workOrders: WorkOrder[] }) {
@@ -373,7 +308,7 @@ function StatusBreakdownPanel({ workOrders }: { workOrders: WorkOrder[] }) {
     "var(--success)",
   ];
   const STATUS_LABELS = ["Open", "In Progress", "On Hold", "Completed"];
-  const STATUS_KEYS = ["open", "in_progress", "pending", "completed"];
+  const STATUS_KEYS = ["open", "in_progress", "pending_completion", "completed"];
 
   const counts = STATUS_KEYS.map(
     (key) =>
@@ -382,8 +317,7 @@ function StatusBreakdownPanel({ workOrders }: { workOrders: WorkOrder[] }) {
       ).length,
   );
   // Fallback to static if no data
-  const displayCounts =
-    counts.every((c) => c === 0) && isDemoMode ? [14, 21, 4, 8] : counts;
+  const displayCounts = counts;
   const total = Math.max(
     displayCounts.reduce((a, b) => a + b, 0),
     1,
@@ -393,7 +327,6 @@ function StatusBreakdownPanel({ workOrders }: { workOrders: WorkOrder[] }) {
     <SectionCard
       title="Work Order Status Breakdown"
       subtitle="Current status of all open tickets"
-      demoData={isDemoMode && counts.every((c) => c === 0)}
     >
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
         {displayCounts.map((count, i) => (
@@ -426,7 +359,6 @@ function StatusBreakdownPanel({ workOrders }: { workOrders: WorkOrder[] }) {
 }
 
 function VendorDispatchPanel() {
-  if (!isDemoMode)
     return (
       <SectionCard
         title="Recent Vendor Dispatch"
@@ -437,31 +369,6 @@ function VendorDispatchPanel() {
         </p>
       </SectionCard>
     );
-  return (
-    <SectionCard
-      title="Recent Vendor Dispatch"
-      subtitle="Real-time activity log of assigned technicians"
-      demoData
-    >
-      <div className="space-y-4">
-        {VENDOR_DISPATCH_STATIC.map((d) => (
-          <div key={d.id} className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-foreground">
-                {d.vendor}
-              </p>
-              <p className="text-[12px] text-muted-foreground leading-snug">
-                {d.action}
-              </p>
-            </div>
-            <span className="shrink-0 text-[12px] text-muted-foreground">
-              {d.time}
-            </span>
-          </div>
-        ))}
-      </div>
-    </SectionCard>
-  );
 }
 
 function PendingApprovalsPanel({ approvalsPath }: { approvalsPath: string }) {
@@ -636,7 +543,7 @@ export function AdminDashboard() {
   const facilitiesQuery = useQuery({
     queryKey: ["dashboard", "facility-statistics", user?.id],
     queryFn: facilitiesApi.statistics,
-    enabled: Boolean(user?.id) && !isDemoMode,
+    enabled: Boolean(user?.id),
     staleTime: 60_000,
     retry: false,
   });
@@ -656,9 +563,7 @@ export function AdminDashboard() {
   // Demo cards and panels must use the same local collection. The report
   // query is disabled in demo mode, so an old persisted summary can otherwise
   // leave the KPI at zero while the active-work-order panels contain data.
-  const displayStats = isDemoMode
-    ? { ...stats, openWorkOrders: activeWorkOrders.length }
-    : stats;
+  const displayStats = stats;
   const trendData = useMemo(() => {
     if (reportTrends.length > 0)
       return reportTrends.map((point) => ({
@@ -722,6 +627,11 @@ export function AdminDashboard() {
       <Navbar title="Dashboard" subtitle="Overview" />
 
       <div className="dashboard-page min-h-full bg-background px-6 py-6 pb-12">
+        <HandWaveGreeting
+          userName={user?.firstName}
+          subtext="A clear overview of your organization’s maintenance operations."
+          className="mb-6"
+        />
         {/* ── KPI Row ── */}
         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <Link

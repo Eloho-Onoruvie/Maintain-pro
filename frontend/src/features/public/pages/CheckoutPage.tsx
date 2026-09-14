@@ -9,7 +9,6 @@ import { billingService } from "@/services/billingService";
 import type { SubscriptionResponseData } from "@/services/billingService";
 import { useAuthStore } from "@/app/store";
 import { getDefaultPathForRole, getSettingsPath } from "@/app/portal.config";
-import { isDemoMode } from "@/config/runtime";
 
 export function CheckoutPage() {
   const [searchParams] = useSearchParams();
@@ -20,7 +19,7 @@ export function CheckoutPage() {
   const audience = (searchParams.get("audience") || "organization") as "organization" | "vendor";
   const billingCycle = (searchParams.get("cycle") || "monthly") as "monthly" | "annual";
 
-  const [provider, setProvider] = useState<"mock" | "stripe" | "paystack" | "flutterwave">("mock");
+  const [provider, setProvider] = useState<"stripe" | "paystack" | "flutterwave">("paystack");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [existingSubscription, setExistingSubscription] = useState(false);
@@ -36,7 +35,6 @@ export function CheckoutPage() {
   });
 
   useEffect(() => {
-    if (isDemoMode) return;
     let cancelled = false;
     void billingService.getPlanCatalog(audience).then((catalog) => {
       if (!cancelled) {
@@ -48,14 +46,8 @@ export function CheckoutPage() {
     return () => { cancelled = true; };
   }, [audience, billingCycle, plan]);
 
-  const currentPrice = catalogPrice ?? (isDemoMode
-    ? (audience === "organization"
-      ? (plan === "starter" ? (billingCycle === "annual" ? 24 : 29) : plan === "enterprise" ? (billingCycle === "annual" ? 49 : 59) : 0)
-      : (plan === "starter" ? (billingCycle === "annual" ? 15 : 19) : plan === "professional" ? (billingCycle === "annual" ? 32 : 39) : 0))
-    : 0);
-  const displayedTrialDays = isDemoMode
-    ? (plan === "free" ? 0 : plan === "starter" ? 90 : plan === "professional" ? 180 : 270)
-    : trialDays;
+  const currentPrice = catalogPrice ?? 0;
+  const displayedTrialDays = trialDays;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,13 +69,11 @@ export function CheckoutPage() {
       // Paid gateways create a provider checkout session after the subscription
       // record exists. The provider owns card collection; never send card data
       // or provider secrets from this page.
-      if (provider !== "mock") {
-        const checkout = await billingService.initiateCheckout(provider);
-        if (checkout.redirectUrl) {
-          setCheckoutMessage(`Redirecting to ${provider === "paystack" ? "Paystack" : provider === "stripe" ? "Stripe" : "Flutterwave"} secure checkout…`);
-          window.location.assign(checkout.redirectUrl);
-          return;
-        }
+      const checkout = await billingService.initiateCheckout(provider);
+      if (checkout.redirectUrl) {
+        setCheckoutMessage(`Redirecting to ${provider === "paystack" ? "Paystack" : provider === "stripe" ? "Stripe" : "Flutterwave"} secure checkout…`);
+        window.location.assign(checkout.redirectUrl);
+        return;
       }
 
       setSuccessData(subscription);
@@ -231,7 +221,6 @@ export function CheckoutPage() {
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {([
-                    ["mock", "Mock Sandbox", "Test checkout for local development", "science", "bg-slate-100 text-slate-700"],
                     ["stripe", "Stripe", "Cards and digital wallets", "credit_card", "bg-[#635bff]/10 text-[#635bff]"],
                     ["paystack", "Paystack", "Cards, bank and Africa payments", "account_balance", "bg-[#00c3a0]/10 text-[#008f78]"],
                     ["flutterwave", "Flutterwave", "Cards and bank transfers", "language", "bg-orange-500/10 text-orange-600"],
@@ -273,15 +262,6 @@ export function CheckoutPage() {
                 </div>
               )}
 
-              {provider === "mock" && (
-                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-primary flex items-center gap-2">
-                  <MaterialIcon name="info" className="text-base shrink-0" />
-                  <span>
-                    <strong>Mock Sandbox:</strong> No payment details are collected. This local provider completes the demo checkout immediately.
-                  </span>
-                </div>
-              )}
-
               {provider === "paystack" && (
                 <div className="p-3.5 rounded-xl bg-[#00c3a0]/10 border border-[#00c3a0]/30 text-xs text-on-surface-variant flex items-center gap-2">
                   <MaterialIcon name="open_in_new" className="text-base text-[#008f78] shrink-0" />
@@ -305,7 +285,7 @@ export function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    {provider === "mock" ? "Authorize & Start Subscription" : `Continue with ${provider === "paystack" ? "Paystack" : provider === "stripe" ? "Stripe" : "Flutterwave"}`}
+                    {`Continue with ${provider === "paystack" ? "Paystack" : provider === "stripe" ? "Stripe" : "Flutterwave"}`}
                     <MaterialIcon name="arrow_forward" />
                   </>
                 )}

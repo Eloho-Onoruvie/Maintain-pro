@@ -8,26 +8,9 @@ import { PageHeader } from '@/components/ui/page-header'
 import { getTimeGreeting } from '@/utils/timeGreeting'
 import { useAuthStore } from '@/app/store'
 import { usePortalPath } from '@/hooks/usePortal'
-import { isDemoMode } from '@/config/runtime'
 import { useQuery } from '@tanstack/react-query'
 import { serviceRequestsService } from '@/features/service-requests/services/serviceRequests.service'
 import type { ServiceRequestRecord } from '@/features/service-requests/services/serviceRequests.service'
-
-// ─── Static Mock Data matching Figma ─────────────────────────────────────────
-
-const MY_SERVICE_REQUESTS_STATIC = [
-  { id: '1', title: 'Conference Room B thermostat is unresponsive', location: 'Lobby Building - Fl 4', priority: 'Medium Priority', priorityBg: 'var(--muted)', priorityColor: 'var(--muted-foreground)', status: 'In Progress', statusBg: 'var(--warning-muted)', statusColor: 'var(--warning)' },
-  { id: '2', title: 'Broken lock mechanism on main storage cabinet', location: 'West Wing HR Hub', priority: 'Low Priority', priorityBg: 'var(--muted)', priorityColor: 'var(--muted-foreground)', status: 'Approved', statusBg: 'var(--success-muted)', statusColor: 'var(--success)' },
-  { id: '3', title: 'Restroom faucet leaks continuously', location: 'Lobby Main restroom', priority: 'Low Priority', priorityBg: 'var(--muted)', priorityColor: 'var(--muted-foreground)', status: 'Dispatched', statusBg: 'var(--info-muted)', statusColor: 'var(--info)' },
-  { id: '4', title: 'Water spot on ceiling panel above workstation 12', location: 'HQ Floor 2 Corridor', priority: 'Medium Priority', priorityBg: 'var(--muted)', priorityColor: 'var(--muted-foreground)', status: 'Under Review', statusBg: 'var(--warning-muted)', statusColor: 'var(--warning)' },
-  { id: '5', title: 'Flickering lights in pantry corridor', location: 'East Warehouse Annex', priority: 'Low Priority', priorityBg: 'var(--muted)', priorityColor: 'var(--muted-foreground)', status: 'Resolved', statusBg: 'var(--success-muted)', statusColor: 'var(--success)' },
-]
-
-const RECENT_REQUEST_UPDATES_STATIC = [
-  { title: 'Work order completed', desc: 'Corridor lighting issue resolved', time: '10m ago' },
-  { title: 'Technician Dispatched', desc: 'Dave Miller assigned to Thermostat request', time: '1h ago' },
-  { title: 'Request approved', desc: 'Lock replacement scheduled for next Tuesday', time: '2h ago' },
-]
 
 function SectionCard({ title, subtitle, children, noPadding }: { title: string; subtitle?: string; children: React.ReactNode; noPadding?: boolean }) {
   return (
@@ -46,7 +29,7 @@ export function StaffDashboard() {
   const user = useAuthStore((state) => state.user)
   const serviceRequestsPath = usePortalPath('service-requests')
   const navigate = useNavigate()
-  const requestsQuery = useQuery<{ data: ServiceRequestRecord[] }>({ queryKey: ['dashboard', 'staff-service-requests', user?.id], queryFn: () => serviceRequestsService.list({ limit: 100 }), enabled: Boolean(user?.id) && !isDemoMode, staleTime: 60_000 })
+  const requestsQuery = useQuery<{ data: ServiceRequestRecord[] }>({ queryKey: ['dashboard', 'staff-service-requests', user?.id], queryFn: () => serviceRequestsService.list({ limit: 100 }), enabled: Boolean(user?.id), staleTime: 60_000 })
   const liveRequests = requestsQuery.data?.data ?? []
 
   const [category, setCategory] = useState('')
@@ -86,22 +69,22 @@ export function StaffDashboard() {
           <KPICard
             title="My Open Requests"
             // TODO: no real data source wired yet
-            value={isDemoMode ? 3 : liveRequests.filter((request: ServiceRequestRecord) => !['rejected', 'completed'].includes(request.status)).length}
-            changeLabel={isDemoMode ? 'All assigned' : 'Live requests'}
+            value={liveRequests.filter((request: ServiceRequestRecord) => !['rejected', 'completed'].includes(request.status)).length}
+            changeLabel="Live requests"
             icon="work-orders"
           />
           <KPICard
             title="Resolved This Month"
             // TODO: no real data source wired yet
-            value={isDemoMode ? 7 : liveRequests.filter((request: ServiceRequestRecord) => request.status === 'approved').length}
-            changeLabel={isDemoMode ? '+2 this week' : 'Approved requests'}
+            value={liveRequests.filter((request: ServiceRequestRecord) => request.status === 'approved').length}
+            changeLabel="Approved requests"
             icon="completed"
             variant="success"
           />
           <KPICard
             title="Avg Resolution Time"
-            value={isDemoMode ? '6.2 hrs' : '—'}
-            changeLabel={isDemoMode ? 'Standard delivery' : 'Not available'}
+            value="—"
+            changeLabel="Not available"
             icon="clock"
           />
         </div>
@@ -116,29 +99,23 @@ export function StaffDashboard() {
               noPadding
             >
               <div className="divide-y divide-[#f1f5f9]">
-                {(isDemoMode ? MY_SERVICE_REQUESTS_STATIC : []).map((req) => (
+                {liveRequests.map((req) => (
                   <div key={req.id} className="flex items-center justify-between gap-3 px-5 py-4">
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold text-foreground truncate">{req.title}</p>
-                      <p className="mt-0.5 text-[12px] text-muted-foreground">{req.location}</p>
+                      <p className="mt-0.5 text-[12px] text-muted-foreground">{req.locationName ?? req.locationId ?? 'Location unavailable'}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span
-                        className="rounded px-2 py-0.5 text-[11px] font-medium"
-                        style={{ backgroundColor: req.priorityBg, color: req.priorityColor }}
-                      >
+                      <span className="rounded px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground">
                         {req.priority}
                       </span>
-                      <span
-                        className="rounded px-2.5 py-0.5 text-[11px] font-semibold"
-                        style={{ backgroundColor: req.statusBg, color: req.statusColor }}
-                      >
+                      <span className="rounded px-2.5 py-0.5 text-[11px] font-semibold bg-muted text-muted-foreground">
                         {req.status}
                       </span>
                     </div>
                   </div>
                 ))}
-                {!isDemoMode && liveRequests.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">No service requests have been submitted yet.</p>}
+                {liveRequests.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">No service requests have been submitted yet.</p>}
               </div>
             </SectionCard>
           </div>
@@ -210,16 +187,7 @@ export function StaffDashboard() {
               noPadding
             >
               <div className="divide-y divide-[#f1f5f9]">
-                {(isDemoMode ? RECENT_REQUEST_UPDATES_STATIC : []).map((upd, i) => (
-                  <div key={i} className="flex items-start justify-between gap-3 px-5 py-3.5">
-                    <div>
-                      <p className="text-[13px] font-semibold text-foreground">{upd.title}</p>
-                      <p className="text-[12px] text-muted-foreground mt-0.5">{upd.desc}</p>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground shrink-0">{upd.time}</span>
-                  </div>
-                ))}
-                {!isDemoMode && <p className="px-5 py-6 text-sm text-muted-foreground">Recent request activity is not available from the dashboard API.</p>}
+                <p className="px-5 py-6 text-sm text-muted-foreground">Recent request activity is not available from the dashboard API.</p>
               </div>
             </SectionCard>
           </div>

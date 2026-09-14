@@ -22,24 +22,45 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useMockDataStore } from '@/services/mockDataStore'
+import { FieldError } from '@/components/feedback/FieldError'
+import { workOrdersService } from '@/features/work-orders/services/workOrders.service'
 import type { WorkOrder } from '@/types/common.types'
 import { USER_ROLES } from '@/types/user.types'
+import { uploadFile } from '@/api/uploads.api'
+import { serviceRequestsService } from '@/features/service-requests/services/serviceRequests.service'
 
 interface WorkOrderRolePanelProps {
   workOrder: WorkOrder
+  onWorkOrderUpdated: (updated: WorkOrder) => void
 }
 
-export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
+export function WorkOrderRolePanel({ workOrder, onWorkOrderUpdated }: WorkOrderRolePanelProps) {
   const portal = usePortal()
   const user = useAuthStore((s) => s.user)
   const { role, isMaintenanceReadOnly } = useRoleAccess()
-  const updateWorkOrder = useMockDataStore((s) => s.updateWorkOrder)
-  const addVendorInvoice = useMockDataStore((s) => s.addVendorInvoice)
-  const addServiceRequest = useMockDataStore((s) => s.addServiceRequest)
+  const updateWorkOrder = async (id: string, changes: Partial<WorkOrder>) => {
+    if (changes.status === 'in_progress' || changes.status === 'pending_completion' || changes.status === 'on_hold') {
+      const targetStatus: 'in_progress' | 'pending_completion' | 'on_hold' = changes.status
+      const updated = await workOrdersService.transition(id, targetStatus)
+      onWorkOrderUpdated(updated)
+      return updated
+    }
+    const updated = await workOrdersService.update(id, {
+      ...changes,
+      dueDate: changes.dueDate,
+    })
+    onWorkOrderUpdated(updated)
+    return updated
+  }
+  const notifyUpdate = (promise: Promise<WorkOrder>, message: string, after?: (updated: WorkOrder) => void) => {
+    void promise.then((updated) => { after?.(updated); toast.success(message) }).catch((cause) => {
+      toast.error(cause instanceof Error ? cause.message : 'Unable to update work order')
+    })
+  }
   const { requestConfirm, ActionConfirmDialog } = useActionConfirm()
 
   const [rejectReason, setRejectReason] = useState('')
+  const [rejectReasonError, setRejectReasonError] = useState<string | null>(null)
   const [proposedDate, setProposedDate] = useState('')
   const [completionNotes, setCompletionNotes] = useState('')
   const [timeSpent, setTimeSpent] = useState('')
@@ -55,6 +76,7 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
     description: '',
     priority: workOrder.priority,
   })
+  const [issueFormErrors, setIssueFormErrors] = useState<{ title?: string; description?: string }>({})
 
   const isVendor =
     portal === PORTALS.VENDOR && user?.id === workOrder.assigneeId
@@ -106,13 +128,12 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={() => {
-                    updateWorkOrder(workOrder.id, {
+                    notifyUpdate(updateWorkOrder(workOrder.id, {
                       approvedAt: new Date(),
                       approvedBy: user?.email,
                       approvalNotes,
                       requiresApproval: false,
-                    })
-                    toast.success('Work order approved')
+                    }), 'Work order approved')
                   }}
                 >
                   Approve
@@ -121,11 +142,10 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                   variant="outline"
                   className="text-destructive"
                   onClick={() => {
-                    updateWorkOrder(workOrder.id, {
+                    notifyUpdate(updateWorkOrder(workOrder.id, {
                       status: 'cancelled',
                       rejectionReason: approvalNotes || 'Rejected by finance',
-                    })
-                    toast.success('Work order rejected')
+                    }), 'Work order rejected')
                   }}
                 >
                   Reject
@@ -183,22 +203,19 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                     rows={2}
                     placeholder="Required if declining"
                     value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
+                    onChange={(e) => {
+                      setRejectReason(e.target.value)
+                      if (rejectReasonError) setRejectReasonError(null)
+                    }}
+                    aria-invalid={!!rejectReasonError}
                   />
+                  <FieldError message={rejectReasonError} />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     className="gap-2"
                     onClick={() => {
-                      updateWorkOrder(workOrder.id, {
-                        vendorOfferStatus: 'accepted',
-                        status: 'in_progress',
-                        proposedSchedule: proposedDate
-                          ? new Date(proposedDate)
-                          : undefined,
-                      })
-                      notifyManager('Vendor accepted job', `${workOrder.id} accepted by vendor`)
-                      toast.success('Job accepted')
+                      notifyUpdate(workOrdersService.vendorAccept(workOrder.id, proposedDate || undefined), 'Job accepted', () => notifyManager('Vendor accepted job', `${workOrder.id} accepted by vendor`))
                     }}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -209,17 +226,10 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                     className="gap-2 text-destructive"
                     onClick={() => {
                       if (!rejectReason.trim()) {
-                        toast.error('Provide a decline reason')
+                        setRejectReasonError('Provide a decline reason')
                         return
                       }
-                      updateWorkOrder(workOrder.id, {
-                        vendorOfferStatus: 'rejected',
-                        vendorRejectReason: rejectReason,
-                        status: 'open',
-                        assigneeId: undefined,
-                        assigneeName: undefined,
-                      })
-                      toast.success('Job declined')
+                      notifyUpdate(workOrdersService.vendorReject(workOrder.id, rejectReason), 'Job declined')
                     }}
                   >
                     <XCircle className="h-4 w-4" />
@@ -269,31 +279,14 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                       confirmLabel: 'Submit',
                       onConfirm: () => {
                         const amount = Number(invoiceAmount) || 0
-                        updateWorkOrder(workOrder.id, {
-                          status: 'completed',
-                          completionNotes,
-                          actualCost: amount,
-                          paymentStatus: 'pending',
+                        notifyUpdate(workOrdersService.transition(workOrder.id, 'pending_completion').then((updated) => workOrdersService.submitInvoice(workOrder.id, { invoiceNumber: invoiceNumber || `INV-${workOrder.id}`, amount, currency: 'NGN' }).then(() => updated)), 'Job completed and invoice submitted', () => {
+                          appendNotification('user-3', USER_ROLES.FINANCE, {
+                            type: 'approval',
+                            title: 'Vendor invoice submitted',
+                            message: `${workOrder.id} — $${amount.toLocaleString()} pending verification`,
+                            actionUrl: 'invoices',
+                          })
                         })
-                        addVendorInvoice({
-                          id: `INV-${Date.now()}`,
-                          workOrderId: workOrder.id,
-                          vendorId: user?.id ?? 'vendor-1',
-                          vendorName: user?.department ?? 'Vendor',
-                          amount,
-                          estimatedAmount: workOrder.estimatedCost,
-                          status: 'pending',
-                          submittedAt: new Date(),
-                          invoiceNumber: invoiceNumber || undefined,
-                          notes: completionNotes,
-                        })
-                        appendNotification('user-3', USER_ROLES.FINANCE, {
-                          type: 'approval',
-                          title: 'Vendor invoice submitted',
-                          message: `${workOrder.id} — $${amount.toLocaleString()} pending verification`,
-                          actionUrl: 'invoices',
-                        })
-                        toast.success('Job completed and invoice submitted')
                       },
                     })
                   }
@@ -324,8 +317,7 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                 className="gap-2"
                 disabled={workOrder.status === 'in_progress'}
                 onClick={() => {
-                  updateWorkOrder(workOrder.id, { status: 'in_progress' })
-                  toast.success('Work started')
+                  notifyUpdate(updateWorkOrder(workOrder.id, { status: 'in_progress' }), 'Work started')
                 }}
               >
                 <Play className="h-4 w-4" />
@@ -340,13 +332,13 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                     description: 'Mark this job as completed with your notes and time.',
                     confirmLabel: 'Complete',
                     onConfirm: () => {
-                      updateWorkOrder(workOrder.id, {
-                        status: 'completed',
-                        completionNotes: completionNotes || 'Work completed in field',
-                        timeSpent: timeSpent ? Number(timeSpent) : undefined,
-                        partsCost: partsUsed ? Number(partsUsed) : undefined,
-                      })
-                      toast.success('Work order completed')
+                      const complete = async () => {
+                        if (timeSpent && Number(timeSpent) > 0) await workOrdersService.addTimeLog(workOrder.id, { hours: Number(timeSpent), note: completionNotes || undefined })
+                        const updated = await workOrdersService.transition(workOrder.id, 'pending_completion')
+                        onWorkOrderUpdated(updated)
+                        return updated
+                      }
+                      notifyUpdate(complete(), 'Work order submitted for completion')
                     },
                   })
                 }
@@ -393,16 +385,15 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
                   if (file) {
                     const reader = new FileReader()
                     reader.onloadend = () => {
-                      const base64 = reader.result as string
                       requestConfirm({
                         title: 'Add photo?',
                         description: 'Attach the selected photo to this work order.',
                         confirmLabel: 'Attach',
-                        onConfirm: () => {
-                          const images = [...(workOrder.images ?? []), base64]
-                          updateWorkOrder(workOrder.id, { images })
-                          toast.success('Photo attached')
-                        },
+                        onConfirm: () => notifyUpdate((async () => {
+                          const uploaded = await uploadFile(file, { purpose: 'work-order-attachment', facilityId: workOrder.facilityId })
+                          await workOrdersService.addAttachment(workOrder.id, uploaded.id)
+                          return workOrder
+                        })(), 'Photo attached'),
                       })
                     }
                     reader.readAsDataURL(file)
@@ -435,39 +426,34 @@ export function WorkOrderRolePanel({ workOrder }: WorkOrderRolePanelProps) {
             <Input
               placeholder="Issue title"
               value={issueForm.title}
-              onChange={(e) => setIssueForm((p) => ({ ...p, title: e.target.value }))}
+              onChange={(e) => {
+                setIssueForm((p) => ({ ...p, title: e.target.value }))
+                if (issueFormErrors.title) setIssueFormErrors((p) => ({ ...p, title: undefined }))
+              }}
+              aria-invalid={!!issueFormErrors.title}
             />
+            <FieldError message={issueFormErrors.title} />
             <Textarea
               rows={2}
               placeholder="Describe the issue found"
               value={issueForm.description}
-              onChange={(e) => setIssueForm((p) => ({ ...p, description: e.target.value }))}
+              onChange={(e) => {
+                setIssueForm((p) => ({ ...p, description: e.target.value }))
+                if (issueFormErrors.description) setIssueFormErrors((p) => ({ ...p, description: undefined }))
+              }}
+              aria-invalid={!!issueFormErrors.description}
             />
+            <FieldError message={issueFormErrors.description} />
             <Button
               size="sm"
               onClick={() => {
-                if (!issueForm.title.trim() || !issueForm.description.trim()) {
-                  toast.error('Title and description required')
-                  return
-                }
-                const id = `SR-${Date.now().toString().slice(-6)}`
-                addServiceRequest({
-                  id,
-                  title: issueForm.title,
-                  description: `${issueForm.description}\n\nLinked to ${workOrder.id}`,
-                  category: issueForm.category,
-                  status: 'submitted',
-                  priority: issueForm.priority,
-                  requesterId: user?.id ?? 'user-2',
-                  requesterName: user ? `${user.firstName} ${user.lastName}` : 'Technician',
-                  requesterEmail: user?.email ?? '',
-                  locationId: workOrder.locationId,
-                  locationName: workOrder.locationName,
-                  createdAt: new Date(),
-                })
-                updateWorkOrder(workOrder.id, { linkedServiceRequestId: id })
-                notifyManager('Issue reported from field', `${issueForm.title} (${id})`)
-                toast.success('Issue reported — manager notified')
+                const nextErrors: { title?: string; description?: string } = {}
+                if (!issueForm.title.trim()) nextErrors.title = 'Issue title is required'
+                if (!issueForm.description.trim()) nextErrors.description = 'Description is required'
+                setIssueFormErrors(nextErrors)
+                if (Object.keys(nextErrors).length > 0) return
+                const report = serviceRequestsService.create({ organizationId: user?.organizationId ?? '', facilityId: workOrder.facilityId ?? '', locationId: workOrder.locationId ?? '', assetId: workOrder.assetId ?? '', title: issueForm.title, description: `${issueForm.description}\n\nLinked to ${workOrder.id}`, priority: issueForm.priority, serviceCategory: issueForm.category, sourceWorkOrderId: workOrder.id }).then(() => workOrder)
+                notifyUpdate(report, 'Issue reported — manager notified', () => notifyManager('Issue reported from field', issueForm.title))
                 setIssueForm({ title: '', category: workOrder.category, description: '', priority: workOrder.priority })
               }}
             >

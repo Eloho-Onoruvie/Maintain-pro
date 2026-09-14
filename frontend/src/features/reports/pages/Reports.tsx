@@ -102,6 +102,22 @@ export function Reports() {
    1. GENERATION HUB VIEW
    ───────────────────────────────────────────────────────────────────────────── */
 function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: 'generation_hub' | 'maintenance_summary' | 'inventory_report') => void; onOpenReport: (slug: string) => void }) {
+  const recentReports = useMemo(() => {
+    const end = new Date()
+    const format = (date: Date) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
+    const offset = (days: number) => {
+      const date = new Date(end)
+      date.setDate(date.getDate() - days)
+      return date
+    }
+    return [
+      { name: 'HQ_Tower_SLA_Compliance', type: 'SLA Compliance Report', range: `${format(offset(30))} - ${format(end)}`, by: 'Samuel Dane', date: format(offset(1)) },
+      { name: 'PM_Preventive_Quarterly_Compiled', type: 'PM Compliance Report', range: `${format(offset(90))} - ${format(offset(1))}`, by: 'Dave Miller', date: format(offset(3)) },
+      { name: 'Full_Organization_Inventory_Valuation', type: 'Inventory Report', range: `As of ${format(end)}`, by: 'Sarah Jenkins', date: format(offset(5)) },
+      { name: 'HQ_HVAC_SLA_Audit_Anomalies', type: 'SLA Compliance Report', range: `${format(offset(20))} - ${format(offset(7))}`, by: 'System (Auto)', date: format(offset(7)) },
+      { name: 'West_Campus_Backlog_Analysis', type: 'Work Order Analysis', range: `${format(offset(120))} - ${format(offset(30))}`, by: 'John Doe', date: format(offset(10)) },
+    ]
+  }, [])
   const reportRangeLabel = useMemo(() => {
     const end = new Date()
     const start = new Date(end)
@@ -241,13 +257,7 @@ function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: '
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {[
-              { name: 'HQ_Tower_Jan_SLA_Compliance_v2', type: 'SLA Compliance Report', range: 'Jan 1, 2026 - Jan 31, 2026', by: 'Samuel Dane', date: 'Jan 30, 2026' },
-              { name: 'PM_Preventive_Quarterly_Compiled', type: 'PM Compliance Report', range: 'Oct 1, 2025 - Dec 31, 2025', by: 'Dave Miller', date: 'Jan 28, 2026' },
-              { name: 'Full_Organization_Inventory_Valuation', type: 'Inventory Report', range: 'As of Jan 25, 2026', by: 'Sarah Jenkins', date: 'Jan 25, 2026' },
-              { name: 'HQ_HVAC_SLA_Audit_Anomalies', type: 'SLA Compliance Report', range: 'Jan 1, 2026 - Jan 20, 2026', by: 'System (Auto)', date: 'Jan 20, 2026' },
-              { name: 'West_Campus_Backlog_Analysis_Q4', type: 'Work Order Analysis', range: 'Oct 1, 2025 - Dec 31, 2025', by: 'John Doe', date: 'Jan 15, 2026' },
-            ].map((row, idx) => (
+            {recentReports.map((row, idx) => (
               <tr key={idx} className="hover:bg-muted/30 transition-colors">
                 <td className="py-3 px-4 font-bold text-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />

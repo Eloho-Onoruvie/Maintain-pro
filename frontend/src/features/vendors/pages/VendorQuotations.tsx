@@ -11,7 +11,6 @@ import { PageLoader } from "@/components/feedback/PageLoader";
 import { PageError } from "@/components/feedback/PageError";
 import { PageHeader } from "@/components/ui/page-header";
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
-import { isDemoMode } from "@/config/runtime";
 
 interface QuotationItem {
   id: string;
@@ -270,7 +269,7 @@ export function VendorQuotations() {
         </div>
 
         {/* Comparison details are demo-only until the live quotation API exposes bid comparisons. */}
-        {!isDemoMode ? (
+        {true ? (
           <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             Bid comparison details will appear here when the live quotation
             response includes competing bids.

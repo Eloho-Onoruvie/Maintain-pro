@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiClient } from "@/api/client";
-import { isDemoMode } from "@/config/runtime";
 
 type Sla = {
   _id: string;
@@ -237,7 +236,7 @@ export function VendorSLADetails() {
                   resolution={hours(sla.resolutionTimeHours)}
                   tone="bg-red-50 text-red-500"
                 />
-                {isDemoMode ? (
+                {false ? (
                   <>
                     <TargetCard
                       name="High"
@@ -272,7 +271,7 @@ export function VendorSLADetails() {
                   <h2 className="text-lg font-bold">
                     SLA Coverage Rules &amp; Parameters
                   </h2>
-                  {isDemoMode ? (
+                  {false ? (
                     <>
                       <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <div>
@@ -362,7 +361,7 @@ export function VendorSLADetails() {
               <div className="space-y-6 lg:col-span-2">
                 <section className="rounded-xl border border-border bg-card p-5 sm:p-6">
                   <h2 className="text-lg font-bold">SLA Escalation Policy</h2>
-                  {isDemoMode ? (
+                  {false ? (
                     <div className="mt-5 space-y-5 text-sm">
                       <p className="flex gap-3">
                         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
@@ -422,25 +421,25 @@ export function VendorSLADetails() {
                     <div>
                       <p className={label}>SLA compliance</p>
                       <p className="text-2xl font-bold text-emerald-500">
-                        {isDemoMode ? "94.2%" : "—"}
+                        {"—"}
                       </p>
                     </div>
                     <div>
                       <p className={label}>Avg response time</p>
                       <p className="text-2xl font-bold">
-                        {isDemoMode ? "22 min" : "—"}
+                        {"—"}
                       </p>
                     </div>
                     <div>
                       <p className={label}>Breached WOs</p>
                       <p className="text-2xl font-bold text-red-500">
-                        {isDemoMode ? "2 Orders" : "—"}
+                        {"—"}
                       </p>
                     </div>
                     <div>
                       <p className={label}>Approaching breach</p>
                       <p className="text-2xl font-bold text-orange-500">
-                        {isDemoMode ? "1 Order" : "—"}
+                        {"—"}
                       </p>
                     </div>
                   </div>
@@ -449,7 +448,7 @@ export function VendorSLADetails() {
                   <h2 className="text-lg font-bold">
                     SLA Timeline &amp; History
                   </h2>
-                  {isDemoMode ? (
+                  {false ? (
                     <div className="mt-5 space-y-5 text-sm">
                       <p className="flex gap-3">
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-400" />
@@ -535,9 +534,9 @@ export function VendorSLADetails() {
                 Cancel
               </Button>
               <Button
-                disabled={isDemoMode || !sla || !nextStatus}
+                disabled={!sla || !nextStatus}
                 onClick={async () => {
-                  if (isDemoMode || !sla || !nextStatus) return;
+                  if (!sla || !nextStatus) return;
                   try {
                     const updated = await apiClient.patch<Sla>(
                       `/sla-agreements/${sla._id}/status`,

@@ -335,7 +335,7 @@ export const useMockDataStore = create<MockDataState>()(
         return {
           ...current,
           ...p,
-          workOrders: p.workOrders!.map((wo) => ({
+          workOrders: normalizeWorkOrderDates(p.workOrders!.map((wo) => ({
             ...wo,
             createdAt: new Date(wo.createdAt),
             updatedAt: new Date(wo.updatedAt),
@@ -344,20 +344,22 @@ export const useMockDataStore = create<MockDataState>()(
             proposedSchedule: wo.proposedSchedule
               ? new Date(wo.proposedSchedule)
               : undefined,
-          })),
-          assets: p.assets?.length ? p.assets : current.assets,
+          }))),
+          assets: normalizeAssetDates(p.assets?.length ? p.assets : current.assets),
           locations: p.locations?.length ? p.locations : current.locations,
-          inventory: p.inventory?.length ? p.inventory : current.inventory,
+          inventory: normalizeInventoryDates(p.inventory?.length ? p.inventory : current.inventory),
           pms: normalizePMDates((p.pms?.length ? p.pms : current.pms).map((pm) => ({
             ...pm,
             nextDue: new Date(pm.nextDue),
             lastCompleted: pm.lastCompleted ? new Date(pm.lastCompleted) : undefined,
           }))),
-          serviceRequests: (p.serviceRequests?.length ? p.serviceRequests : current.serviceRequests).map((sr) => ({
+          serviceRequests: normalizeServiceRequestDates((p.serviceRequests?.length ? p.serviceRequests : current.serviceRequests).map((sr) => ({
             ...sr,
             createdAt: new Date(sr.createdAt),
+            reviewedAt: sr.reviewedAt ? new Date(sr.reviewedAt) : undefined,
+            approvedAt: sr.approvedAt ? new Date(sr.approvedAt) : undefined,
             resolvedAt: sr.resolvedAt ? new Date(sr.resolvedAt) : undefined,
-          })),
+          }))),
           vendorInvoices: (p.vendorInvoices?.length ? p.vendorInvoices : current.vendorInvoices).map((inv) => ({
             ...inv,
             submittedAt: new Date(inv.submittedAt),
@@ -365,12 +367,12 @@ export const useMockDataStore = create<MockDataState>()(
           })),
           escalationRules: p.escalationRules ?? current.escalationRules,
           vendorTeamMembers: p.vendorTeamMembers ?? current.vendorTeamMembers,
-          vendorOpportunities: (p.vendorOpportunities ?? current.vendorOpportunities).map((opp: VendorOpportunity) => ({
+          vendorOpportunities: normalizeVendorOpportunityDates((p.vendorOpportunities ?? current.vendorOpportunities).map((opp: VendorOpportunity) => ({
             ...opp,
             publishedAt: new Date(opp.publishedAt),
             deadline: opp.deadline ? new Date(opp.deadline) : undefined,
             bids: opp.bids.map((b: VendorBid) => ({ ...b, submittedAt: new Date(b.submittedAt) })),
-          })),
+          }))),
         }
       },
     },

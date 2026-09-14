@@ -28,7 +28,6 @@ import type { WorkOrder } from "@/types/common.types";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { PageError } from "@/components/feedback/PageError";
 import { HandWaveGreeting } from "@/components/ui/HandWaveGreeting";
-import { isDemoMode } from "@/config/runtime";
 import { facilitiesApi } from "@/features/facilities/api/facilities.api";
 import { useQuery } from "@tanstack/react-query";
 
@@ -372,7 +371,7 @@ function VendorDispatchPanel() {
 }
 
 function PendingApprovalsPanel({ approvalsPath }: { approvalsPath: string }) {
-  if (!isDemoMode)
+  if (true)
     return (
       <SectionCard
         title="Pending Approvals"
@@ -429,7 +428,7 @@ function PendingApprovalsPanel({ approvalsPath }: { approvalsPath: string }) {
 }
 
 function InventoryWarningsPanel() {
-  if (!isDemoMode)
+  if (true)
     return (
       <SectionCard
         title="Inventory Level Warnings"
@@ -489,8 +488,6 @@ function RecentActivityPanel({
           userBg:
             RECENT_ACTIVITY_STATIC[i]?.userBg ?? "var(--primary, #4f46e5)",
         }))
-      : isDemoMode
-      ? RECENT_ACTIVITY_STATIC
       : [];
 
   return (
@@ -498,7 +495,6 @@ function RecentActivityPanel({
       title="Recent Organization Activity"
       subtitle="Complete audit trail of system events across all facilities"
       noPadding
-      demoData={isDemoMode && orders.length === 0}
     >
       <div className="divide-y divide-border">
         {rows.map((row) => (
@@ -666,15 +662,15 @@ export function AdminDashboard() {
           />
           <KPICard
             title="PM Due This Week"
-            value={isDemoMode ? 3 : stats.dueToday}
+            value={stats.dueToday}
             changeLabel="Preventive tasks"
             icon="calendar"
           />
           <KPICard
             title="Active Facilities"
-            value={isDemoMode ? 4 : facilitiesQuery.data?.total ?? "—"}
+            value={facilitiesQuery.data?.total ?? "—"}
             changeLabel={
-              isDemoMode
+              false
                 ? "Demo data"
                 : facilitiesQuery.isLoading
                 ? "Loading facilities"

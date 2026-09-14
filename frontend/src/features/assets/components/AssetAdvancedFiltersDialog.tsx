@@ -19,7 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { mockLocations } from '../services/assets.service'
+import { locationsApi } from '@/features/locations/api/locations.api'
+import type { Location } from '@/features/locations/types/location.types'
 import type { AssetFilters } from '../types/asset.types'
 
 type AdvancedDraft = {
@@ -56,6 +57,13 @@ export function AssetAdvancedFiltersDialog({
   manufacturers,
 }: AssetAdvancedFiltersDialogProps) {
   const [draft, setDraft] = useState<AdvancedDraft>(emptyAdvanced)
+  const [locations, setLocations] = useState<Location[]>([])
+  const [locationsError, setLocationsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    void locationsApi.list().then(setLocations).catch(() => setLocationsError('Unable to load locations'))
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -96,7 +104,7 @@ export function AssetAdvancedFiltersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-md">
+      <DialogContent className="max-h-[90vh] !max-w-lg gap-0 overflow-hidden border-border bg-card p-0 sm:!max-w-lg">
         <DialogHeader className="space-y-2 px-6 pt-6 text-left">
           <DialogTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-primary" />
@@ -121,11 +129,12 @@ export function AssetAdvancedFiltersDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All locations</SelectItem>
-                {mockLocations.map((loc) => (
+                {locations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
                   </SelectItem>
                 ))}
+                {locationsError && <p className="text-xs text-destructive">{locationsError}</p>}
               </SelectContent>
             </Select>
           </div>

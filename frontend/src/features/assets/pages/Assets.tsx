@@ -113,7 +113,7 @@ export function Assets() {
     setPage(1);
   }, [search, categoryFilter, conditionFilter, statusFilter]);
 
-  if (!facilityId && !isDemoMode)
+  if (!facilityId)
     return (
       <div className="min-h-full bg-background text-foreground">
         <AppHeader title="Assets" hideQuickCreate />

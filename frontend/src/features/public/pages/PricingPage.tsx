@@ -8,7 +8,6 @@ import { PUBLIC_ROUTES } from "@/features/public/constants/routes";
 import { usePageSeo } from "@/features/public/hooks/usePageSeo";
 import { useAuthStore } from "@/app/store";
 import { getDefaultPathForRole } from "@/app/portal.config";
-import { isDemoMode } from "@/config/runtime";
 import { billingService } from "@/services/billingService";
 
 type PricingAudience = "organization" | "vendor";
@@ -119,7 +118,6 @@ export function PricingPage() {
   const activePlans = pricingAudience === "organization" ? ORGANIZATION_PLANS : VENDOR_PLANS;
 
   useEffect(() => {
-    if (isDemoMode) return;
     let cancelled = false;
     void billingService.getPlanCatalog(pricingAudience)
       .then((catalog) => {

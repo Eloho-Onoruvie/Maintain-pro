@@ -16,7 +16,6 @@ import { uploadImage } from '@/api/uploads.api'
 import { useActionConfirm } from '@/hooks/useActionConfirm'
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { PageError } from '@/components/feedback/PageError'
-import { isDemoMode } from '@/config/runtime'
 import { usePaymentMethods } from '@/features/billing/hooks/useBilling'
 import { useSubscription } from '@/features/billing/hooks/useBilling'
 import type { PaymentMethodData } from '@/services/billingService'
@@ -143,7 +142,6 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
     if (!file) return
     setLogoUploading(true)
     try {
-      if (isDemoMode) { const localUrl = URL.createObjectURL(file); setLogoUrl(localUrl); await vendorProfileUpdate.mutateAsync({ logo: localUrl }); toast.success('Vendor logo updated in demo mode'); return }
       const uploaded = await uploadImage(file, 'vendor-logo')
       setLogoUrl(uploaded.secureUrl)
       await vendorProfileUpdate.mutateAsync({ logo: uploaded.secureUrl })
@@ -476,7 +474,7 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="text-lg font-bold text-foreground">{subscriptionQuery.data?.plan ? `${subscriptionQuery.data.plan} plan` : 'No active subscription'}</h4>
-                        <StatusBadge status={isDemoMode ? 'ACTIVE' : (subscriptionQuery.data?.status?.toUpperCase() ?? 'NOT ACTIVE')} />
+                        <StatusBadge status={subscriptionQuery.data?.status?.toUpperCase() ?? 'NOT ACTIVE'} />
                       </div>
                       <p className="text-[13px] text-muted-foreground mt-1">{subscriptionQuery.data ? `${subscriptionQuery.data.billingCycle ?? 'monthly'} billing · ${subscriptionQuery.data.provider ?? 'provider checkout'}` : 'Choose a plan to activate vendor billing through a secure payment provider.'}</p>
                     </div>
@@ -486,7 +484,7 @@ export function VendorSettings({ initialTab = 'profile' }: { initialTab?: TabKey
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[13px]">
                     <div className="rounded-xl border border-border bg-background p-4 space-y-1.5">
                       <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">LICENSED TEAM DISPATCH SEATS</Label>
-                    <Input value={isDemoMode ? '8 of 15 Active Seats Used' : 'Seat usage is not part of the billing contract'} disabled className="bg-background border-border font-semibold text-foreground opacity-100" />
+                    <Input value="Seat usage is not part of the billing contract" disabled className="bg-background border-border font-semibold text-foreground opacity-100" />
                     </div>
                     <div className="rounded-xl border border-border bg-background p-4 space-y-1.5">
                       <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">REGISTERED PAYMENT METHOD</Label>

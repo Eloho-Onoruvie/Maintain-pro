@@ -79,37 +79,6 @@ type AccountMember = {
   avatar?: string;
 };
 
-const DEMO_MEMBERS: AccountMember[] = [
-  ["Samuel", "Dane", "samuel@maintainpro-demo.com", "admin", "active"],
-  [
-    "Sarah",
-    "Jenkins",
-    "sarah.j@maintainpro-demo.com",
-    "facility_manager",
-    "active",
-  ],
-  [
-    "Dave",
-    "Miller",
-    "d.miller@maintainpro-demo.com",
-    "facility_manager",
-    "active",
-  ],
-  ["John", "Doe", "john.doe@maintainpro-demo.com", "staff", "active"],
-  ["Jane", "Smith", "jane.smith@maintainpro-demo.com", "technician", "active"],
-  ["Robert", "Chen", "r.chen@maintainpro-demo.com", "finance", "active"],
-  ["Alice", "Johnson", "alice.j@maintainpro-demo.com", "technician", "invited"],
-  ["Marcus", "Vance", "m.vance@maintainpro-demo.com", "staff", "deactivated"],
-].map(([firstName, lastName, email, role, status], index) => ({
-  id: `demo-member-${index}`,
-  firstName,
-  lastName,
-  email,
-  role,
-  status,
-  isVerified: status === "active",
-}));
-
 function LiveMembersPanel({
   members,
   search,

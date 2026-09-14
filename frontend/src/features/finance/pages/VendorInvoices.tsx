@@ -1,99 +1,89 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, FileText, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { AppHeader } from '@/components/navigation/Navbar'
-import { Badge } from '@/components/ui/badge'
+import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { usePortalPath } from '@/hooks/usePortal'
-import { useAuthStore } from '@/app/store'
-import { useMockDataStore } from '@/services/mockDataStore'
 import type { VendorInvoice } from '@/types/common.types'
+import { invoicesService, type TrackedInvoice } from '../services/invoices.service'
 import { formatDate } from '@/utils/formatDate'
 import { cn } from '@/utils/helpers'
+import { PageError } from '@/components/feedback/PageError'
+import { SkeletonCard } from '@/components/feedback/Skeletons'
 
-const statusStyle: Record<VendorInvoice['status'], string> = {
-  pending: 'border-amber-400/20 text-amber-400 bg-amber-400/10',
-  approved: 'border-emerald-400/20 text-emerald-400 bg-emerald-400/10',
-  paid: 'border-blue-400/20 text-blue-400 bg-blue-400/10',
-  rejected: 'border-red-400/20 text-red-400 bg-red-400/10',
-  disputed: 'border-orange-400/20 text-orange-400 bg-orange-400/10',
-}
+import { DisputeInvoiceDialog } from '../components/DisputeInvoiceDialog'
+import { PageIntro } from '@/components/layout/PageIntro'
 
 export function VendorInvoices() {
-  const invoices = useMockDataStore((s) => s.vendorInvoices)
-  const workOrders = useMockDataStore((s) => s.workOrders)
-  const updateVendorInvoice = useMockDataStore((s) => s.updateVendorInvoice)
-  const updateWorkOrder = useMockDataStore((s) => s.updateWorkOrder)
+  const [apiInvoices, setApiInvoices] = useState<VendorInvoice[]>([])
+  const invoices = apiInvoices
   const workOrdersPath = usePortalPath('work-orders')
   const [filter, setFilter] = useState<'all' | VendorInvoice['status']>('pending')
+  const [disputeInvoice, setDisputeInvoice] = useState<VendorInvoice | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const loadInvoices = async () => {
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const result = await invoicesService.list()
+      setApiInvoices((result ?? []).map((invoice: TrackedInvoice) => ({
+        id: invoice._id, workOrderId: invoice.workOrderId ?? '', vendorId: invoice.vendorId,
+        vendorName: invoice.vendorId, amount: invoice.amount,
+        status: invoice.status === 'submitted' || invoice.status === 'under_review' ? 'pending' : invoice.status,
+        submittedAt: new Date(invoice.submittedAt), paidAt: invoice.paidAt ? new Date(invoice.paidAt) : undefined,
+        invoiceNumber: invoice.invoiceNumber, notes: invoice.notes,
+      })))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load vendor invoices'
+      setLoadError(message)
+      toast.error(message)
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { void loadInvoices() }, [])
 
   const filtered = useMemo(() => {
     if (filter === 'all') return invoices
     return invoices.filter((inv) => inv.status === filter)
   }, [filter, invoices])
 
-  const user = useAuthStore((s) => s.user)
-  const actorName = user ? `${user.firstName} ${user.lastName}` : 'Finance Staff'
-
   const markPaid = (inv: VendorInvoice) => {
-    const entry = {
-      id: `AE-${Date.now()}`,
-      action: 'Paid',
-      actorName: actorName,
-      timestamp: new Date(),
-      notes: 'Payment processed and closed.',
-    }
-    updateVendorInvoice(inv.id, {
-      status: 'paid',
-      paidAt: new Date(),
-      auditLog: [...(inv.auditLog ?? []), entry],
-    })
-    updateWorkOrder(inv.workOrderId, { paymentStatus: 'paid' })
-    toast.success(`Invoice ${inv.id} marked paid`)
+    void invoicesService.recordExternalPayment(inv.id, `external-${Date.now()}`).then(() => { toast.success(`Invoice ${inv.id} marked paid`); return loadInvoices() }).catch(() => toast.error('Unable to record external payment'))
   }
 
   const approve = (inv: VendorInvoice) => {
-    const entry = {
-      id: `AE-${Date.now()}`,
-      action: 'Approved',
-      actorName: actorName,
-      timestamp: new Date(),
-      notes: 'Invoice matched and approved.',
-    }
-    updateVendorInvoice(inv.id, {
-      status: 'approved',
-      auditLog: [...(inv.auditLog ?? []), entry],
-    })
-    updateWorkOrder(inv.workOrderId, { paymentStatus: 'approved' })
-    toast.success(`Invoice ${inv.id} approved`)
+    void invoicesService.review(inv.id, {}).then(() => { toast.success(`Invoice ${inv.id} approved`); return loadInvoices() }).catch(() => toast.error('Unable to approve invoice'))
+  }
+
+  const handleDispute = (invoiceId: string, reason: string) => {
+    const inv = invoices.find((i) => i.id === invoiceId)
+    if (!inv) return
+
+    void invoicesService.dispute(invoiceId, reason).then(async () => {
+        toast.success(`Invoice ${invoiceId} disputed`)
+        await loadInvoices()
+      }).catch(() => toast.error('Unable to dispute invoice'))
   }
 
   const reject = (inv: VendorInvoice) => {
-    const entry = {
-      id: `AE-${Date.now()}`,
-      action: 'Rejected',
-      actorName: actorName,
-      timestamp: new Date(),
-      notes: 'Invoice disputed/rejected.',
-    }
-    updateVendorInvoice(inv.id, {
-      status: 'rejected',
-      auditLog: [...(inv.auditLog ?? []), entry],
-    })
-    toast.success(`Invoice ${inv.id} rejected`)
+    void invoicesService.review(inv.id, { rejectionReason: 'Rejected by finance' }).then(() => { toast.success(`Invoice ${inv.id} rejected`); return loadInvoices() }).catch(() => toast.error('Unable to reject invoice'))
   }
 
   return (
     <div className="flex flex-col bg-background">
       <AppHeader
         title="Vendor Invoices"
-        subtitle="Match invoices to work orders before payment (US-12)"
+        subtitle="Invoices"
         hideQuickCreate
       />
       <div className="page-body space-y-4">
+        <PageIntro title="Vendor Invoices" description="Review submitted invoices, match them to completed work, and record payment decisions." />
         <div className="flex flex-wrap gap-2">
           {(['all', 'pending', 'approved', 'paid', 'disputed'] as const).map((s) => (
             <Button
@@ -108,15 +98,19 @@ export function VendorInvoices() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div role="status" aria-live="polite" className="space-y-3"><span className="sr-only">Loading vendor invoices…</span>{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+        ) : loadError ? (
+          <PageError title="Vendor invoices unavailable" message={loadError} onRetry={() => void loadInvoices()} />
+        ) : filtered.length === 0 ? (
           <Card className="border-border bg-card">
             <CardContent className="p-8 text-center text-muted-foreground">
-              No invoices in this view.
+              <p className="font-semibold text-foreground">{invoices.length === 0 ? 'No vendor invoices have been submitted yet' : 'No invoices match this status filter'}</p>
+              <p className="mx-auto mt-2 max-w-md text-sm">{invoices.length === 0 ? 'Submitted vendor invoices will appear here for review against their related work orders.' : 'Choose another status filter to review invoices in a different stage.'}</p>
             </CardContent>
           </Card>
         ) : (
           filtered.map((inv) => {
-            const wo = workOrders.find((w) => w.id === inv.workOrderId)
             const variance =
               inv.estimatedAmount != null
                 ? inv.amount - inv.estimatedAmount
@@ -129,9 +123,7 @@ export function VendorInvoices() {
                       <div className="mb-1 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">{inv.invoiceNumber ?? inv.id}</span>
-                        <Badge variant="outline" className={cn('text-xs', statusStyle[inv.status])}>
-                          {inv.status}
-                        </Badge>
+                        <StatusBadge status={inv.status} />
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {inv.vendorName} · WO{' '}
@@ -179,7 +171,7 @@ export function VendorInvoices() {
                         {wo.images.map((img, i) => (
                           <img
                             key={i}
-                            src={img.startsWith('data:') ? img : `https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200`}
+                            src={img.startsWith('data:') ? img : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='}
                             alt="Work completion evidence"
                             className="h-16 w-16 object-cover rounded border border-border"
                           />
@@ -215,6 +207,14 @@ export function VendorInvoices() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="text-amber-500 hover:text-amber-600"
+                        onClick={() => setDisputeInvoice(inv)}
+                      >
+                        Dispute
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         className="text-destructive"
                         onClick={() => reject(inv)}
                       >
@@ -227,6 +227,13 @@ export function VendorInvoices() {
             )
           })
         )}
+
+        <DisputeInvoiceDialog
+          invoice={disputeInvoice}
+          open={Boolean(disputeInvoice)}
+          onOpenChange={(open) => !open && setDisputeInvoice(null)}
+          onDispute={handleDispute}
+        />
       </div>
     </div>
   )

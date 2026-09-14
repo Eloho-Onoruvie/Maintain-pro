@@ -19,26 +19,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useMockDataStore } from '@/services/mockDataStore'
-import type { Asset, AssetStatus } from '@/types/common.types'
+import { assetsApi } from '@/features/assets/api/assets.api'
+import type { BackendAsset, BackendAssetCategory, BackendAssetStatus } from '@/features/assets/api/assets.contract'
 
-const STATUSES: AssetStatus[] = ['active', 'needs_maintenance', 'under_repair', 'decommissioned', 'down']
+const STATUSES: BackendAssetStatus[] = ['active', 'inactive', 'under_maintenance', 'retired']
+const CATEGORIES: BackendAssetCategory[] = ['hardware', 'software', 'infrastructure', 'other']
 
 interface EditAssetDialogProps {
-  asset: Asset | null
+  asset: BackendAsset | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSaved?: (asset: Asset) => void
+  onSaved?: (asset: BackendAsset) => void
 }
 
 export function EditAssetDialog({ asset, open, onOpenChange, onSaved }: EditAssetDialogProps) {
-  const locations = useMockDataStore((s) => s.locations)
-  const updateAsset = useMockDataStore((s) => s.updateAsset)
+  const locations = asset?.locationId ? [{ id: asset.locationId, name: 'Assigned location' }] : []
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
-    category: '',
-    status: 'active' as AssetStatus,
+    category: 'other' as BackendAssetCategory,
+    status: 'active' as BackendAssetStatus,
     locationId: '',
     manufacturer: '',
     model: '',
@@ -51,9 +51,9 @@ export function EditAssetDialog({ asset, open, onOpenChange, onSaved }: EditAsse
       name: asset.name,
       category: asset.category,
       status: asset.status,
-      locationId: asset.locationId,
+      locationId: asset.locationId ?? '',
       manufacturer: asset.manufacturer ?? '',
-      model: asset.model ?? '',
+      model: asset.modelNumber ?? '',
       serialNumber: asset.serialNumber ?? '',
     })
   }, [asset, open])
@@ -62,23 +62,25 @@ export function EditAssetDialog({ asset, open, onOpenChange, onSaved }: EditAsse
     e.preventDefault()
     if (!asset) return
     setSaving(true)
-    const location = locations.find((l) => l.id === form.locationId)
-    const updated: Asset = {
-      ...asset,
-      name: form.name,
-      category: form.category,
-      status: form.status,
-      locationId: form.locationId,
-      locationName: location?.name ?? asset.locationName,
-      manufacturer: form.manufacturer || undefined,
-      model: form.model || undefined,
-      serialNumber: form.serialNumber || undefined,
+    try {
+      const payload = {
+        name: form.name,
+        status: form.status,
+        category: form.category,
+        locationId: form.locationId || undefined,
+        manufacturer: form.manufacturer || undefined,
+        modelNumber: form.model || undefined,
+        serialNumber: form.serialNumber || undefined,
+      }
+      const updated = await assetsApi.update(asset.assetTag, payload)
+      toast.success(`${asset.name} updated`)
+      onSaved?.(updated)
+      onOpenChange(false)
+    } catch {
+      toast.error('Unable to update asset')
+    } finally {
+      setSaving(false)
     }
-    updateAsset(asset.id, updated)
-    setSaving(false)
-    toast.success(`${asset.name} updated`)
-    onSaved?.(updated)
-    onOpenChange(false)
   }
 
   return (
@@ -95,31 +97,40 @@ export function EditAssetDialog({ asset, open, onOpenChange, onSaved }: EditAsse
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Category</Label>
-              <Input value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} required />
+              <Select value={form.category} onValueChange={(value) => setForm((p) => ({ ...p, category: value as BackendAssetCategory }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category} className="capitalize">{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v as AssetStatus }))}>
+              <Select value={form.status} onValueChange={(value) => setForm((p) => ({ ...p, status: value as BackendAssetStatus }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>
+                  {STATUSES.map((status) => (
+                    <SelectItem key={status} value={status} className="capitalize">{status.replace('_', ' ')}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Location</Label>
-            <Select value={form.locationId} onValueChange={(v) => setForm((p) => ({ ...p, locationId: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {locations.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {locations.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label>Location</Label>
+              <Select value={form.locationId} onValueChange={(value) => setForm((p) => ({ ...p, locationId: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>{location.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Manufacturer</Label>

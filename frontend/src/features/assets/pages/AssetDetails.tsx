@@ -10,8 +10,6 @@ import { assetsApi } from '@/features/assets/api/assets.api'
 import type { BackendAsset } from '@/features/assets/api/assets.contract'
 import type { AssetHistoryEntry } from '@/features/assets/api/assets.api'
 import { StatusBadge } from '@/components/ui/badge'
-import { isDemoMode } from '@/config/runtime'
-import { useMockDataStore } from '@/services/mockDataStore'
 
 
 export function AssetDetails() {
@@ -24,21 +22,16 @@ export function AssetDetails() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [history, setHistory] = useState<AssetHistoryEntry[]>([])
-  const demoAssets = useMockDataStore((state) => state.assets)
 
   const loadAsset = async () => {
     if (!id) return
     setIsLoading(true)
     setLoadError(null)
     try {
-      const data = isDemoMode ? (() => { const item = demoAssets.find((asset) => asset.id === id || asset.assetTag === id); if (!item) throw new Error('Asset not found'); return { ...item, assetTag: item.assetTag ?? item.id, category: item.category as BackendAsset['category'], status: item.status as BackendAsset['status'], condition: 'good', ownership: 'owned', qrCode: '' } as BackendAsset })() : await assetsApi.get(id)
+      const data = await assetsApi.get(id)
       setAsset(data)
-      if (isDemoMode) {
-        setHistory([
-          { id: `demo-history-${data.assetTag}-1`, organizationId: 'demo-organization', assetId: data.assetTag, event: 'maintenance_completed', description: 'Routine preventive maintenance completed and asset returned to service.', actorId: 'demo-tech-1', sourceType: 'work_order', sourceId: 'WO-PM-001', occurredAt: new Date(Date.now() - 14 * 86400000).toISOString() },
-          { id: `demo-history-${data.assetTag}-2`, organizationId: 'demo-organization', assetId: data.assetTag, event: 'asset_registered', description: 'Asset registered in the organization asset catalog.', actorId: 'demo-user', occurredAt: new Date(Date.now() - 180 * 86400000).toISOString() },
-        ])
-      } else { const result = await assetsApi.history(data.assetTag); setHistory(Array.isArray(result) ? result : result.data ?? []) }
+      const result = await assetsApi.history(data.assetTag)
+      setHistory(Array.isArray(result) ? result : result.data ?? [])
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Unable to load asset details')
     } finally {
@@ -46,7 +39,7 @@ export function AssetDetails() {
     }
   }
 
-  useEffect(() => { void loadAsset() }, [id, demoAssets])
+  useEffect(() => { void loadAsset() }, [id])
 
   if (isLoading) return <PageLoader label="Loading asset details..." />
   if (loadError) return <main className="p-8"><PageError title="Asset unavailable" message={loadError} onRetry={() => void loadAsset()} /></main>

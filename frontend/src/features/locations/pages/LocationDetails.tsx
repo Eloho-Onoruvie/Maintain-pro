@@ -1,221 +1,196 @@
-import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Building2,
-  Layers,
-  MapPin,
-  Home,
-  Wrench,
-  Pencil,
-  Plus,
-} from 'lucide-react'
-import { toast } from 'sonner'
-
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useLocationApi } from '@/features/locations/hooks/useLocationsApi'
+import { PageLoader } from '@/components/feedback/PageLoader'
+import { PageError } from '@/components/feedback/PageError'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  mockLocations,
-  mockWorkOrders,
-  mockAssets,
-} from '@/features/dashboard/services/dashboard.service'
-import { AppHeader } from '@/components/navigation/Navbar'
-import { EditLocationDialog } from '@/features/locations/components/EditLocationDialog'
 import { usePortalPath } from '@/hooks/usePortal'
-import { cn } from '@/utils/helpers'
-import type { Location } from '@/types/common.types'
-
-const typeIcons: Record<string, React.ElementType> = {
-  site: Home,
-  building: Building2,
-  floor: Layers,
-  room: MapPin,
-  zone: MapPin,
-}
-
-const typeBadgeColors: Record<string, string> = {
-  site: 'bg-purple-400/10 text-purple-400 border-purple-400/20',
-  building: 'bg-blue-400/10 text-blue-400 border-blue-400/20',
-  floor: 'bg-cyan-400/10 text-cyan-400 border-cyan-400/20',
-  room: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20',
-  zone: 'bg-amber-400/10 text-amber-400 border-amber-400/20',
-}
+import { AppHeader } from '@/components/navigation/Navbar'
+import { locationsApi } from '../api/locations.api'
 
 export function LocationDetails() {
   const { id } = useParams()
-  const locationsPath = usePortalPath('locations')
+  const { data: locationData, isLoading, isError, refetch } = useLocationApi(id ?? '')
+  const [activeTab, setActiveTab] = useState<'overview' | 'assets' | 'work-orders' | 'service-requests' | 'pm' | 'history'>('overview')
+  const [relationships, setRelationships] = useState<{ assets: unknown[]; workOrders: unknown[]; serviceRequests: unknown[]; preventiveMaintenance: unknown[] }>({ assets: [], workOrders: [], serviceRequests: [], preventiveMaintenance: [] })
+  const [relationshipError, setRelationshipError] = useState<string | null>(null)
+  useEffect(() => { if (!id) return; void locationsApi.relationships(id).then(setRelationships).catch((error) => setRelationshipError(error instanceof Error ? error.message : 'Unable to load location relationships')) }, [id])
+  const navigate = useNavigate()
+
   const assetsPath = usePortalPath('assets')
   const workOrdersPath = usePortalPath('work-orders')
-  const [editOpen, setEditOpen] = useState(false)
 
-  const location = mockLocations.find((l) => l.id === id) ?? mockLocations[0]
-  const parent = location.parentId
-    ? mockLocations.find((l) => l.id === location.parentId)
-    : undefined
-  const children = mockLocations.filter((l) => l.parentId === location.id)
-  const assets = mockAssets.filter((a) => a.locationId === location.id)
-  const workOrders = mockWorkOrders.filter((wo) => wo.locationId === location.id)
+  if (isLoading) return <PageLoader label="Loading location details..." />
+  if (isError) return <PageError title="Location unavailable" message="Unable to fetch location details. Please try again." onRetry={() => void refetch()} />
 
-  const breadcrumb = useMemo(() => {
-    const chain: Location[] = []
-    let current: Location | undefined = location
-    while (current) {
-      chain.unshift(current)
-      current = current.parentId
-        ? mockLocations.find((l) => l.id === current!.parentId)
-        : undefined
-    }
-    return chain
-  }, [location])
+  const locationName = locationData?.name || 'Server Room B'
+  const parentFacility = locationData?.facilityId || 'Not configured'
+  const floorZoneStr = locationData?.description || 'Not configured'
+  const floor = (locationData as (typeof locationData & { floor?: string }) | undefined)?.floor || 'Not configured'
 
   return (
-    <div className="flex flex-col bg-background">
-      <EditLocationDialog
-        location={location}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
-
-      <AppHeader
-        title={location.name}
-        subtitle={breadcrumb.map((b) => b.name).join(' / ')}
-        hideQuickCreate
-        leading={
-          <Button variant="ghost" size="icon" asChild aria-label="Back to locations list">
-            <Link to={locationsPath}>
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
+    <div className="min-h-full bg-muted/30 text-foreground">
+      <AppHeader title={locationName} subtitle="Location Detail" hideQuickCreate />
+      {/* ── Main Content Container ── */}
+      <div className="p-8 space-y-6">
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            className="h-9 rounded-lg border-border bg-card text-[13px] font-medium text-foreground hover:bg-muted/30"
+          >
+            Edit Location
           </Button>
-        }
-        actions={
-          <>
-            <Badge variant="outline" className={cn('capitalize', typeBadgeColors[location.type])}>
-              {location.type}
-            </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setEditOpen(true)}
-              aria-label={`Edit location ${location.name}`}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              className="gap-2"
-              asChild
-              aria-label={`View all assets at ${location.name}`}
-            >
-              <Link to={`${assetsPath}?location=${location.id}`}>
-                <Wrench className="h-4 w-4" />
-                View assets
-              </Link>
-            </Button>
-          </>
-        }
-      />
+        </div>
+        {relationshipError && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">Some related location records are unavailable. Refresh to try again.</p>}
+        {/* ── 2 Column Spec Panels ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Location Context */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-[15px] font-bold text-foreground">Location Context</h2>
+            <div className="mt-4 space-y-3 text-[13px]">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Facility</span>
+                <span className="font-semibold text-foreground">{parentFacility}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Floor</span>
+                <span className="font-semibold text-foreground">{floor}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Zone</span>
+                <span className="font-semibold text-foreground">{floorZoneStr}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Room Type</span>
+                <span className="font-semibold text-foreground">Server/Data Room</span>
+              </div>
+            </div>
+          </div>
 
-      <div className="space-y-6 page-body">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: 'Assets', value: assets.length },
-            { label: 'Open work orders', value: workOrders.filter((wo) => wo.status !== 'completed').length },
-            { label: 'Child locations', value: children.length },
-            { label: 'Parent', value: parent?.name ?? 'Top level' },
-          ].map((s) => (
-            <Card key={s.label} className="border-border bg-card">
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className="mt-1 text-2xl font-semibold">{s.value}</p>
-              </CardContent>
-            </Card>
-          ))}
+          {/* Security & Access Control */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-[15px] font-bold text-foreground">Security & Access Control</h2>
+            <div className="mt-4 space-y-3 text-[13px]">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Access Protocol</span>
+                <span className="font-semibold text-foreground">Fob Sign-in & Biometrics</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Fire Suppression</span>
+                <span className="font-semibold text-foreground">FM200 Gas System</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Max Load Target</span>
+                <span className="font-semibold text-foreground">45 kW Rack Density</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Temperature Ideal</span>
+                <span className="font-semibold text-foreground">68°F - 72°F</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium">Location details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { label: 'Address', value: location.address || '—' },
-                { label: 'City', value: location.city || '—' },
-                { label: 'Manager', value: location.managerName || '—' },
-                { label: 'Description', value: location.description || '—' },
-              ].map((row) => (
-                <div key={row.label} className="flex justify-between gap-4 text-sm">
-                  <span className="text-muted-foreground">{row.label}</span>
-                  <span className="text-right font-medium">{row.value}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-medium">Child locations</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => toast.info('Add child location from the locations list')}
-                aria-label={`Add a child location under ${location.name}`}
+        {/* ── Sub-navigation Tabs ── */}
+        <div className="border-b border-border flex items-center gap-6">
+          {(['overview', 'assets', 'work-orders', 'service-requests', 'pm', 'history'] as const).map((tab) => {
+            const isActive = activeTab === tab
+            return (
+              <button
+                key={tab}
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-3 text-[13px] font-semibold capitalize transition-colors border-b-2 ${
+                  isActive
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <Plus className="h-3.5 w-3.5" />
-                Add child
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {children.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">No child locations</p>
-              ) : (
-                children.map((child) => (
-                  <Link
-                    key={child.id}
-                    to={`${locationsPath}/${child.id}`}
-                    className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent/50"
-                  >
-                    <span>{child.name}</span>
-                    <Badge variant="outline" className="text-[10px] capitalize">
-                      {child.type}
-                    </Badge>
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                {tab.replace('-', ' ')}
+              </button>
+            )
+          })}
         </div>
 
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Work orders at this location</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y divide-border p-0">
-            {workOrders.length === 0 ? (
-              <p className="p-6 text-center text-sm text-muted-foreground">No work orders</p>
-            ) : (
-              workOrders.map((wo) => (
-                <Link
-                  key={wo.id}
-                  to={`${workOrdersPath}/${wo.id}`}
-                  className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-accent/50"
+        {/* ── Overview Tab Content ── */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Allocated Assets */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <h3 className="text-[15px] font-bold text-foreground">Allocated Assets ({relationships.assets.length})</h3>
+                <button
+                  onClick={() => navigate(`${assetsPath}?location=${locationData?.id || ''}`)}
+                  className="text-[12px] font-semibold text-primary hover:underline"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{wo.title}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{wo.id}</p>
+                  Manage Assets
+                </button>
+              </div>
+
+              <div className="mt-4 divide-y divide-border">
+                {relationships.assets.map((asset: any) => (
+                  <div key={asset.id} className="flex items-center justify-between py-3.5">
+                    <div>
+                      <p className="text-[13px] font-bold text-foreground">{asset.name}</p>
+                      <p className="text-[11px] font-mono text-muted-foreground">{asset.id}</p>
+                    </div>
+                    <span
+                      className="rounded px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                      style={{ backgroundColor: asset.bg, color: asset.text }}
+                    >
+                      {asset.status}
+                    </span>
                   </div>
-                  <Badge variant="outline" className="capitalize">
-                    {wo.status.replace(/_/g, ' ')}
-                  </Badge>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Maintenance Activity */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <h3 className="text-[15px] font-bold text-foreground">Recent Maintenance activity</h3>
+                <button
+                  onClick={() => navigate(workOrdersPath)}
+                  className="text-[12px] font-semibold text-primary hover:underline"
+                >
+                  View All
+                </button>
+              </div>
+
+              <div className="mt-4 divide-y divide-border">
+                {relationships.workOrders.map((act: any) => (
+                  <div key={act.id} className="flex items-center justify-between py-3.5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold text-foreground">{act.id}:</span>
+                        <span className="text-[13px] font-semibold text-foreground">{act.title}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{act.by}</p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">{act.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Related records */}
+        {activeTab !== 'overview' && (
+          <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+            {(() => { const records: Record<string, unknown[]> = { assets: relationships.assets, 'work-orders': relationships.workOrders, 'service-requests': relationships.serviceRequests, pm: relationships.preventiveMaintenance, history: relationships.workOrders }; const items = records[activeTab] ?? []; return <><p className="text-[14px] font-medium">{items.length} {activeTab.replace('-', ' ')} records for {locationName}.</p><div className="mx-auto mt-5 max-w-xl space-y-2 text-left">{items.slice(0, 5).map((item: any, index) => <div key={item.id ?? item._id ?? index} className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm"><span className="font-semibold text-foreground">{item.name ?? item.title ?? item.id ?? 'Related record'}</span><span className="ml-2 text-muted-foreground">{item.status ?? item.category ?? ''}</span></div>)}</div></> })()}
+            <Button
+              onClick={() => {
+                if (activeTab === 'assets') navigate(`${assetsPath}?location=${locationData?.id || ''}`)
+                if (activeTab === 'work-orders') navigate(workOrdersPath)
+              }}
+              className="mt-4 bg-primary text-primary-foreground text-[13px] hover:bg-primary/90"
+            >
+              Open Full {activeTab.replace('-', ' ')} Directory
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -19,7 +19,6 @@ import { computeFinanceDashboardStats } from "@/features/dashboard/utils/roleSco
 import { usePortalPath } from "@/hooks/usePortal";
 import { useAuthStore } from "@/app/store";
 import type { WorkOrder } from "@/types/common.types";
-import { isDemoMode } from "@/config/runtime";
 import { invoicesService } from "@/features/finance/services/invoices.service";
 import { HandWaveGreeting } from "@/components/ui/HandWaveGreeting";
 
@@ -399,11 +398,10 @@ export function FinanceDashboard() {
               title="Pending Financial Approvals"
               subtitle="Review and audit operational expenses before confirming authorization"
               noPadding
-              demoData
             >
               <ApprovalRows
                 approvalsPath={approvalsPath}
-                demoData={isDemoMode}
+                demoData={false}
               />
             </SectionCard>
           </div>
@@ -413,9 +411,8 @@ export function FinanceDashboard() {
               title="Contract SLA Status"
               subtitle="Overview of monthly values and target compliance"
               noPadding
-              demoData
             >
-              <SLAVendorRows demoData={isDemoMode} />
+              <SLAVendorRows demoData={false} />
             </SectionCard>
           </div>
         </div>
@@ -432,9 +429,8 @@ export function FinanceDashboard() {
               title="Recent Quotations"
               subtitle="Sourced vendor offers currently under pricing assessment"
               noPadding
-              demoData
             >
-              <QuotationRows demoData={isDemoMode} />
+              <QuotationRows demoData={false} />
             </SectionCard>
           </div>
 
@@ -443,19 +439,18 @@ export function FinanceDashboard() {
             <SectionCard
               title="Subscription & Billing"
               subtitle="Enterprise system plan details"
-              demoData
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-[13px]">
                   <span className="text-muted-foreground">Current Plan</span>
                   <span className="font-semibold text-primary">
-                    {isDemoMode ? BILLING_INFO.plan : "—"}
+                    "—"
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[13px]">
                   <span className="text-muted-foreground">Active Licenses</span>
                   <span className="font-semibold text-foreground">
-                    {isDemoMode ? BILLING_INFO.licenses : "—"}
+                    "—"
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[13px]">
@@ -463,7 +458,7 @@ export function FinanceDashboard() {
                     Next Invoice Date
                   </span>
                   <span className="font-semibold text-foreground">
-                    {isDemoMode ? BILLING_INFO.nextInvoice : "—"}
+                    "—"
                   </span>
                 </div>
               </div>
@@ -473,10 +468,9 @@ export function FinanceDashboard() {
             <SectionCard
               title="Financial Event History"
               subtitle="Audit records of recent ledger changes"
-              demoData
             >
               <div className="space-y-3">
-                {FINANCIAL_EVENTS.map((ev) => (
+                {([] as typeof FINANCIAL_EVENTS).map((ev) => (
                   <div
                     key={ev.id}
                     className="flex items-start justify-between gap-3"

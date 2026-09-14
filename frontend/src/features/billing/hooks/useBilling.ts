@@ -1,11 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { billingService, type CreateSubscriptionPayload, type PaymentMethodData } from '@/services/billingService';
-import { isDemoMode } from '@/config/runtime';
-import type { SubscriptionResponseData } from '@/services/billingService';
+import { billingService, type CreateSubscriptionPayload, type PaymentMethodData, type SubscriptionResponseData } from '@/services/billingService';
+
 export const billingKeys = { subscription: ['billing', 'subscription'] as const };
 export const paymentMethodKeys = { list: ['billing', 'payment-methods'] as const };
-const demoSubscription: SubscriptionResponseData = { id: 'demo-subscription', ownerType: 'organization', plan: 'professional', billingCycle: 'monthly', status: 'active', provider: 'mock', startsAt: new Date().toISOString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-export function useSubscription() { return useQuery({ queryKey: billingKeys.subscription, queryFn: () => isDemoMode ? Promise.resolve(demoSubscription) : billingService.getSubscription(), retry: false }); }
-export function usePaymentMethods() { return useQuery({ queryKey: paymentMethodKeys.list, queryFn: () => isDemoMode ? Promise.resolve<PaymentMethodData[]>([]) : billingService.listPaymentMethods(), retry: false }); }
-export function usePaymentMethodMutations() { const client = useQueryClient(); const current = () => client.getQueryData<PaymentMethodData[]>(paymentMethodKeys.list) ?? []; return { save: useMutation({ mutationFn: (payload: Omit<PaymentMethodData, 'id' | 'isDefault'>) => isDemoMode ? Promise.resolve({ ...payload, id: 'demo-payment-method', isDefault: true }) : billingService.savePaymentMethod(payload), onSuccess: (method: PaymentMethodData) => client.setQueryData(paymentMethodKeys.list, [method]) }), remove: useMutation({ mutationFn: (id: string) => isDemoMode ? Promise.resolve({ id }) : billingService.removePaymentMethod(id), onSuccess: (_data: unknown, id: string) => client.setQueryData(paymentMethodKeys.list, current().filter((item: PaymentMethodData) => item.id !== id)) }) }; }
-export function useBillingMutations() { const client = useQueryClient(); const refresh = () => client.invalidateQueries({ queryKey: billingKeys.subscription }); const local = (patch: Partial<SubscriptionResponseData>) => { const current = client.getQueryData<SubscriptionResponseData>(billingKeys.subscription) ?? demoSubscription; const next = { ...current, ...patch, updatedAt: new Date().toISOString() }; client.setQueryData(billingKeys.subscription, next); return Promise.resolve(next); }; return { create: useMutation({ mutationFn: (payload: CreateSubscriptionPayload) => isDemoMode ? local({ plan: payload.plan, billingCycle: payload.billingCycle, provider: payload.provider }) : billingService.createSubscription(payload), onSuccess: refresh }), checkout: useMutation<{ paymentId: string; providerCheckoutId: string; status: string; redirectUrl?: string }, Error, CreateSubscriptionPayload['provider']>({ mutationFn: (provider: CreateSubscriptionPayload['provider']) => isDemoMode ? Promise.resolve({ paymentId: 'demo-payment', providerCheckoutId: 'demo-checkout', status: 'completed' }) : billingService.initiateCheckout(provider), onSuccess: refresh }), upgrade: useMutation({ mutationFn: (p: { plan: CreateSubscriptionPayload['plan']; billingCycle: 'monthly' | 'annual' }) => isDemoMode ? local({ plan: p.plan, billingCycle: p.billingCycle }) : billingService.upgradePlan(p.plan, p.billingCycle), onSuccess: refresh }), downgrade: useMutation({ mutationFn: (p: { plan: CreateSubscriptionPayload['plan']; billingCycle: 'monthly' | 'annual' }) => isDemoMode ? local({ plan: p.plan, billingCycle: p.billingCycle }) : billingService.downgradePlan(p.plan, p.billingCycle), onSuccess: refresh }), cancel: useMutation({ mutationFn: () => isDemoMode ? local({ status: 'cancelled' }) : billingService.cancelSubscription(), onSuccess: refresh }) }; }
+
+export function useSubscription() {
+  return useQuery({ queryKey: billingKeys.subscription, queryFn: billingService.getSubscription, retry: false });
+}
+export function usePaymentMethods() {
+  return useQuery({ queryKey: paymentMethodKeys.list, queryFn: billingService.listPaymentMethods, retry: false });
+}
+export function usePaymentMethodMutations() {
+  const client = useQueryClient();
+  const current = () => client.getQueryData<PaymentMethodData[]>(paymentMethodKeys.list) ?? [];
+  return {
+    save: useMutation({ mutationFn: (payload: Omit<PaymentMethodData, 'id' | 'isDefault'>) => billingService.savePaymentMethod(payload), onSuccess: (method: PaymentMethodData) => client.setQueryData(paymentMethodKeys.list, [method]) }),
+    remove: useMutation({ mutationFn: (id: string) => billingService.removePaymentMethod(id), onSuccess: (_data: unknown, id: string) => client.setQueryData(paymentMethodKeys.list, current().filter((item) => item.id !== id)) }),
+  };
+}
+export function useBillingMutations() {
+  const client = useQueryClient();
+  const refresh = () => { void client.invalidateQueries({ queryKey: billingKeys.subscription }); };
+  return {
+    create: useMutation({ mutationFn: (payload: CreateSubscriptionPayload) => billingService.createSubscription(payload), onSuccess: refresh }),
+    checkout: useMutation<{ paymentId: string; providerCheckoutId: string; status: string; redirectUrl?: string }, Error, CreateSubscriptionPayload['provider']>({ mutationFn: (provider) => billingService.initiateCheckout(provider), onSuccess: refresh }),
+    upgrade: useMutation({ mutationFn: (input: { plan: CreateSubscriptionPayload['plan']; billingCycle: 'monthly' | 'annual' }) => billingService.upgradePlan(input.plan, input.billingCycle), onSuccess: refresh }),
+    downgrade: useMutation({ mutationFn: (input: { plan: CreateSubscriptionPayload['plan']; billingCycle: 'monthly' | 'annual' }) => billingService.downgradePlan(input.plan, input.billingCycle), onSuccess: refresh }),
+    cancel: useMutation({ mutationFn: () => billingService.cancelSubscription(), onSuccess: refresh }),
+  };
+}

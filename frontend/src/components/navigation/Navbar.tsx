@@ -23,7 +23,6 @@ import { useAuthStore } from '@/app/store'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { cn } from '@/utils/helpers'
 import { MarqueeText } from '@/components/ui/MarqueeText'
-import { isDemoMode } from '@/config/runtime'
 import { PORTAL_NAV } from '@/app/navigation/portalNav.config'
 
 interface AppHeaderProps {
@@ -140,11 +139,6 @@ export function AppHeader({
                 </>
               )}
               <MarqueeText className="font-bold tracking-tight text-foreground">{isTopLevelNavigationPage ? breadcrumbSection : title}</MarqueeText>
-              {isDemoMode && (
-                <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
-                  Demo
-                </span>
-              )}
             </div>
           </div>
 

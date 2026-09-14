@@ -5,6 +5,15 @@ import { reportsApi, type ReportQuery, type MaintenanceSummary, type TrendPoint,
 import { isDemoMode } from '@/config/runtime'
 import { mockWorkOrders } from '@/features/dashboard/services/dashboard.service'
 
+function shiftDemoDateToToday(value?: Date) {
+  if (!value) return undefined
+  const source = new Date(value)
+  const sourceAnchor = new Date('2024-01-20T12:00:00.000Z')
+  const currentAnchor = new Date()
+  currentAnchor.setHours(12, 0, 0, 0)
+  return new Date(currentAnchor.getTime() - (sourceAnchor.getTime() - source.getTime()))
+}
+
 export function useReports(query: ReportQuery) {
   type ReportPayload = { summary: MaintenanceSummary; trends: TrendPoint[]; workOrders: Paginated<WorkOrderReportRow>; preventiveMaintenance: PreventiveMaintenanceReport | null }
   const report = useQuery<ReportPayload>({
@@ -16,7 +25,7 @@ export function useReports(query: ReportQuery) {
         return {
           summary: { startDate: query.startDate, endDate: query.endDate, totalWorkOrders: filtered.length, completedWorkOrders: completed, openWorkOrders: filtered.length - completed, overdueWorkOrders: 0, completionRate: filtered.length ? Math.round((completed / filtered.length) * 100) : 0, byPriority: {}, byStatus: {} },
           trends: [{ period: 'Jan', created: 18, completed: 14 }, { period: 'Feb', created: 24, completed: 20 }, { period: 'Mar', created: 16, completed: 15 }, { period: 'Apr', created: 29, completed: 23 }, { period: 'May', created: 21, completed: 19 }, { period: 'Jun', created: 26, completed: 24 }],
-          workOrders: { items: filtered.map((item) => ({ id: item.id, title: item.title, status: item.status, priority: item.priority, serviceCategory: item.category, facilityId: item.facilityId ?? '', locationId: item.locationId, assetId: item.assetId, createdAt: item.createdAt.toISOString(), dueDate: item.dueDate?.toISOString(), completedAt: item.status === 'completed' ? item.updatedAt.toISOString() : undefined })), page: 1, pageSize: filtered.length || 1, total: filtered.length, totalPages: 1 },
+          workOrders: { items: filtered.map((item) => ({ id: item.id, title: item.title, status: item.status, priority: item.priority, serviceCategory: item.category, facilityId: item.facilityId ?? '', locationId: item.locationId, assetId: item.assetId, createdAt: shiftDemoDateToToday(item.createdAt)!.toISOString(), dueDate: shiftDemoDateToToday(item.dueDate)?.toISOString(), completedAt: item.status === 'completed' ? shiftDemoDateToToday(item.updatedAt)?.toISOString() : undefined })), page: 1, pageSize: filtered.length || 1, total: filtered.length, totalPages: 1 },
           preventiveMaintenance: null,
         }
       }

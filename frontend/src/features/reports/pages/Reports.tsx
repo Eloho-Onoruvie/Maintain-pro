@@ -536,10 +536,16 @@ function InventoryReportView() {
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize))
   const visibleItems = filteredItems.slice((page - 1) * pageSize, page * pageSize)
   const stockLevels = [
-    { name: 'In stock', value: items.filter((item) => (item.status ?? '').toLowerCase() === 'in_stock').length },
-    { name: 'Low stock', value: items.filter((item) => (item.status ?? '').toLowerCase() === 'low_stock').length },
-    { name: 'Critical', value: items.filter((item) => (item.status ?? '').toLowerCase() === 'critical').length },
+    { name: 'In stock', value: items.filter((item) => ['active', 'in_stock'].includes((item.status ?? '').toLowerCase())).length },
+    { name: 'Low stock', value: items.filter((item) => ['low', 'low_stock'].includes((item.status ?? '').toLowerCase())).length },
+    { name: 'Critical', value: items.filter((item) => ['critical', 'critical_low', 'out_of_stock'].includes((item.status ?? '').toLowerCase())).length },
   ]
+  const categoryCounts = items.reduce<Record<string, number>>((counts, item) => {
+    const category = item.categoryId ?? 'Uncategorized'
+    counts[category] = (counts[category] ?? 0) + 1
+    return counts
+  }, {})
+  const categoryLevels = Object.entries(categoryCounts).map(([name, value]) => ({ name, value }))
   if (loading) return <SkeletonTable rows={5} columns={5} />
   if (error || !overview) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-destructive">{error ?? 'Unable to load inventory report'}</div>
 
@@ -548,7 +554,18 @@ function InventoryReportView() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {[['Total Monitored Items', overview.totalItems], ['Low Stock Warnings', overview.lowStockItems], ['Reserved Items', overview.reservedItems], ['Total Categories', overview.categoriesCount]].map(([label, value]) => <div key={label} className="rounded-xl border border-border bg-card p-5 shadow-sm"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-extrabold text-foreground">{value}</p></div>)}
       </div>
-      <div className="rounded-xl border border-border bg-card p-5"><h2 className="font-semibold text-foreground">Inventory analytics</h2><p className="mt-1 text-sm text-muted-foreground">Detailed stock distribution charts require additional inventory analytics data.</p></div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="font-semibold text-foreground">Stock health</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Demo inventory grouped by replenishment state.</p>
+          <div className="mt-4 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={stockLevels}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="value" fill="var(--primary)" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="font-semibold text-foreground">Items by category</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Current demo inventory distribution across categories.</p>
+          <div className="mt-4 h-56">{categoryLevels.length === 0 ? <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">No category data available.</div> : <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={categoryLevels} dataKey="value" nameKey="name" innerRadius={52} outerRadius={82}>{categoryLevels.map((entry, index) => <Cell key={entry.name} fill={['var(--primary)', 'var(--info)', 'var(--warning)', 'var(--success)', 'var(--destructive)'][index % 5]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>}</div>
+        </div>
+      </div>
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="flex items-center justify-between border-b border-border p-5"><div><h2 className="font-semibold text-foreground">Inventory items</h2><p className="mt-1 text-sm text-muted-foreground">Stock thresholds and replenishment status by item.</p></div><Select value={status} onValueChange={(value) => { setStatus(value); setPage(1) }}><SelectTrigger className="w-44"><SelectValue placeholder="All statuses" /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{[...new Set(items.map((item) => (item.status ?? '').toLowerCase()))].filter(Boolean).map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-[13px]"><thead className="border-b border-border bg-muted/30 text-[11px] font-bold uppercase tracking-wider text-muted-foreground"><tr><th className="px-5 py-3.5">Item / SKU</th><th className="px-5 py-3.5">Category</th><th className="px-5 py-3.5">Current stock</th><th className="px-5 py-3.5">Minimum</th><th className="px-5 py-3.5">Reorder level</th><th className="px-5 py-3.5">Maximum</th><th className="px-5 py-3.5">Unit</th><th className="px-5 py-3.5">Status</th></tr></thead><tbody className="divide-y divide-border/60">{visibleItems.length === 0 ? <tr><td colSpan={8} className="p-10 text-center text-sm text-muted-foreground">No inventory items match the selected status. Adjust the filter or add inventory items to populate this report.</td></tr> : visibleItems.map((item) => <tr key={item._id} className="hover:bg-muted/20"><td className="px-5 py-4"><p className="font-semibold text-foreground">{item.name}</p><p className="font-mono text-[11px] text-muted-foreground">{item.sku}</p></td><td className="px-5 py-4 text-muted-foreground">{item.categoryId ?? '—'}</td><td className="px-5 py-4 font-semibold">{item.quantity ?? '—'}</td><td className="px-5 py-4">{item.minimumStockLevel}</td><td className="px-5 py-4">{item.reorderLevel}</td><td className="px-5 py-4">{item.maximumStockLevel ?? '—'}</td><td className="px-5 py-4 text-muted-foreground">{item.unitOfMeasure}</td><td className="px-5 py-4 capitalize">{(item.status ?? 'unknown').toLowerCase().replace(/_/g, ' ')}</td></tr>)}</tbody></table></div><div className="flex items-center justify-between border-t border-border p-4 text-sm text-muted-foreground"><span>Showing {filteredItems.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filteredItems.length)} of {filteredItems.length} entries</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)}>Next</Button></div></div></div>
     </div>
   )

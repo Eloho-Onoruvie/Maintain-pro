@@ -27,6 +27,10 @@ import {
   SEED_ESCALATION_RULES,
   SEED_VENDOR_INVOICES,
 } from '@/services/mockDataSeeds'
+import { isDemoMode } from '@/config/runtime'
+
+/** Legacy fixture store used by demo-only screens during API migration. */
+export { isDemoMode }
 
 function daysAgo(days: number): Date {
   const d = new Date()
@@ -59,13 +63,36 @@ function normalizeWorkOrderDates(workOrders: WorkOrder[]): WorkOrder[] {
   )
 }
 
+function normalizePMDates(pms: PreventiveMaintenance[]): PreventiveMaintenance[] {
+  const daysByFrequency: Record<PreventiveMaintenance['frequency'], number> = {
+    daily: 1,
+    weekly: 7,
+    monthly: 30,
+    quarterly: 90,
+    yearly: 365,
+    custom: 14,
+  }
+  const now = new Date()
+
+  return pms.map((pm) => {
+    const interval = daysByFrequency[pm.frequency] ?? 30
+    const nextDue = new Date(now)
+    nextDue.setDate(nextDue.getDate() + interval)
+    nextDue.setHours(9, 0, 0, 0)
+    const lastCompleted = new Date(now)
+    lastCompleted.setDate(lastCompleted.getDate() - interval)
+    lastCompleted.setHours(9, 0, 0, 0)
+    return { ...pm, nextDue, lastCompleted }
+  })
+}
+
 function createInitialState() {
   return {
     workOrders: normalizeWorkOrderDates(structuredClone(seedWorkOrders)),
     assets: structuredClone(seedAssets),
     locations: structuredClone(seedLocations),
     inventory: structuredClone(seedInventory),
-    pms: structuredClone(seedPMs),
+    pms: normalizePMDates(structuredClone(seedPMs)),
     serviceRequests: structuredClone(seedServiceRequests).map((sr) => ({
       ...sr,
       createdAt: new Date(sr.createdAt),
@@ -90,6 +117,8 @@ export interface VendorTeamMember {
   role: string
   status: 'active' | 'invited'
   isTeamLead?: boolean
+  /** Backend invitation _id — used to call resendInvitation when credentials expire */
+  invitationId?: string
 }
 
 const SEED_VENDOR_TEAM_MEMBERS: VendorTeamMember[] = [
@@ -251,7 +280,7 @@ export const useMockDataStore = create<MockDataState>()(
       resetToSeeds: () => set(createInitialState()),
     }),
     {
-      name: 'maintainpro_mock_data_v4',
+      name: 'maintainpro_mock_data_v5',
       partialize: (state) => ({
         workOrders: state.workOrders,
         assets: state.assets,
@@ -280,20 +309,20 @@ export const useMockDataStore = create<MockDataState>()(
               ? new Date(wo.proposedSchedule)
               : undefined,
           })),
-          assets: p.assets ?? current.assets,
-          locations: p.locations ?? current.locations,
-          inventory: p.inventory ?? current.inventory,
-          pms: (p.pms ?? current.pms).map((pm) => ({
+          assets: p.assets?.length ? p.assets : current.assets,
+          locations: p.locations?.length ? p.locations : current.locations,
+          inventory: p.inventory?.length ? p.inventory : current.inventory,
+          pms: normalizePMDates((p.pms?.length ? p.pms : current.pms).map((pm) => ({
             ...pm,
             nextDue: new Date(pm.nextDue),
             lastCompleted: pm.lastCompleted ? new Date(pm.lastCompleted) : undefined,
-          })),
-          serviceRequests: (p.serviceRequests ?? current.serviceRequests).map((sr) => ({
+          }))),
+          serviceRequests: (p.serviceRequests?.length ? p.serviceRequests : current.serviceRequests).map((sr) => ({
             ...sr,
             createdAt: new Date(sr.createdAt),
             resolvedAt: sr.resolvedAt ? new Date(sr.resolvedAt) : undefined,
           })),
-          vendorInvoices: (p.vendorInvoices ?? current.vendorInvoices).map((inv) => ({
+          vendorInvoices: (p.vendorInvoices?.length ? p.vendorInvoices : current.vendorInvoices).map((inv) => ({
             ...inv,
             submittedAt: new Date(inv.submittedAt),
             paidAt: inv.paidAt ? new Date(inv.paidAt) : undefined,

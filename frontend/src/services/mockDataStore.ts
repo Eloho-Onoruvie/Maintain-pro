@@ -110,6 +110,7 @@ function normalizeAssetDates(assets: Asset[]): Asset[] {
     ...asset,
     lastMaintenanceDate: asset.lastMaintenanceDate ? daysAgo(index + 2) : undefined,
     nextMaintenanceDate: asset.nextMaintenanceDate ? daysFromNow(14 + index * 7) : undefined,
+    warrantyExpiry: asset.warrantyExpiry ? daysFromNow(180 + index * 30) : undefined,
   }))
 }
 

@@ -31,65 +31,6 @@ import { HandWaveGreeting } from "@/components/ui/HandWaveGreeting";
 import { facilitiesApi } from "@/features/facilities/api/facilities.api";
 import { useQuery } from "@tanstack/react-query";
 
-const RECENT_ACTIVITY_STATIC = [
-  {
-    id: "1",
-    text: "Work order 'WO-4810' completed by Apex Elevator Co.",
-    time: "12m ago",
-    user: "AS",
-    userBg: "var(--primary)",
-  },
-  {
-    id: "2",
-    text: "New emergency work order created for Server Room HVAC",
-    time: "24m ago",
-    user: "SJ",
-    userBg: "var(--success)",
-  },
-  {
-    id: "3",
-    text: "Vendor partner 'Reliable Plumbing' onboarded",
-    time: "1h ago",
-    user: "SD",
-    userBg: "var(--info)",
-  },
-  {
-    id: "4",
-    text: "SLA breach warning generated for WO-4790",
-    time: "2h ago",
-    user: "SY",
-    userBg: "var(--muted-foreground)",
-  },
-  {
-    id: "5",
-    text: "Quarterly Preventive Maintenance Schedule compiled",
-    time: "5h ago",
-    user: "SD",
-    userBg: "var(--info)",
-  },
-  {
-    id: "6",
-    text: "Inventory count audit submitted for West Campus",
-    time: "1d ago",
-    user: "JD",
-    userBg: "var(--chart-5)",
-  },
-  {
-    id: "7",
-    text: "Global SLA target modified from 90% to 92%",
-    time: "2d ago",
-    user: "SD",
-    userBg: "var(--info)",
-  },
-  {
-    id: "8",
-    text: "New Facility 'East Warehouses' added to organization",
-    time: "3d ago",
-    user: "SD",
-    userBg: "var(--info)",
-  },
-];
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionCard({
@@ -288,10 +229,9 @@ function RecentActivityPanel({
       ? orders.slice(0, 8).map((o, i) => ({
           id: o.id,
           text: o.title,
-          time: RECENT_ACTIVITY_STATIC[i]?.time ?? "Recently",
-          user: RECENT_ACTIVITY_STATIC[i]?.user ?? "SD",
-          userBg:
-            RECENT_ACTIVITY_STATIC[i]?.userBg ?? "var(--primary, #4f46e5)",
+          time: new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(o.updatedAt)),
+          user: o.assigneeName?.slice(0, 2).toUpperCase() ?? "—",
+          userBg: "var(--primary, #4f46e5)",
         }))
       : [];
 

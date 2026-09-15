@@ -21,13 +21,11 @@ import { useLocationsApi } from "@/features/locations/hooks/useLocationsApi";
 import { useRoleDashboardDateRange } from "@/features/dashboard/hooks/useRoleDashboardDateRange";
 import type { WorkOrder } from "@/types/common.types";
 
-// ─── Static placeholder data matching Figma ───────────────────────────────────
-
-const PRIORITY_DATA = [
-  { label: "Critical", value: 2, color: "var(--destructive)" },
-  { label: "High", value: 5, color: "var(--warning)" },
-  { label: "Medium", value: 11, color: "var(--chart-3)" },
-  { label: "Low", value: 5, color: "var(--muted-foreground)" },
+const PRIORITY_LEVELS = [
+  { label: "Critical", color: "var(--destructive)" },
+  { label: "High", color: "var(--warning)" },
+  { label: "Medium", color: "var(--chart-3)" },
+  { label: "Low", color: "var(--muted-foreground)" },
 ];
 
 const SCHEDULE_STATIC = [
@@ -215,7 +213,7 @@ function SectionCard({
 }
 
 function PriorityBar({ orders }: { orders: WorkOrder[] }) {
-  const liveTotals = PRIORITY_DATA.map((p) => ({
+  const liveTotals = PRIORITY_LEVELS.map((p) => ({
     ...p,
     value:
       orders.length > 0
@@ -415,7 +413,7 @@ function FacilityHealthPanel({
               <p className="mt-1 text-[12px] text-muted-foreground">
                 SLA:{" "}
                 <span className="font-medium text-foreground">{f.sla}</span>
-                {"  "}PM Compliance:{" "}
+                {"  "}PM Schedule:{" "}
                 <span className="font-medium text-foreground">{f.pm}</span>
               </p>
             </div>
@@ -530,6 +528,9 @@ export function FacilityManagerDashboard() {
     useRoleDashboardDateRange("30d");
   const locations = useLocationsApi().data ?? [];
   const createPath = usePortalPath("work-orders/new");
+  const workOrdersPath = usePortalPath("work-orders");
+  const pmPath = usePortalPath("preventive-maintenance");
+  const organizationPath = usePortalPath("organization");
 
   const urgent = activeWorkOrders.filter(
     (o) => o.priority === "critical" || o.priority === "high",
@@ -585,6 +586,7 @@ export function FacilityManagerDashboard() {
                 : "No work orders in this period"
             }
             icon="work-orders"
+            href={workOrdersPath}
           />
           <KPICard
             title="Urgent Issues"
@@ -592,6 +594,7 @@ export function FacilityManagerDashboard() {
             changeLabel="Requires action"
             icon="overdue"
             variant="warning"
+            href={workOrdersPath}
           />
           <KPICard
             title="PM Overdue"
@@ -599,18 +602,21 @@ export function FacilityManagerDashboard() {
             changeLabel="Preventive actions"
             icon="calendar"
             variant="danger"
+            href={pmPath}
           />
           <KPICard
             title="Active Technicians"
             value="—"
             changeLabel="Live staffing data pending API"
             icon="users"
+            href={organizationPath}
           />
           <KPICard
             title="Avg Resolution Time"
             value="—"
             changeLabel="Live resolution data pending API"
             icon="clock"
+            href={workOrdersPath}
           />
         </div>
 

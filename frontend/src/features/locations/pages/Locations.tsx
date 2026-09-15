@@ -73,7 +73,9 @@ export function Locations() {
         facilityId: formFacilityId,
         name: formName.trim(),
         type: formType as ApiLocation['type'],
+        floor: formFloor.trim() || undefined,
         description: formFloor.trim() || undefined,
+        status: 'active',
         parentId: null,
       })
       toast.success(`Location "${formName}" created successfully`)
@@ -168,7 +170,7 @@ export function Locations() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? <tr><td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">{search || facilityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all' ? 'No locations match your filters.' : 'No locations have been added yet.'}</td></tr> : visible.map((item: typeof displayedLocations[number]) => {
+              {filtered.length === 0 ? <tr><td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">{search || facilityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all' ? 'No locations match your filters.' : 'No locations yet. Create one to get started.'}</td></tr> : visible.map((item) => {
                 return (
                   <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-6 py-4 font-bold text-foreground">{item.name}</td>

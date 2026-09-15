@@ -231,6 +231,7 @@ export function PreventiveMaintenance() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create PM Plan</DialogTitle>
+            <p className="text-sm text-muted-foreground">Schedule recurring preventive maintenance for a facility asset or location.</p>
           </DialogHeader>
           <form
             onSubmit={(e) => {

@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import type { Facility } from '../types/facility.types'
 import { Pagination } from '@/components/ui/pagination'
 import { PageIntro } from '@/components/layout/PageIntro'
+import { InviteUserModal } from '@/features/auth/components/InviteUserModal'
 
 export function FacilitiesPage() {
   const navigate = useNavigate()
@@ -31,9 +32,9 @@ export function FacilitiesPage() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [complianceFilter, setComplianceFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showManagerInvite, setShowManagerInvite] = useState(false)
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null)
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 20
@@ -43,10 +44,14 @@ export function FacilitiesPage() {
   const [formStreet, setFormStreet] = useState('')
   const [formCity, setFormCity] = useState('')
   const [formState, setFormState] = useState('')
+  const [formDescription, setFormDescription] = useState('')
+  const [formManagerName, setFormManagerName] = useState('')
+  const [formPrimaryPhone, setFormPrimaryPhone] = useState('')
+  const [formEmergencyContact, setFormEmergencyContact] = useState('')
 
   const canManage = user.data?.role === 'admin' || user.data?.role === 'facility_manager'
 
-  useEffect(() => { setPage(1) }, [search, statusFilter, complianceFilter, sortBy])
+  useEffect(() => { setPage(1) }, [search, statusFilter, sortBy])
 
   if (isLoading) return <PageLoader label="Loading facilities..." />
   if (isError) return <PageError title="Facilities unavailable" message="Unable to fetch facilities. Please try again." onRetry={() => void refetch()} />
@@ -61,19 +66,39 @@ export function FacilitiesPage() {
         locations: f.locationCount ?? 0,
         assets: f.assetCount ?? 0,
         openWos: f.openWorkOrderCount ?? 0,
-        pmCompliance: '—'
       }))
 
   const filteredRows = displayedRows.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase()) || item.address.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || item.status.toLowerCase() === statusFilter.toLowerCase()
-    const complianceValue = Number.parseFloat(item.pmCompliance)
-    const matchCompliance = complianceFilter === 'all' || Number.isNaN(complianceValue)
-    return matchSearch && matchStatus && matchCompliance
+    return matchSearch && matchStatus
   })
   const sortedRows = [...filteredRows].sort((a, b) => sortBy === 'name' ? a.name.localeCompare(b.name) : 0)
   const pageCount = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE))
   const visibleRows = sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const resetFacilityForm = () => {
+    setFormName('')
+    setFormStreet('')
+    setFormCity('')
+    setFormState('')
+    setFormDescription('')
+    setFormManagerName('')
+    setFormPrimaryPhone('')
+    setFormEmergencyContact('')
+  }
+
+  const populateFacilityForm = (facility: Facility) => {
+    setFormName(facility.name)
+    setFormStreet(facility.address.street || '')
+    setFormCity(facility.address.city || '')
+    setFormState(facility.address.state || '')
+    setFormDescription(facility.description || '')
+    setFormManagerName(facility.managerName || '')
+    setFormPrimaryPhone(facility.primaryPhone || '')
+    setFormEmergencyContact(facility.emergencyContact || '')
+  }
+
   async function handleCreateFacility() {
     if (!organization.data || !formName.trim()) return
     try {
@@ -83,12 +108,12 @@ export function FacilitiesPage() {
         address: { street: formStreet, city: formCity, state: formState, country: 'USA' },
         latitude: 0,
         longitude: 0,
+        description: formDescription.trim() || undefined,
+        primaryPhone: formPrimaryPhone.trim() || undefined,
+        emergencyContact: formEmergencyContact.trim() || undefined,
       })
       toast.success(`Facility "${formName}" created successfully`)
-      setFormName('')
-      setFormStreet('')
-      setFormCity('')
-      setFormState('')
+      resetFacilityForm()
       setShowAddModal(false)
     } catch {
       toast.error('Failed to create facility')
@@ -98,7 +123,16 @@ export function FacilitiesPage() {
   async function handleUpdateFacility() {
     if (!editingFacility || !formName.trim()) return
     try {
-      await mutations.update.mutateAsync({ id: editingFacility.id, payload: { name: formName.trim(), address: { street: formStreet, city: formCity, state: formState, country: editingFacility.address.country || 'USA' } } })
+      await mutations.update.mutateAsync({
+        id: editingFacility.id,
+        payload: {
+          name: formName.trim(),
+          address: { street: formStreet, city: formCity, state: formState, postalCode: editingFacility.address.postalCode, country: editingFacility.address.country || 'USA' },
+          description: formDescription.trim() || null,
+          primaryPhone: formPrimaryPhone.trim() || null,
+          emergencyContact: formEmergencyContact.trim() || null,
+        },
+      })
       toast.success(`Facility "${formName}" updated successfully`)
       setEditingFacility(null)
     } catch { toast.error('Failed to update facility') }
@@ -116,7 +150,7 @@ export function FacilitiesPage() {
 
           {canManage && (
             <Button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => { resetFacilityForm(); setShowAddModal(true) }}
               className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
@@ -149,18 +183,6 @@ export function FacilitiesPage() {
             </SelectContent>
           </Select>
 
-          <Select value={complianceFilter} onValueChange={setComplianceFilter} disabled>
-            <SelectTrigger className="h-9 w-40 rounded-lg border-border bg-card text-[13px]">
-              <SelectValue placeholder="Compliance: All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Compliance: All</SelectItem>
-              <SelectItem value="high">&gt; 90%</SelectItem>
-              <SelectItem value="medium">80% - 90%</SelectItem>
-              <SelectItem value="low">&lt; 80%</SelectItem>
-            </SelectContent>
-          </Select>
-
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="h-9 w-40 rounded-lg border-border bg-card text-[13px]">
               <SelectValue placeholder="Sorted by: Name" />
@@ -186,7 +208,6 @@ export function FacilitiesPage() {
                 <th className="px-6 py-3.5 text-center">Locations</th>
                 <th className="px-6 py-3.5 text-center">Assets</th>
                 <th className="px-6 py-3.5 text-center">Open WOs</th>
-                <th className="px-6 py-3.5 text-center">PM Compliance</th>
                 <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
@@ -196,7 +217,7 @@ export function FacilitiesPage() {
                   <td colSpan={8} className="px-6 py-16 text-center">
                     <p className="text-sm font-semibold text-foreground">{rawFacilities.length === 0 ? 'No facilities have been added yet' : 'No facilities match your filters'}</p>
                     <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{rawFacilities.length === 0 ? 'Add your first facility to start organizing locations, assets, work orders, and maintenance activity.' : 'Try clearing your search or changing the status filter to find the facility you need.'}</p>
-                    {rawFacilities.length === 0 && canManage && <Button size="sm" className="mt-4" onClick={() => setShowAddModal(true)}><Plus className="mr-2 h-4 w-4" />Add Facility</Button>}
+                    {rawFacilities.length === 0 && canManage && <Button size="sm" className="mt-4" onClick={() => { resetFacilityForm(); setShowAddModal(true) }}><Plus className="mr-2 h-4 w-4" />Add Facility</Button>}
                   </td>
                 </tr>
               )}
@@ -211,8 +232,8 @@ export function FacilitiesPage() {
                     <td className="px-6 py-4 text-center font-medium text-muted-foreground">{facility.locations ?? '—'}</td>
                     <td className="px-6 py-4 text-center font-medium text-muted-foreground">{facility.assets ?? '—'}</td>
                     <td className="px-6 py-4 text-center font-bold text-destructive">{facility.openWos ?? '—'}</td>
-                    <td className="px-6 py-4 text-center font-bold text-success">{facility.pmCompliance}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -221,7 +242,8 @@ export function FacilitiesPage() {
                       >
                         View
                       </Button>
-                      {canManage && <Button variant="ghost" size="sm" onClick={() => { const f = rawFacilities.find((item) => item.id === facility.id); if (f) { setEditingFacility(f); setFormName(f.name); setFormStreet(f.address.street || ''); setFormCity(f.address.city || ''); setFormState(f.address.state || '') } }} className="ml-1 h-8 px-2 text-primary" title="Edit facility"><Pencil className="h-3.5 w-3.5" /></Button>}
+                      {canManage && <Button variant="ghost" size="sm" onClick={() => { const f = rawFacilities.find((item) => item.id === facility.id); if (f) { setEditingFacility(f); populateFacilityForm(f) } }} className="h-8 w-8 p-0 text-primary" title="Edit facility"><Pencil className="h-3.5 w-3.5" /></Button>}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -245,9 +267,10 @@ export function FacilitiesPage() {
 
       {/* ── Add Facility Dialog Modal ── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="!max-w-4xl w-[calc(100vw-2rem)] !h-[calc(100dvh-2rem)] !max-h-[calc(100dvh-2rem)] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground">Add New Facility</DialogTitle>
+            <p className="text-sm text-muted-foreground">Add the facility details and operating context for your organization.</p>
           </DialogHeader>
           <div className="space-y-4 py-2 text-[13px]">
             <div className="space-y-1.5">
@@ -284,6 +307,29 @@ export function FacilitiesPage() {
                 />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">Facility Description</Label>
+              <textarea
+                placeholder="Describe the facility scope, usage, or key operational notes"
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-[12px] font-semibold text-foreground">Facility Manager</Label>
+                <Button type="button" variant="outline" disabled className="w-full justify-start">Invite after facility creation</Button>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12px] font-semibold text-foreground">Primary Phone</Label>
+                <Input value={formPrimaryPhone} onChange={(e) => setFormPrimaryPhone(e.target.value)} placeholder="Primary phone" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[12px] font-semibold text-foreground">Emergency Contact</Label>
+                <Input value={formEmergencyContact} onChange={(e) => setFormEmergencyContact(e.target.value)} placeholder="Emergency contact" />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddModal(false)}>
@@ -296,11 +342,25 @@ export function FacilitiesPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(editingFacility)} onOpenChange={(open) => !open && setEditingFacility(null)}>
-        <DialogContent className="bg-card border-border"><DialogHeader><DialogTitle className="text-lg font-bold text-foreground">Edit Facility</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2 text-[13px]"><div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Facility Name *</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} /></div><div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Street Address</Label><Input value={formStreet} onChange={(e) => setFormStreet(e.target.value)} /></div><div className="grid grid-cols-2 gap-3"><Input placeholder="City" value={formCity} onChange={(e) => setFormCity(e.target.value)} /><Input placeholder="State / Province" value={formState} onChange={(e) => setFormState(e.target.value)} /></div></div>
+        <DialogContent className="!max-w-4xl w-[calc(100vw-2rem)] !h-[calc(100dvh-2rem)] !max-h-[calc(100dvh-2rem)] overflow-y-auto bg-card border-border"><DialogHeader><DialogTitle className="text-lg font-bold text-foreground">Edit Facility</DialogTitle><p className="text-sm text-muted-foreground">Update facility details and operating context.</p></DialogHeader>
+          <div className="space-y-4 py-2 text-[13px]">
+            <div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Facility Name *</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Street Address</Label><Input value={formStreet} onChange={(e) => setFormStreet(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3"><Input placeholder="City" value={formCity} onChange={(e) => setFormCity(e.target.value)} /><Input placeholder="State / Province" value={formState} onChange={(e) => setFormState(e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">Facility Description</Label>
+              <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring" />
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Facility Manager</Label><Button type="button" variant="outline" onClick={() => setShowManagerInvite(true)} className="w-full justify-start">Invite Facility Manager</Button></div>
+              <div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Primary Phone</Label><Input value={formPrimaryPhone} onChange={(e) => setFormPrimaryPhone(e.target.value)} /></div>
+              <div className="space-y-1.5"><Label className="text-[12px] font-semibold text-foreground">Emergency Contact</Label><Input value={formEmergencyContact} onChange={(e) => setFormEmergencyContact(e.target.value)} /></div>
+            </div>
+          </div>
           <DialogFooter><Button variant="outline" onClick={() => setEditingFacility(null)}>Cancel</Button><Button onClick={() => void handleUpdateFacility()} disabled={!formName.trim() || mutations.update.isPending} className="bg-primary text-primary-foreground hover:bg-primary/90">Save Changes</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <InviteUserModal isOpen={showManagerInvite} onClose={() => setShowManagerInvite(false)} facilityId={editingFacility?.id} facilityName={editingFacility?.name} />
     </div>
   )
 }

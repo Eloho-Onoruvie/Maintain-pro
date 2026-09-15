@@ -859,6 +859,7 @@ export function Vendors() {
         <DialogContent className="!max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Vendor</DialogTitle>
+            <p className="text-sm text-muted-foreground">Register a service partner and capture the information needed for operations.</p>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             {[

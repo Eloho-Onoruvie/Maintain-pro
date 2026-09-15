@@ -4,8 +4,6 @@ import type { Asset } from '@/types/common.types'
 import type { CreateAssetPayload, AssetFilters } from '../types/asset.types'
 import type { PaginatedResponse } from '@/types/api.types'
 
-export { mockAssets, mockLocations } from '@/features/dashboard/services/dashboard.service'
-
 export const assetsService = {
   list: (f?: AssetFilters) =>
     httpClient.get<PaginatedResponse<Asset>>(ENDPOINTS.ASSETS.LIST, { params: f as Record<string, string | number | boolean> }),

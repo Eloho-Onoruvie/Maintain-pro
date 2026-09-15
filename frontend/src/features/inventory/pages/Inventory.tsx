@@ -1,101 +1,187 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { useRoleAccess } from '@/hooks/useRoleAccess'
-import { AppHeader } from '@/components/navigation/Navbar'
-import { toast } from 'sonner'
-import { inventoryService } from '../services/inventory.service'
-import { isDemoMode } from '@/config/runtime'
-
-// ── Mock Data for Items View ──────────────────────────────────────────────────
-const MOCK_INVENTORY_ITEMS = [
-  { name: 'Chiller Filter Cartridges', sku: 'CHL-FIL-092', category: 'HVAC Filters', stockLocation: 'HQ Basement Zone A', availQty: 2, resQty: 1, minLvl: 10, unitCost: '$145.00', status: 'CRITICAL LOW' },
-  { name: 'Fluorescent Bulbs 4ft', sku: 'LGT-FL4-012', category: 'Electrical', stockLocation: 'West Annex Supply Room', availQty: 15, resQty: 5, minLvl: 40, unitCost: '$4.50', status: 'LOW STOCK' },
-  { name: 'HVAC V-Belts (Size 12)', sku: 'BEL-V12-401', category: 'HVAC Belts', stockLocation: 'HQ Roof Main Cage', availQty: 4, resQty: 0, minLvl: 12, unitCost: '$24.99', status: 'LOW STOCK' },
-  { name: 'Brass Ball Valve 1/2"', sku: 'PLB-VAL-102', category: 'Plumbing', stockLocation: 'West Annex Closet B', availQty: 1, resQty: 2, minLvl: 8, unitCost: '$18.75', status: 'CRITICAL LOW' },
-  { name: 'Air Purifier Filter HEPA', sku: 'CHL-HEPA-33', category: 'HVAC Filters', stockLocation: 'Silicon Lab Cleanroom', availQty: 12, resQty: 0, minLvl: 5, unitCost: '$89.00', status: 'IN STOCK' },
-  { name: '10W-30 Motor Oil', sku: 'LUB-010-30', category: 'Lubricants', stockLocation: 'Central Depot Room 4', availQty: 32, resQty: 8, minLvl: 20, unitCost: '$12.00', status: 'IN STOCK' },
-  { name: 'LED Spotlights 12W', sku: 'LGT-LED-SPOT', category: 'Electrical', stockLocation: 'HQ Basement Zone B', availQty: 65, resQty: 4, minLvl: 20, unitCost: '$8.90', status: 'IN STOCK' },
-  { name: 'Copper Coupling 2"', sku: 'PLB-COP-CPL', category: 'Plumbing', stockLocation: 'Central Depot Room 1', availQty: 18, resQty: 12, minLvl: 15, unitCost: '$3.15', status: 'IN STOCK' },
-  { name: 'Teflon Thread Tape 1/2"', sku: 'PLB-TAP-TEF', category: 'Plumbing', stockLocation: 'Central Depot Shelf C', availQty: 94, resQty: 0, minLvl: 30, unitCost: '$0.95', status: 'IN STOCK' },
-  { name: 'Heavy Duty Cable Ties', sku: 'HDW-CBL-TIE', category: 'Hardware', stockLocation: 'HQ Basement Utility Desk', availQty: 240, resQty: 10, minLvl: 50, unitCost: '$0.12', status: 'IN STOCK' },
-]
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { SkeletonTable } from "@/components/feedback/Skeletons";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { AppHeader } from "@/components/navigation/Navbar";
+import { PageIntro } from "@/components/layout/PageIntro";
+import { toast } from "sonner";
+import {
+  inventoryService,
+  type InventoryItemRecord,
+} from "../services/inventory.service";
+import { cn } from "@/utils/helpers";
+import { EditInventoryItemDialog } from "../components/EditInventoryItemDialog";
 
 export function Inventory() {
-  const { canManageInventory } = useRoleAccess()
-  const [viewMode, setViewMode] = useState<'items' | 'overview'>('items')
-  const [inventoryItems, setInventoryItems] = useState(() => isDemoMode ? MOCK_INVENTORY_ITEMS : [])
-  useEffect(() => { if (!isDemoMode) void inventoryService.listItems().then((result) => setInventoryItems((result ?? []).map((item) => ({ name: item.name, sku: item.sku, category: item.categoryId ?? 'General', stockLocation: '—', availQty: 0, resQty: 0, minLvl: item.minimumStockLevel, unitCost: '—', status: item.status } as typeof MOCK_INVENTORY_ITEMS[number])))).catch(() => toast.error('Unable to load inventory')) }, [])
+  const { canManageInventory } = useRoleAccess();
+  const [viewMode, setViewMode] = useState<"items" | "overview">("items");
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemRecord[]>(
+    [],
+  );
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Filters state
-  const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [locationFilter, setLocationFilter] = useState('all')
-  const [stockLevelFilter, setStockLevelFilter] = useState('all')
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editItem, setEditItem] = useState<InventoryItemRecord | null>(null);
+  const [receiveItem, setReceiveItem] = useState<InventoryItemRecord | null>(
+    null,
+  );
+  const [inventoryAction, setInventoryAction] = useState<
+    "receive" | "issue" | "adjust" | "transfer"
+  >("receive");
+  const [transferDestinationId, setTransferDestinationId] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
+  const [receiveLocationId, setReceiveLocationId] = useState("");
+  const [receiveQuantity, setReceiveQuantity] = useState("1");
+  const [receiveReference, setReceiveReference] = useState("");
+  const [receiving, setReceiving] = useState(false);
+  const [stockLocations, setStockLocations] = useState<
+    import("../services/inventory.service").StockLocation[]
+  >([]);
 
-  const [form, setForm] = useState({ name: '', sku: '', category: 'HVAC Filters', location: 'HQ Basement Zone A', qty: '10', minQty: '5', cost: '15.00' })
+  const [form, setForm] = useState({
+    name: "",
+    sku: "",
+    categoryId: "",
+    unitCost: "15.00",
+    minLevel: "5",
+    unitOfMeasure: "each",
+    reorderLevel: "10",
+  });
+
+  const fetchItems = () => {
+    setLoading(true);
+    setApiError(null);
+    inventoryService
+      .listItems()
+      .then((result) => {
+        setInventoryItems(result ?? []);
+      })
+      .catch((err: { message?: string }) => {
+        setApiError(err.message || "Unable to load inventory from backend API");
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  useEffect(() => {
+    void inventoryService
+      .listLocations()
+      .then(setStockLocations)
+      .catch(() => toast.error("Unable to load stock locations"));
+  }, []);
+
+  const categories = useMemo(() => {
+    const seen = new Map<string, string>();
+    inventoryItems.forEach((item) => {
+      if (item.categoryId && !seen.has(item.categoryId))
+        seen.set(item.categoryId, item.categoryId);
+    });
+    // Category names are not included in the inventory response yet; use IDs until the API exposes them.
+    return [...seen.entries()].map(([id, name]) => ({ _id: id, name }));
+  }, [inventoryItems]);
 
   const filteredItems = useMemo(() => {
-    return inventoryItems.filter(item => {
-      const matchSearch = item.name.toLowerCase().includes(search.toLowerCase()) || item.sku.toLowerCase().includes(search.toLowerCase())
-      const matchCat = categoryFilter === 'all' || item.category === categoryFilter
-      const matchLoc = locationFilter === 'all' || item.stockLocation.includes(locationFilter)
-      const matchLevel = stockLevelFilter === 'all' || item.status.toLowerCase().replace(' ', '_') === stockLevelFilter
-      return matchSearch && matchCat && matchLoc && matchLevel
-    })
-  }, [inventoryItems, search, categoryFilter, locationFilter, stockLevelFilter])
-
-  function getStatusStyle(status: string) {
-    if (status === 'CRITICAL LOW') return { bg: '#fee2e2', text: '#ef4444' }
-    if (status === 'LOW STOCK') return { bg: '#fef3c7', text: '#d97706' }
-    if (status === 'IN STOCK') return { bg: '#dcfce7', text: '#16a34a' }
-    return { bg: '#f1f5f9', text: '#64748b' }
-  }
+    return inventoryItems.filter((item) => {
+      const matchSearch =
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.sku.toLowerCase().includes(search.toLowerCase());
+      const matchCat =
+        categoryFilter === "all" || item.categoryId === categoryFilter;
+      const matchStat =
+        statusFilter === "all" ||
+        item.status.toLowerCase() === statusFilter.toLowerCase();
+      return matchSearch && matchCat && matchStat;
+    });
+  }, [inventoryItems, search, categoryFilter, statusFilter]);
 
   return (
     <div className="min-h-full bg-background text-foreground">
-      <AppHeader title={viewMode === 'overview' ? 'Inventory Overview' : 'All Items'} hideQuickCreate />
-      {/* Top Header / Breadcrumb */}
-      <div className="border-b border-border bg-card px-8 py-5">
-        <div className="flex items-center justify-between">
+      <AppHeader title="Inventory" hideQuickCreate />
+      {/* Page Header */}
+      <div className="border-b border-border bg-card px-4 py-5 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {viewMode === 'overview' ? 'Inventory Overview' : 'Inventory Items'}
-            </h1>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              {viewMode === 'overview'
-                ? 'Monitor stock levels, critical restock thresholds, and parts distributions.'
-                : 'Comprehensive catalog lookup, available quantity monitoring, and physical tracking tags.'}
-            </p>
+            <PageIntro
+              title={
+                viewMode === "overview"
+                  ? "Inventory Overview"
+                  : "Inventory Catalog"
+              }
+              description={
+                viewMode === "overview"
+                  ? "Monitor stock levels, critical restock thresholds, and parts distributions."
+                  : "Comprehensive catalog lookup, available quantity monitoring, and physical tracking tags."
+              }
+            />
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Tab Toggle */}
-            <div className="flex items-center rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-1 text-[12px] font-semibold">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1 text-xs font-semibold">
               <button
-                onClick={() => setViewMode('items')}
-                className={`rounded-md px-3 py-1.5 transition-colors ${viewMode === 'items' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}
+                type="button"
+                onClick={() => setViewMode("items")}
+                className={cn(
+                  "rounded-md px-3 py-1.5 transition-colors",
+                  viewMode === "items"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
                 All Items
               </button>
               <button
-                onClick={() => setViewMode('overview')}
-                className={`rounded-md px-3 py-1.5 transition-colors ${viewMode === 'overview' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}
+                type="button"
+                onClick={() => setViewMode("overview")}
+                className={cn(
+                  "rounded-md px-3 py-1.5 transition-colors",
+                  viewMode === "overview"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
               >
                 Dashboard
               </button>
             </div>
 
-            {canManageInventory && viewMode === 'items' && (
-              <Button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-[#4f46e5] px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-[#4338ca] transition-colors"
-              >
+            {canManageInventory && viewMode === "items" && (
+              <Button onClick={() => setShowAddModal(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Item
               </Button>
@@ -103,323 +189,627 @@ export function Inventory() {
           </div>
         </div>
 
-        {/* Filter Bar (Only in Items View) */}
-        {viewMode === 'items' && (
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
-              <Input
-                placeholder="Search: Filter cartridges..."
+        {/* Filter Bar (Items View) */}
+        {viewMode === "items" && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="w-full sm:w-64">
+              <SearchInput
+                placeholder="Search items or SKU..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="h-9 rounded-lg border-[#e2e8f0] bg-[#f8fafc] pl-9 text-[13px] focus:bg-white"
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full"
               />
             </div>
 
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="Status: All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Status: All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-9 w-44 rounded-lg border-[#e2e8f0] bg-white text-[13px]">
-                <SelectValue placeholder="Category: HVAC Filters" />
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Category: All" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Category: All</SelectItem>
-                <SelectItem value="HVAC Filters">HVAC Filters</SelectItem>
-                <SelectItem value="Electrical">Electrical</SelectItem>
-                <SelectItem value="HVAC Belts">HVAC Belts</SelectItem>
-                <SelectItem value="Plumbing">Plumbing</SelectItem>
-                <SelectItem value="Lubricants">Lubricants</SelectItem>
-                <SelectItem value="Hardware">Hardware</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category._id} value={category._id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="h-9 w-48 rounded-lg border-[#e2e8f0] bg-white text-[13px]">
-                <SelectValue placeholder="Stock Location: Central HQ" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Stock Location: All</SelectItem>
-                <SelectItem value="HQ">Central HQ</SelectItem>
-                <SelectItem value="West Annex">West Annex</SelectItem>
-                <SelectItem value="Silicon Lab">Silicon Lab</SelectItem>
-                <SelectItem value="Central Depot">Central Depot</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={stockLevelFilter} onValueChange={setStockLevelFilter}>
-              <SelectTrigger className="h-9 w-44 rounded-lg border-[#e2e8f0] bg-white text-[13px]">
-                <SelectValue placeholder="Stock Level: Low Stock" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Stock Level: All</SelectItem>
-                <SelectItem value="critical_low">Critical Low</SelectItem>
-                <SelectItem value="low_stock">Low Stock</SelectItem>
-                <SelectItem value="in_stock">In Stock</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchItems}
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </Button>
           </div>
         )}
       </div>
 
       {/* Main Content Area */}
-      <div className="p-8">
-        {viewMode === 'items' ? (
-          /* All Items Data Table */
-          <div className="overflow-hidden rounded-xl border border-[#e2e8f0] bg-white shadow-sm">
-            <table className="w-full text-left text-[13px]">
-              <thead className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[11px] font-bold uppercase tracking-wider text-[#64748b]">
-                <tr>
-                  <th className="px-6 py-3.5">Item Name</th>
-                  <th className="px-6 py-3.5">SKU</th>
-                  <th className="px-6 py-3.5">Category</th>
-                  <th className="px-6 py-3.5">Stock Location</th>
-                  <th className="px-6 py-3.5 text-center">Avail Qty</th>
-                  <th className="px-6 py-3.5 text-center">Res Qty</th>
-                  <th className="px-6 py-3.5 text-center">Min Lvl</th>
-                  <th className="px-6 py-3.5">Unit Cost</th>
-                  <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f1f5f9]">
-                {filteredItems.map((item, idx) => {
-                  const s = getStatusStyle(item.status)
-                  return (
-                    <tr key={idx} className="hover:bg-[#f8fafc] transition-colors">
-                      <td className="px-6 py-4 font-bold text-[#0f172a]">{item.name}</td>
-                      <td className="px-6 py-4 font-mono text-[12px] text-[#64748b]">{item.sku}</td>
-                      <td className="px-6 py-4 text-[#475569]">{item.category}</td>
-                      <td className="px-6 py-4 text-[#475569]">{item.stockLocation}</td>
-                      <td className="px-6 py-4 text-center font-bold text-[#0f172a]">{item.availQty}</td>
-                      <td className="px-6 py-4 text-center text-[#64748b]">{item.resQty}</td>
-                      <td className="px-6 py-4 text-center text-[#64748b]">{item.minLvl}</td>
-                      <td className="px-6 py-4 font-semibold text-[#0f172a]">{item.unitCost}</td>
-                      <td className="px-6 py-4">
-                        <span className="rounded px-2 py-0.5 text-[10px] font-bold uppercase" style={{ backgroundColor: s.bg, color: s.text }}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toast.info(`Editing ${item.name}`)}
-                          className="h-7 rounded-md bg-[#f1f5f9] px-3 text-[12px] font-semibold text-[#0f172a] hover:bg-[#e2e8f0]"
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-
-            {/* Table Footer */}
-            <div className="flex items-center justify-between border-t border-[#e2e8f0] bg-white px-6 py-4 text-[13px] text-[#64748b]">
+      <main className="p-4 sm:p-6 lg:p-8">
+        {viewMode === "items" ? (
+          loading ? (
+            <div role="status" aria-live="polite">
+              <span className="sr-only">Loading inventory catalog…</span>
+              <SkeletonTable rows={6} columns={7} />
+            </div>
+          ) : apiError ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-destructive space-y-3">
+              <AlertCircle className="h-10 w-10 text-destructive opacity-80" />
               <div>
-                Showing <span className="font-semibold text-[#0f172a]">1-10</span> of{' '}
-                <span className="font-semibold text-[#0f172a]">342</span> items
+                <h3 className="font-semibold text-lg">Backend API Notice</h3>
+                <p className="text-sm text-destructive/80 mt-1 max-w-md">
+                  {apiError}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Endpoint{" "}
+                  <code className="bg-muted px-1 py-0.5 rounded font-mono">
+                    GET /api/v1/inventory/items
+                  </code>{" "}
+                  returned an error.
+                </p>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">Previous</Button>
-                <Button size="sm" className="h-8 rounded-md bg-[#4f46e5] px-3 text-[12px] font-semibold text-white">1</Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">2</Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">3</Button>
-                <Button variant="outline" size="sm" className="h-8 rounded-md border-[#e2e8f0] px-3 text-[12px]">Next</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchItems}
+                className="mt-2"
+              >
+                Retry Connection
+              </Button>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="No inventory items found"
+              description={
+                search
+                  ? "Try adjusting your search criteria."
+                  : "No items have been added to the inventory catalog yet."
+              }
+              actionLabel={canManageInventory ? "Add Item" : undefined}
+              onAction={
+                canManageInventory ? () => setShowAddModal(true) : undefined
+              }
+            />
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Unit of Measure</TableHead>
+                      <TableHead className="text-center">Min Stock</TableHead>
+                      <TableHead className="text-center">Reorder Lvl</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredItems.map((item) => (
+                      <TableRow key={item._id}>
+                        <TableCell className="font-semibold text-foreground">
+                          {item.name}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {item.sku}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {item.unitOfMeasure}
+                        </TableCell>
+                        <TableCell className="text-center font-medium text-foreground">
+                          {item.minimumStockLevel}
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground">
+                          {item.reorderLevel}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={item.status} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditItem(item)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setInventoryAction("receive");
+                                setReceiveItem(item);
+                              }}
+                            >
+                              Receive
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setInventoryAction("issue");
+                                setReceiveItem(item);
+                              }}
+                            >
+                              Issue
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setInventoryAction("adjust");
+                                setReceiveItem(item);
+                              }}
+                            >
+                              Adjust
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setInventoryAction("transfer");
+                                setReceiveItem(item);
+                              }}
+                            >
+                              Transfer
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
-          </div>
+          )
         ) : (
-          /* Inventory Overview Dashboard View */
-          <InventoryDashboard />
+          <InventoryOverviewView />
         )}
-      </div>
+      </main>
 
       {/* Add Item Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="bg-white border-[#e2e8f0] max-w-md">
+        <DialogContent className="!max-w-4xl w-[calc(100vw-2rem)] !h-[calc(100dvh-2rem)] !max-h-[calc(100dvh-2rem)] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-[#0f172a]">Add Inventory Item</DialogTitle>
+            <DialogTitle>Add Inventory Item</DialogTitle>
+            <p className="text-sm text-muted-foreground">Add stock details so quantities and replenishment can be managed accurately.</p>
           </DialogHeader>
-          <div className="space-y-3 py-2 text-[13px]">
-            <div className="space-y-1">
-              <Label className="text-[12px] font-semibold text-[#0f172a]">Item Name *</Label>
-              <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Chiller Filter Cartridge" />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!form.name || !form.sku) {
+                toast.error("Name and SKU are required.");
+                return;
+              }
+              inventoryService
+                .createItem({
+                  name: form.name,
+                  sku: form.sku,
+                  unitOfMeasure: form.unitOfMeasure,
+                  minimumStockLevel: Number(form.minLevel) || 5,
+                  reorderLevel: Number(form.reorderLevel) || 10,
+                })
+                .then(() => {
+                  toast.success("Inventory item created");
+                  setShowAddModal(false);
+                  fetchItems();
+                })
+                .catch(() => toast.error("Failed to create inventory item"));
+            }}
+            className="space-y-4 py-2"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="item-name">Item Name *</Label>
+              <Input
+                id="item-name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="e.g. Chiller Filter Cartridge"
+                required
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[12px] font-semibold text-[#0f172a]">SKU</Label>
-                <Input value={form.sku} onChange={e => setForm(p => ({ ...p, sku: e.target.value }))} placeholder="CHL-001" />
+              <div className="space-y-2">
+                <Label htmlFor="item-uom">Unit of Measure</Label>
+                <Select
+                  value={form.unitOfMeasure}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, unitOfMeasure: v }))
+                  }
+                >
+                  <SelectTrigger id="item-uom">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="each">Each</SelectItem>
+                    <SelectItem value="box">Box</SelectItem>
+                    <SelectItem value="case">Case</SelectItem>
+                    <SelectItem value="gallon">Gallon</SelectItem>
+                    <SelectItem value="liter">Liter</SelectItem>
+                    <SelectItem value="ft">Feet</SelectItem>
+                    <SelectItem value="m">Meters</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-[12px] font-semibold text-[#0f172a]">Unit Cost ($)</Label>
-                <Input value={form.cost} onChange={e => setForm(p => ({ ...p, cost: e.target.value }))} />
+              <div className="space-y-2">
+                <Label htmlFor="item-reorder">Reorder Level</Label>
+                <Input
+                  id="item-reorder"
+                  type="number"
+                  min={0}
+                  value={form.reorderLevel}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, reorderLevel: e.target.value }))
+                  }
+                />
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
-            <Button onClick={() => { toast.success('Item added'); setShowAddModal(false) }} className="bg-[#4f46e5] text-white">
-              Add Item
-            </Button>
-          </DialogFooter>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="item-sku">SKU *</Label>
+                <Input
+                  id="item-sku"
+                  value={form.sku}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, sku: e.target.value }))
+                  }
+                  placeholder="CHL-001"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="item-min">Min Stock Level</Label>
+                <Input
+                  id="item-min"
+                  type="number"
+                  value={form.minLevel}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, minLevel: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Add Item</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <EditInventoryItemDialog
+        item={editItem}
+        open={!!editItem}
+        onOpenChange={(open) => {
+          if (!open) setEditItem(null);
+        }}
+        onSaved={() => {
+          setEditItem(null);
+          fetchItems();
+        }}
+      />
+      <Dialog
+        open={!!receiveItem}
+        onOpenChange={(open) => {
+          if (!open) setReceiveItem(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {inventoryAction === "receive"
+                ? "Receive stock"
+                : inventoryAction === "issue"
+                ? "Issue stock"
+                : inventoryAction === "adjust"
+                ? "Adjust stock"
+                : "Transfer stock"}
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (
+                !receiveItem ||
+                !receiveLocationId ||
+                Number(receiveQuantity) === 0 ||
+                (inventoryAction !== "adjust" && Number(receiveQuantity) < 0) ||
+                (inventoryAction === "adjust" && !adjustReason.trim()) ||
+                (inventoryAction === "transfer" &&
+                  (!transferDestinationId ||
+                    transferDestinationId === receiveLocationId))
+              )
+                return;
+              setReceiving(true);
+              const payload = {
+                itemId: receiveItem._id,
+                stockLocationId: receiveLocationId,
+                quantity: Number(receiveQuantity),
+                reference: receiveReference || undefined,
+                reason: adjustReason || undefined,
+              };
+              void (
+                inventoryAction === "receive"
+                  ? inventoryService.receive(payload)
+                  : inventoryAction === "issue"
+                  ? inventoryService.issue(payload)
+                  : inventoryAction === "adjust"
+                  ? inventoryService.adjust({
+                      itemId: payload.itemId,
+                      stockLocationId: payload.stockLocationId,
+                      quantity: payload.quantity,
+                      reason: payload.reason!,
+                    })
+                  : inventoryService.transfer({
+                      itemId: payload.itemId,
+                      sourceLocationId: payload.stockLocationId,
+                      destinationLocationId: transferDestinationId,
+                      quantity: payload.quantity,
+                      reference: payload.reference,
+                    })
+              )
+                .then(() => {
+                  toast.success(
+                    `${
+                      inventoryAction === "receive"
+                        ? "Received"
+                        : inventoryAction === "issue"
+                        ? "Issued"
+                        : inventoryAction === "adjust"
+                        ? "Adjusted"
+                        : "Transferred"
+                    } ${receiveQuantity} ${receiveItem.unitOfMeasure} of ${
+                      receiveItem.name
+                    }`,
+                  );
+                  setReceiveItem(null);
+                  setReceiveLocationId("");
+                  setTransferDestinationId("");
+                  setReceiveQuantity("1");
+                  setReceiveReference("");
+                  setAdjustReason("");
+                  fetchItems();
+                })
+                .catch(() => toast.error("Unable to receive stock"))
+                .finally(() => setReceiving(false));
+            }}
+          >
+            <p className="text-sm text-muted-foreground">
+              {inventoryAction === "receive"
+                ? "Record incoming stock for"
+                : "Record stock issued from"}{" "}
+              <span className="font-medium text-foreground">
+                {receiveItem?.name}
+              </span>
+              .
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="receive-location">
+                {inventoryAction === "transfer"
+                  ? "Source location *"
+                  : "Stock location *"}
+              </Label>
+              <Select
+                value={receiveLocationId}
+                onValueChange={setReceiveLocationId}
+              >
+                <SelectTrigger id="receive-location">
+                  <SelectValue
+                    placeholder={
+                      stockLocations.length
+                        ? "Select a stock location"
+                        : "No stock locations available"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {stockLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                      {location.code ? ` (${location.code})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {inventoryAction === "transfer" ? (
+              <div className="space-y-2">
+                <Label htmlFor="transfer-destination">
+                  Destination location *
+                </Label>
+                <Select
+                  value={transferDestinationId}
+                  onValueChange={setTransferDestinationId}
+                >
+                  <SelectTrigger id="transfer-destination">
+                    <SelectValue placeholder="Select destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stockLocations
+                      .filter((location) => location.id !== receiveLocationId)
+                      .map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                          {location.code ? ` (${location.code})` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="receive-quantity">
+                {inventoryAction === "adjust"
+                  ? "Adjustment quantity *"
+                  : "Quantity *"}
+              </Label>
+              <Input
+                id="receive-quantity"
+                type="number"
+                min={inventoryAction === "adjust" ? undefined : "0.01"}
+                step="0.01"
+                value={receiveQuantity}
+                onChange={(event) => setReceiveQuantity(event.target.value)}
+                required
+              />
+            </div>
+            {inventoryAction === "adjust" ? (
+              <div className="space-y-2">
+                <Label htmlFor="adjust-reason">Reason *</Label>
+                <Input
+                  id="adjust-reason"
+                  value={adjustReason}
+                  onChange={(event) => setAdjustReason(event.target.value)}
+                  placeholder="e.g. Cycle count correction"
+                  required
+                />
+              </div>
+            ) : null}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setReceiveItem(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  receiving ||
+                  !receiveLocationId ||
+                  Number(receiveQuantity) === 0 ||
+                  (inventoryAction !== "adjust" &&
+                    Number(receiveQuantity) < 0) ||
+                  (inventoryAction === "adjust" && !adjustReason.trim()) ||
+                  (inventoryAction === "transfer" &&
+                    (!transferDestinationId ||
+                      transferDestinationId === receiveLocationId))
+                }
+              >
+                {receiving
+                  ? "Saving…"
+                  : inventoryAction === "receive"
+                  ? "Receive stock"
+                  : inventoryAction === "issue"
+                  ? "Issue stock"
+                  : inventoryAction === "adjust"
+                  ? "Adjust stock"
+                  : "Transfer stock"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
 
-function InventoryDashboard() {
-  return (
-    <div className="space-y-6">
-      {/* 5 KPI Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {[
-          { label: 'Total Items', val: '342', sub: 'In catalog' },
-          { label: 'Low Stock Items', val: '8', sub: '• Below safety stock', isWarning: true },
-          { label: 'Reserved Items', val: '23', sub: 'Allocated to WOs' },
-          { label: 'Pending Transfers', val: '4', sub: 'Across locations' },
-          { label: 'Categories', val: '15', sub: 'Parts grouping' },
-        ].map((kpi, idx) => (
-          <div key={idx} className="rounded-xl border border-[#e2e8f0] bg-white p-5 shadow-sm space-y-1">
-            <p className="text-[12px] font-medium text-[#64748b]">{kpi.label}</p>
-            <p className="text-3xl font-extrabold text-[#0f172a]">{kpi.val}</p>
-            <p className={`text-[11px] font-medium ${kpi.isWarning ? 'text-[#d97706]' : 'text-[#94a3b8]'}`}>
-              {kpi.sub}
-            </p>
-          </div>
+function InventoryOverviewView() {
+  const [overview, setOverview] = useState<
+    import("../services/inventory.service").InventoryOverview | null
+  >(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    inventoryService
+      .overview()
+      .then((res) => setOverview(res))
+      .catch((err) =>
+        setError(err.message || "Failed to load inventory overview"),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-28 rounded-xl border border-border bg-card p-4 animate-pulse"
+          />
         ))}
       </div>
+    );
+  }
 
-      {/* Grid: Low Stock Alerts + Stock by Category */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Low Stock Alerts Table (2 cols) */}
-        <div className="lg:col-span-2 rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-[15px] font-bold text-[#0f172a]">Low Stock Alerts</h2>
-            <p className="text-[12px] text-[#64748b]">Items currently resting below safety levels requiring replenishment orders</p>
-          </div>
-
-          <table className="w-full text-left text-[13px]">
-            <thead className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[10px] font-bold uppercase text-[#64748b]">
-              <tr>
-                <th className="py-2.5">ITEM NAME</th>
-                <th className="py-2.5">CATEGORY</th>
-                <th className="py-2.5 text-center">ON HAND</th>
-                <th className="py-2.5 text-center">MIN LEVEL</th>
-                <th className="py-2.5">LOCATION</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f1f5f9]">
-              {[
-                { name: 'Chiller Filter Cartridges', cat: 'HVAC Filters', onHand: 2, min: 10, loc: 'HQ Basement' },
-                { name: 'Fluorescent Bulbs 4ft', cat: 'Electrical', onHand: 15, min: 40, loc: 'West Annex' },
-                { name: 'HVAC V-Belts (Size 12)', cat: 'HVAC Belts', onHand: 4, min: 12, loc: 'HQ Roof Suite' },
-                { name: 'Industrial Pipe Sealant', cat: 'Plumbing', onHand: 3, min: 15, loc: 'North Supply' },
-                { name: 'Brass Ball Valve 1/2"', cat: 'Plumbing', onHand: 1, min: 8, loc: 'West Annex' },
-              ].map((row, idx) => (
-                <tr key={idx}>
-                  <td className="py-3 font-bold text-[#0f172a]">{row.name}</td>
-                  <td className="py-3 text-[#64748b]">{row.cat}</td>
-                  <td className="py-3 text-center font-bold text-[#ef4444]">{row.onHand}</td>
-                  <td className="py-3 text-center text-[#64748b]">{row.min}</td>
-                  <td className="py-3 text-[#475569]">{row.loc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Right: Stock by Category bars (1 col) */}
-        <div className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-[15px] font-bold text-[#0f172a]">Stock by Category</h2>
-            <p className="text-[12px] text-[#64748b]">Overall asset classification volume distribution</p>
-          </div>
-
-          <div className="space-y-4 text-[13px]">
-            {[
-              { cat: 'Electrical Parts', count: '120 items', pct: '80%', color: '#4f46e5' },
-              { cat: 'HVAC & Filtering', count: '85 items', pct: '60%', color: '#0284c7' },
-              { cat: 'Plumbing Supplies', count: '64 items', pct: '45%', color: '#16a34a' },
-              { cat: 'Hardware & Fasteners', count: '48 items', pct: '35%', color: '#d97706' },
-              { cat: 'Janitorial & Chemicals', count: '25 items', pct: '20%', color: '#ef4444' },
-            ].map((c, idx) => (
-              <div key={idx} className="space-y-1.5">
-                <div className="flex justify-between font-semibold">
-                  <span className="text-[#0f172a]">{c.cat}</span>
-                  <span className="text-[#64748b]">{c.count}</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-[#f1f5f9]">
-                  <div className="h-2 rounded-full" style={{ width: c.pct, backgroundColor: c.color }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+  if (error || !overview) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center text-destructive">
+        <AlertCircle className="h-8 w-8 mb-2 opacity-80" />
+        <h3 className="font-semibold text-base">
+          Unable to load inventory dashboard
+        </h3>
+        <p className="text-xs opacity-80 mt-1">{error}</p>
       </div>
+    );
+  }
 
-      {/* Grid: Recent Transactions + Stock Locations */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Transactions Audit Trail (2 cols) */}
-        <div className="lg:col-span-2 rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-[15px] font-bold text-[#0f172a]">Recent Transactions</h2>
-            <p className="text-[12px] text-[#64748b]">Real-time ledger audit trail of item receipts, assignments, and transfers</p>
-          </div>
-
-          <div className="space-y-3 text-[13px]">
-            {[
-              { type: 'ISSUE', name: 'HVAC V-Belt (Size 12)', qty: '-2', loc: 'HQ Roof Suite', time: '10m ago', user: 'John D.', typeColor: { bg: '#fee2e2', text: '#ef4444' } },
-              { type: 'RECEIVE', name: 'LED Spotlights 12W', qty: '+50', loc: 'North Supply', time: '1h ago', user: 'Sarah J.', typeColor: { bg: '#dcfce7', text: '#16a34a' } },
-              { type: 'TRANSFER', name: 'Brass Connector 1/2"', qty: '10', loc: 'West Annex', time: '2h ago', user: 'Dave M.', typeColor: { bg: '#fef3c7', text: '#d97706' } },
-              { type: 'RETURN', name: 'Fluorescent Bulbs 4ft', qty: '+3', loc: 'HQ Basement', time: '4h ago', user: 'John D.', typeColor: { bg: '#f1f5f9', text: '#64748b' } },
-              { type: 'ISSUE', name: '10W-30 Motor Oil', qty: '-4L', loc: 'East Annex', time: '1d ago', user: 'Mark K.', typeColor: { bg: '#fee2e2', text: '#ef4444' } },
-            ].map((tx, idx) => (
-              <div key={idx} className="flex items-center justify-between border-b border-[#f1f5f9] pb-3 last:border-0 last:pb-0">
-                <div className="flex items-center gap-3">
-                  <span className="rounded px-2 py-0.5 text-[10px] font-bold uppercase" style={{ backgroundColor: tx.typeColor.bg, color: tx.typeColor.text }}>
-                    {tx.type}
-                  </span>
-                  <span className="font-bold text-[#0f172a]">{tx.name}</span>
-                  <span className={`font-bold ${tx.qty.startsWith('-') ? 'text-[#ef4444]' : 'text-[#16a34a]'}`}>{tx.qty}</span>
-                </div>
-                <div className="flex items-center gap-4 text-[12px] text-[#64748b]">
-                  <span>{tx.loc}</span>
-                  <span>{tx.time}</span>
-                  <span className="font-medium text-[#0f172a]">{tx.user}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Total Catalog Items
+          </p>
+          <p className="mt-2 text-3xl font-extrabold text-foreground">
+            {overview.totalItems}
+          </p>
         </div>
-
-        {/* Stock Locations Cards (1 col) */}
-        <div className="rounded-xl border border-[#e2e8f0] bg-white p-6 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-[15px] font-bold text-[#0f172a]">Stock Locations</h2>
-            <p className="text-[12px] text-[#64748b]">Distribution of items across warehouse zones</p>
-          </div>
-
-          <div className="space-y-3">
-            {[
-              { name: 'Central HQ Basement', code: 'WH-A • Primary Zone', count: '184' },
-              { name: 'North Logistics Hub', code: 'WH-B • Bulk Storage', count: '96' },
-              { name: 'West Campus Annex', code: 'WH-C • Regional Depot', count: '48' },
-              { name: 'Silicon Valley Lab', code: 'WH-D • Cleanroom Safe', count: '14' },
-            ].map((loc, idx) => (
-              <div key={idx} className="flex items-center justify-between rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3.5">
-                <div>
-                  <p className="text-[13px] font-bold text-[#0f172a]">{loc.name}</p>
-                  <p className="text-[11px] text-[#64748b]">{loc.code}</p>
-                </div>
-                <span className="rounded-md bg-[#e0f2fe] px-2.5 py-1 text-[12px] font-extrabold text-[#0284c7]">
-                  {loc.count}
-                </span>
-              </div>
-            ))}
-          </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Low Stock Alerts
+          </p>
+          <p className="mt-2 text-3xl font-extrabold text-warning">
+            {overview.lowStockItems}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Reserved Items
+          </p>
+          <p className="mt-2 text-3xl font-extrabold text-info">
+            {overview.reservedItems}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Total Categories
+          </p>
+          <p className="mt-2 text-3xl font-extrabold text-foreground">
+            {overview.categoriesCount}
+          </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
+
+export default Inventory;

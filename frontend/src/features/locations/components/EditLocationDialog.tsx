@@ -20,18 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useMockDataStore } from '@/services/mockDataStore'
 import type { Location } from '@/types/common.types'
+import { useLocationMutations } from '@/features/locations/hooks/useLocationsApi'
 
 interface EditLocationDialogProps {
   location: Location | null
+  locations: Location[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function EditLocationDialog({ location, open, onOpenChange }: EditLocationDialogProps) {
-  const locations = useMockDataStore((s) => s.locations)
-  const updateLocation = useMockDataStore((s) => s.updateLocation)
+export function EditLocationDialog({ location, locations, open, onOpenChange }: EditLocationDialogProps) {
+  const { update } = useLocationMutations()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -56,16 +56,16 @@ export function EditLocationDialog({ location, open, onOpenChange }: EditLocatio
     e.preventDefault()
     if (!location) return
     setSaving(true)
-    updateLocation(location.id, {
-      name: form.name,
-      type: form.type,
-      address: form.address || undefined,
-      description: form.description || undefined,
-      parentId: form.parentId || undefined,
-    })
-    setSaving(false)
-    toast.success(`${location.name} updated`)
-    onOpenChange(false)
+    try {
+      const typeMap: Record<string, import('@/features/locations/types/location.types').LocationType> = {
+        site: 'OTHER', building: 'BUILDING', floor: 'FLOOR', room: 'ROOM', zone: 'AREA'
+      }
+      const apiType = typeMap[form.type] ?? 'OTHER'
+      await update.mutateAsync({ id: location.id, payload: { name: form.name, type: apiType, description: form.description || undefined, parentId: form.parentId || null } })
+      toast.success(`${location.name} updated`)
+      onOpenChange(false)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to update location') }
+    finally { setSaving(false) }
   }
 
   return (
@@ -73,6 +73,7 @@ export function EditLocationDialog({ location, open, onOpenChange }: EditLocatio
       <DialogContent className="max-w-md bg-card border-border">
         <DialogHeader>
           <DialogTitle>Edit location</DialogTitle>
+          <p className="text-sm text-muted-foreground">Update the location details used for maintenance and work assignment.</p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1.5">

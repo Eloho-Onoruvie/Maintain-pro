@@ -5,6 +5,7 @@ export interface CreateTempInvitationPayload {
   firstName: string;
   lastName: string;
   role: string;
+  facilityId?: string;
 }
 
 export interface TempInvitationResult {

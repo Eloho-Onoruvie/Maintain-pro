@@ -1,90 +1,120 @@
-import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge, StatusBadge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { useLocationsApi, useLocationMutations } from '@/features/locations/hooks/useLocationsApi'
-import { useFacilities } from '@/features/facilities/hooks/useFacilities'
-import { usePortalPath } from '@/hooks/usePortal'
-import { AppHeader } from '@/components/navigation/Navbar'
-import { PageIntro } from '@/components/layout/PageIntro'
-import { toast } from 'sonner'
-import { PageLoader } from '@/components/feedback/PageLoader'
-import { PageError } from '@/components/feedback/PageError'
-import type { Location as ApiLocation } from '@/features/locations/types/location.types'
-import type { Facility } from '@/features/facilities/types/facility.types'
-import { Pagination } from '@/components/ui/pagination'
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useLocationsApi, useLocationMutations } from "@/features/locations/hooks/useLocationsApi";
+import { useFacilities } from "@/features/facilities/hooks/useFacilities";
+import { usePortalPath } from "@/hooks/usePortal";
+import { AppHeader } from "@/components/navigation/Navbar";
+import { PageIntro } from "@/components/layout/PageIntro";
+import { toast } from "sonner";
+import { PageLoader } from "@/components/feedback/PageLoader";
+import { PageError } from "@/components/feedback/PageError";
+import type { Location as ApiLocation } from "@/features/locations/types/location.types";
+import type { Facility } from "@/features/facilities/types/facility.types";
+import { Pagination } from "@/components/ui/pagination";
 
 export function Locations() {
-  const navigate = useNavigate()
-  const locationsQuery = useLocationsApi()
-  const facilitiesQuery = useFacilities()
-  const { create } = useLocationMutations()
-  const locationsPath = usePortalPath('locations')
+  const navigate = useNavigate();
+  const locationsQuery = useLocationsApi();
+  const facilitiesQuery = useFacilities();
+  const { create } = useLocationMutations();
+  const locationsPath = usePortalPath("locations");
 
-  const [search, setSearch] = useState('')
-  const [facilityFilter, setFacilityFilter] = useState('all')
-  const [zoneFilter, setZoneFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [page, setPage] = useState(1)
-  const PAGE_SIZE = 20
+  const [search, setSearch] = useState("");
+  const [facilityFilter, setFacilityFilter] = useState("all");
+  const [zoneFilter, setZoneFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
-  const [formName, setFormName] = useState('')
-  const [formType, setFormType] = useState('ROOM')
-  const [formFloor, setFormFloor] = useState('')
-  const [formFacilityId, setFormFacilityId] = useState('')
+  const [formName, setFormName] = useState("");
+  const [formType, setFormType] = useState("ROOM");
+  const [formFloor, setFormFloor] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formFacilityId, setFormFacilityId] = useState("");
 
-  useEffect(() => { setPage(1) }, [search, facilityFilter, zoneFilter, statusFilter])
+  useEffect(() => {
+    setPage(1);
+  }, [search, facilityFilter, zoneFilter, statusFilter]);
 
-  const apiLocations = locationsQuery.data || []
-  const facilities = (facilitiesQuery.data as unknown as { data?: Facility[] })?.data || []
+  const apiLocations = locationsQuery.data || [];
+  const facilities = (facilitiesQuery.data as unknown as { data?: Facility[] })?.data || [];
   const displayedLocations = apiLocations.map((l: ApiLocation) => ({
-        id: l.id,
-        name: l.name,
-        facilityId: l.facilityId,
-        facility: facilities.find((facility: Facility) => facility.id === l.facilityId)?.name || 'Facility unavailable',
-        floorZone: l.floor || l.description || 'Not specified',
-        assets: l.assetCount ?? 0,
-        openWos: l.openWorkOrderCount ?? 0,
-        status: l.status.toUpperCase(),
-      }))
+    id: l.id,
+    name: l.name,
+    facilityId: l.facilityId,
+    facility:
+      facilities.find((facility: Facility) => facility.id === l.facilityId)?.name ||
+      "Facility unavailable",
+    floorZone: l.floor || l.description || "Not specified",
+    assets: l.assetCount ?? 0,
+    openWos: l.openWorkOrderCount ?? 0,
+    status: l.status.toUpperCase(),
+  }));
 
-  const filtered = displayedLocations.filter((item: typeof displayedLocations[number]) => {
-    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase()) || item.facility.toLowerCase().includes(search.toLowerCase())
-    const matchFacility = facilityFilter === 'all' || item.facilityId === facilityFilter
-    const matchZone = zoneFilter === 'all' || item.floorZone.toLowerCase().includes(zoneFilter.toLowerCase())
-    const matchStatus = statusFilter === 'all' || item.status.toLowerCase() === statusFilter.toLowerCase()
-    return matchSearch && matchFacility && matchZone && matchStatus
-  })
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  if (locationsQuery.isLoading || facilitiesQuery.isLoading) return <PageLoader label="Loading locations..." />
-  if (locationsQuery.isError) return <PageError title="Locations unavailable" message="Unable to fetch locations. Please try again." onRetry={() => void locationsQuery.refetch()} />
+  const filtered = displayedLocations.filter((item: (typeof displayedLocations)[number]) => {
+    const matchSearch =
+      item.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.facility.toLowerCase().includes(search.toLowerCase());
+    const matchFacility = facilityFilter === "all" || item.facilityId === facilityFilter;
+    const matchZone =
+      zoneFilter === "all" || item.floorZone.toLowerCase().includes(zoneFilter.toLowerCase());
+    const matchStatus =
+      statusFilter === "all" || item.status.toLowerCase() === statusFilter.toLowerCase();
+    return matchSearch && matchFacility && matchZone && matchStatus;
+  });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  if (locationsQuery.isLoading || facilitiesQuery.isLoading)
+    return <PageLoader label="Loading locations..." />;
+  if (locationsQuery.isError)
+    return (
+      <PageError
+        title="Locations unavailable"
+        message="Unable to fetch locations. Please try again."
+        onRetry={() => void locationsQuery.refetch()}
+      />
+    );
 
   async function handleAddLocation() {
-    if (!formName.trim()) return
+    if (!formName.trim()) return;
     try {
       await create.mutateAsync({
         facilityId: formFacilityId,
         name: formName.trim(),
-        type: formType as ApiLocation['type'],
+        type: formType as ApiLocation["type"],
         floor: formFloor.trim() || undefined,
-        description: formFloor.trim() || undefined,
-        status: 'active',
+        description: formDescription.trim() || undefined,
+        status: "active",
         parentId: null,
-      })
-      toast.success(`Location "${formName}" created successfully`)
-      setFormName('')
-      setFormFloor('')
-      setFormFacilityId('')
-      setShowAddModal(false)
-    } catch {
-      toast.error('Failed to create location')
+      });
+      toast.success(`Location "${formName}" created successfully`);
+      setFormName("");
+      setFormFloor("");
+      setFormDescription("");
+      setFormFacilityId("");
+      setShowAddModal(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create location");
     }
   }
 
@@ -95,7 +125,10 @@ export function Locations() {
       <div className="border-b border-border bg-card px-8 py-5">
         <div className="flex items-center justify-between">
           <div>
-            <PageIntro title="Locations" description="Organize facilities into clear operational spaces so assets, requests, and work orders stay connected." />
+            <PageIntro
+              title="Locations"
+              description="Organize facilities into clear operational spaces so assets, requests, and work orders stay connected."
+            />
           </div>
 
           <Button
@@ -125,7 +158,11 @@ export function Locations() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Facility: All</SelectItem>
-              {facilities.map((facility: Facility) => <SelectItem key={facility.id} value={facility.id}>{facility.name}</SelectItem>)}
+              {facilities.map((facility: Facility) => (
+                <SelectItem key={facility.id} value={facility.id}>
+                  {facility.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -170,42 +207,63 @@ export function Locations() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? <tr><td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">{search || facilityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all' ? 'No locations match your filters.' : 'No locations yet. Create one to get started.'}</td></tr> : visible.map((item) => {
-                return (
-                  <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4 font-bold text-foreground">{item.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{item.facility}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{item.floorZone}</td>
-                    <td className="px-6 py-4 text-center font-medium text-muted-foreground">{item.assets ?? '—'}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`font-bold ${(item.openWos ?? 0) > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {item.openWos ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={item.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`${locationsPath}/${item.id}`)}
-                        className="h-8 rounded-md bg-muted px-3 text-[12px] font-semibold text-foreground hover:bg-accent"
-                      >
-                        View
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                    {search ||
+                    facilityFilter !== "all" ||
+                    zoneFilter !== "all" ||
+                    statusFilter !== "all"
+                      ? "No locations match your filters."
+                      : "No locations yet. Create one to get started."}
+                  </td>
+                </tr>
+              ) : (
+                visible.map((item) => {
+                  return (
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4 font-bold text-foreground">{item.name}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{item.facility}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{item.floorZone}</td>
+                      <td className="px-6 py-4 text-center font-medium text-muted-foreground">
+                        {item.assets ?? "—"}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`font-bold ${(item.openWos ?? 0) > 0 ? "text-foreground" : "text-muted-foreground"}`}
+                        >
+                          {item.openWos ?? "—"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={item.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`${locationsPath}/${item.id}`)}
+                          className="h-8 rounded-md bg-muted px-3 text-[12px] font-semibold text-foreground hover:bg-accent"
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
 
           {/* ── Table Footer / Pagination ── */}
           <div className="flex items-center justify-between border-t border-border bg-card px-6 py-4 text-[13px] text-muted-foreground">
             <div>
-              Showing <span className="font-semibold text-foreground">{filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0}-{Math.min(page * PAGE_SIZE, filtered.length)}</span> of{' '}
-              <span className="font-semibold text-foreground">{filtered.length}</span> entries
+              Showing{" "}
+              <span className="font-semibold text-foreground">
+                {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0}-
+                {Math.min(page * PAGE_SIZE, filtered.length)}
+              </span>{" "}
+              of <span className="font-semibold text-foreground">{filtered.length}</span> entries
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -217,16 +275,27 @@ export function Locations() {
 
       {/* ── Add Location Dialog Modal ── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="!max-w-4xl w-[calc(100vw-2rem)] !h-[calc(100dvh-2rem)] !max-h-[calc(100dvh-2rem)] overflow-y-auto bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground">Add New Location</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              Add New Location
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">Define the facility area, level, and details so work can be assigned accurately.</p>
           </DialogHeader>
           <div className="space-y-4 py-2 text-[13px]">
             <div className="space-y-1.5">
               <Label className="text-[12px] font-semibold text-foreground">Facility *</Label>
               <Select value={formFacilityId} onValueChange={setFormFacilityId}>
-                <SelectTrigger><SelectValue placeholder="Select facility" /></SelectTrigger>
-                <SelectContent>{facilities.map((facility: Facility) => <SelectItem key={facility.id} value={facility.id}>{facility.name}</SelectItem>)}</SelectContent>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select facility" />
+                </SelectTrigger>
+                <SelectContent>
+                  {facilities.map((facility: Facility) => (
+                    <SelectItem key={facility.id} value={facility.id}>
+                      {facility.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -241,7 +310,9 @@ export function Locations() {
               <div className="space-y-1.5">
                 <Label className="text-[12px] font-semibold text-foreground">Type</Label>
                 <Select value={formType} onValueChange={setFormType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ROOM">Room</SelectItem>
                     <SelectItem value="BUILDING">Building</SelectItem>
@@ -251,7 +322,9 @@ export function Locations() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[12px] font-semibold text-foreground">Floor / Zone Description</Label>
+                <Label className="text-[12px] font-semibold text-foreground">
+                  Floor / Zone Description
+                </Label>
                 <Input
                   placeholder="e.g. Floor 4, Suite 410"
                   value={formFloor}
@@ -259,17 +332,25 @@ export function Locations() {
                 />
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px] font-semibold text-foreground">Description</Label>
+              <textarea value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="Describe this location" className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddLocation} disabled={!formName.trim() || !formFacilityId} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button
+              onClick={handleAddLocation}
+              disabled={!formName.trim() || !formFacilityId}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
               Create Location
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

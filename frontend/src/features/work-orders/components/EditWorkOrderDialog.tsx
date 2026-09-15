@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { useMockDataStore } from '@/services/mockDataStore'
+import { workOrdersService } from '@/features/work-orders/services/workOrders.service'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/common.types'
+import type { WorkOrder, WorkOrderPriority } from '@/types/common.types'
 
 const CATEGORIES = [
   'HVAC',
@@ -37,16 +37,6 @@ const CATEGORIES = [
 ]
 
 const PRIORITIES: WorkOrderPriority[] = ['critical', 'high', 'medium', 'low']
-const STATUSES: WorkOrderStatus[] = [
-  'open',
-  'assigned',
-  'in_progress',
-  'pending',
-  'completed',
-  'verified',
-  'closed',
-  'cancelled',
-]
 
 interface EditWorkOrderDialogProps {
   workOrder: WorkOrder | null
@@ -61,19 +51,13 @@ export function EditWorkOrderDialog({
   onOpenChange,
   onSaved,
 }: EditWorkOrderDialogProps) {
-  const locations = useMockDataStore((s) => s.locations)
-  const assets = useMockDataStore((s) => s.assets)
-  const updateWorkOrder = useMockDataStore((s) => s.updateWorkOrder)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     title: '',
     description: '',
     category: '',
     priority: '' as WorkOrderPriority | '',
-    status: '' as WorkOrderStatus | '',
-    locationId: '',
-    assetId: '',
-    estimatedCost: '',
+    dueDate: '',
   })
 
   useEffect(() => {
@@ -83,10 +67,7 @@ export function EditWorkOrderDialog({
       description: workOrder.description,
       category: workOrder.category.toLowerCase(),
       priority: workOrder.priority,
-      status: workOrder.status,
-      locationId: workOrder.locationId,
-      assetId: workOrder.assetId ?? '',
-      estimatedCost: workOrder.estimatedCost?.toString() ?? '',
+      dueDate: workOrder.dueDate ? workOrder.dueDate.toISOString().slice(0, 10) : '',
     })
   }, [workOrder, open])
 
@@ -94,33 +75,27 @@ export function EditWorkOrderDialog({
     e.preventDefault()
     if (!workOrder) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 600))
-    const location = locations.find((l) => l.id === form.locationId)
-    const asset = assets.find((a) => a.id === form.assetId)
-    const updated: WorkOrder = {
-      ...workOrder,
-      title: form.title,
-      description: form.description,
-      category: form.category,
-      priority: form.priority as WorkOrderPriority,
-      status: form.status as WorkOrderStatus,
-      locationId: form.locationId,
-      locationName: location?.name ?? workOrder.locationName,
-      assetId: form.assetId || undefined,
-      assetName: asset?.name,
-      estimatedCost: form.estimatedCost ? Number(form.estimatedCost) : undefined,
-      updatedAt: new Date(),
+    try {
+      const updated = await workOrdersService.update(workOrder.id, {
+        title: form.title,
+        description: form.description,
+        category: form.category,
+        priority: form.priority || undefined,
+        dueDate: form.dueDate ? new Date(form.dueDate) : undefined,
+      })
+      toast.success(`${workOrder.id} updated`)
+      onSaved?.(updated)
+      onOpenChange(false)
+    } catch {
+      toast.error('Unable to update the work order')
+    } finally {
+      setSaving(false)
     }
-    updateWorkOrder(updated.id, updated)
-    setSaving(false)
-    toast.success(`${workOrder.id} updated`)
-    onSaved?.(updated)
-    onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto bg-card border-border">
+      <DialogContent className="max-h-[90vh] !max-w-lg overflow-y-auto bg-card border-border">
         <DialogHeader>
           <DialogTitle>Edit work order</DialogTitle>
           <DialogDescription>
@@ -186,69 +161,8 @@ export function EditWorkOrderDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select
-              value={form.status}
-              onValueChange={(v) => setForm((p) => ({ ...p, status: v as WorkOrderStatus }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">
-                    {s.replace('_', ' ')}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Location</Label>
-            <Select
-              value={form.locationId}
-              onValueChange={(v) => setForm((p) => ({ ...p, locationId: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Related asset (optional)</Label>
-            <Select
-              value={form.assetId || '__none__'}
-              onValueChange={(v) => setForm((p) => ({ ...p, assetId: v === '__none__' ? '' : v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="None" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {assets.map((asset) => (
-                  <SelectItem key={asset.id} value={asset.id}>
-                    {asset.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="wo-edit-cost">Estimated cost ($)</Label>
-            <Input
-              id="wo-edit-cost"
-              type="number"
-              min={0}
-              value={form.estimatedCost}
-              onChange={(e) => setForm((p) => ({ ...p, estimatedCost: e.target.value }))}
-            />
+            <Label htmlFor="wo-edit-due-date">Due date</Label>
+            <Input id="wo-edit-due-date" type="date" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

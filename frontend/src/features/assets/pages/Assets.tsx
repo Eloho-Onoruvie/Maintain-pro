@@ -382,11 +382,12 @@ export function Assets() {
 
       {/* ── Add Asset Modal ── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto bg-card border-border !max-w-2xl">
+        <DialogContent className="!max-w-4xl w-[calc(100vw-2rem)] !h-[calc(100dvh-2rem)] !max-h-[calc(100dvh-2rem)] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground">
               Register New Asset
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">Record the asset details needed for tracking, maintenance, and reporting.</p>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-2 text-[13px]">
             <div className="space-y-1.5">

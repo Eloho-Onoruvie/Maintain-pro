@@ -363,9 +363,6 @@ export function AdminDashboard() {
       ).length,
     [activeWorkOrders],
   );
-  // Demo cards and panels must use the same local collection. The report
-  // query is disabled in demo mode, so an old persisted summary can otherwise
-  // leave the KPI at zero while the active-work-order panels contain data.
   const displayStats = stats;
   const trendData = useMemo(() => {
     if (reportTrends.length > 0)
@@ -469,13 +466,7 @@ export function AdminDashboard() {
           <KPICard
             title="Active Facilities"
             value={facilitiesQuery.data?.total ?? "—"}
-            changeLabel={
-              false
-                ? "Demo data"
-                : facilitiesQuery.isLoading
-                ? "Loading facilities"
-                : "Live facility count"
-            }
+            changeLabel={facilitiesQuery.isLoading ? "Loading facilities" : "Live facility count"}
             icon="facilities"
             href={facilitiesPath}
           />

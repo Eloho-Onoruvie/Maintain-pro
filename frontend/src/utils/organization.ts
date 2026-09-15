@@ -1,6 +1,6 @@
 const ORG_NAME_KEY = 'maintainpro_organization_name'
 
-export const DEFAULT_ORGANIZATION_NAME = 'MaintainPro Demo Corp'
+export const DEFAULT_ORGANIZATION_NAME = 'MaintainPro Organization'
 
 export function getOrganizationName(): string {
   try {

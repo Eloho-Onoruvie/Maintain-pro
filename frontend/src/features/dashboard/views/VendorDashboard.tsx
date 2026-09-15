@@ -12,35 +12,8 @@ import { workOrdersService } from '@/features/work-orders/services/workOrders.se
 import { apiClient } from '@/api/client'
 import type { WorkOrder } from '@/types/common.types'
 
-// ─── Static Mock Data matching Figma ─────────────────────────────────────────
-
-const ACTIVE_DISPATCH_WO_STATIC = [
-  { id: 'WO-8422', location: 'Main HQ', desc: 'Elevator...', priority: 'CRITICAL', priorityBg: 'var(--destructive-muted)', priorityColor: 'var(--destructive)', sla: 'SLA: 2h left', tech: 'Mike Ross' },
-  { id: 'WO-8319', location: 'West Campus', desc: 'Emerg...', priority: 'CRITICAL', priorityBg: 'var(--destructive-muted)', priorityColor: 'var(--destructive)', sla: 'SLA: 15m left', tech: 'John Doe' },
-  { id: 'WO-7994', location: 'North Logistics', desc: 'Routin...', priority: 'MEDIUM', priorityBg: 'var(--warning-muted)', priorityColor: 'var(--warning)', sla: 'SLA: 1d left', tech: 'Sarah Jenkins' },
-  { id: 'WO-7945', location: 'East Warehouses', desc: 'Lubric...', priority: 'LOW', priorityBg: 'var(--accent)', priorityColor: 'var(--muted-foreground)', sla: 'SLA: 3d left', tech: 'Dave Miller' },
-]
-
-const OPEN_APPLICATIONS_STATIC = [
-  { id: '1', title: 'Civic Office Plaza', desc: 'Elevator modernization - 4 cabs', badge: 'Under Review', badgeBg: 'var(--warning-muted)', badgeColor: 'var(--warning)', time: 'Submitted 2 days ago' },
-  { id: '2', title: 'West Commerce Hub', desc: 'Quarterly preventive maintenance program', badge: 'Shortlisted', badgeBg: 'var(--success-muted)', badgeColor: 'var(--success)', time: 'Submitted 4 days ago' },
-]
-
-const SERVICE_OPPORTUNITIES_STATIC = [
-  { id: '1', title: 'Metro Health Center', distance: '2.4 miles away', desc: 'Annual Elevator Certification & load test', details: 'SLA Priority: High • Required response: < 2h' },
-  { id: '2', title: 'Apex Industrial Park', distance: '5.1 miles away', desc: 'Friction belt replacement & pulley realignment', details: 'SLA Priority: Medium • Required response: < 4h' },
-]
-
-const CONTRACT_SLA_STATIC = [
-  { title: 'Main Office HQ Tower', score: '98.2%', meta: 'Valued at $12,400/mo • 6 active WOs', pct: 98, fill: 'var(--success)' },
-  { title: 'North Logistics Center', score: '94.5%', meta: 'Valued at $8,200/mo • 2 active WOs', pct: 94, fill: 'var(--warning)' },
-]
-
-const TECH_WORKLOAD_STATIC = [
-  { name: 'Mike Ross', status: 'On site (HQ Tower)', wos: '4 WOs', dotColor: 'var(--success)' },
-  { name: 'Dave Miller', status: 'On site (East Annex)', wos: '2 WOs', dotColor: 'var(--success)' },
-  { name: 'John Doe', status: 'Off duty', wos: '1 WO', dotColor: 'var(--muted-foreground)' },
-]
+type ContractRow = { title: string; score: string; meta: string; pct: number; fill: string }
+type TechnicianRow = { name: string; status: string; wos: string; dotColor: string }
 
 
 function SectionCard({ title, subtitle, children, noPadding }: { title: string; subtitle: string; children: React.ReactNode; noPadding?: boolean }) {
@@ -65,6 +38,10 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
   const applicationsQuery = useQuery({ queryKey: ['dashboard', 'vendor-applications', user?.id], queryFn: () => apiClient.get<Array<{ id: string; workOrderId: string; status: string }>>('/vendor-applications/mine'), enabled: Boolean(user?.id), staleTime: 60_000 })
   const workOrdersPath = usePortalPath('work-orders')
   const opportunitiesPath = usePortalPath('opportunities')
+  const applicationsPath = usePortalPath('applications')
+  const contractsPath = usePortalPath('contracts')
+  const slasPath = usePortalPath('slas')
+  const teamPath = usePortalPath('team')
 
   const vendorCompanyName = vendorProfile?.name || (user as (typeof user & { vendorName?: string }))?.vendorName || 'Vendor Company'
 
@@ -85,8 +62,8 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
   }))
   const opportunityRows = (opportunitiesQuery.data?.data ?? []).map((opportunity: WorkOrder) => ({ id: opportunity.id, title: opportunity.title, distance: opportunity.locationName || 'Location unavailable', desc: opportunity.description || opportunity.category, details: `${opportunity.priority.toUpperCase()} priority` }))
   const applicationRows = (applicationsQuery.data ?? []).slice(0, 10).map((application: { id: string; workOrderId: string; status: string }) => ({ id: application.id, title: `Work order ${application.workOrderId.slice(0, 8)}`, desc: 'Submitted marketplace application', badge: application.status.replace('_', ' '), badgeBg: 'var(--muted)', badgeColor: 'var(--foreground)', time: 'Live application' }))
-  const contractRows: typeof CONTRACT_SLA_STATIC = []
-  const technicianRows: typeof TECH_WORKLOAD_STATIC = []
+  const contractRows: ContractRow[] = []
+  const technicianRows: TechnicianRow[] = []
 
   return (
     <>
@@ -108,18 +85,21 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
             value={activeCount}
             changeLabel="Live assigned work"
             icon="work-orders"
+            href={workOrdersPath}
           />
           <KPICard
             title="Open Applications"
             value={applicationsCount}
             changeLabel="Live applications"
             icon="compliance"
+            href={applicationsPath}
           />
           <KPICard
             title="Awarded Contracts"
             value={contractsCount}
             changeLabel="Live contracts"
             icon="completed"
+            href={contractsPath}
           />
           <KPICard
             title="SLA Compliance"
@@ -127,12 +107,14 @@ export function VendorDashboard({ mode = 'lead' }: { mode?: VendorDashboardMode 
             changeLabel="Not available"
             icon="compliance"
             variant="success"
+            href={slasPath}
           />
           <KPICard
             title="Team Members"
             value={teamCount}
             changeLabel="Live team roster"
             icon="work-orders"
+            href={teamPath}
           />
         </div>
 

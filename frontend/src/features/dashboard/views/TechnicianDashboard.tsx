@@ -8,47 +8,10 @@ import { usePortalPath } from '@/hooks/usePortal'
 import type { WorkOrder } from '@/types/common.types'
 import { HandWaveGreeting } from '@/components/ui/HandWaveGreeting'
 
-// ─── Static Mock Data for Parity ──────────────────────────────────────────────
-
-const DISPATCHED_TICKETS_STATIC = [
-  {
-    id: 'WO-8422',
-    location: 'Main Office HQ Tower',
-    title: 'Elevator Cab #3 Chiller Pump Failure',
-    asset: 'Schindler 5500 Elevator • Floor 4 Mechanics Room',
-    slaText: 'SLA Target: 2h left (1:30 PM deadline)',
-    badge: 'CRITICAL',
-    badgeBg: 'var(--destructive-muted)',
-    badgeColor: 'var(--destructive)',
-  },
-  {
-    id: 'WO-7994',
-    location: 'North Logistics Hub',
-    title: 'Semi-Annual Safety Cable Tension Check',
-    asset: 'Freight Elevator Freight-1 • Loading Dock B',
-    slaText: 'SLA Target: 4.2h left',
-    badge: 'MEDIUM',
-    badgeBg: 'var(--warning-muted)',
-    badgeColor: 'var(--warning)',
-  },
-]
-
-const TIMELINE_STATIC = [
-  { time: '08:00 AM', title: 'Travel & Check-In', subtitle: 'HQ Tower Security Gate', status: 'Done', statusBg: 'var(--success-muted)', statusColor: 'var(--success)' },
-  { time: '10:30 AM', title: 'Chiller Repair', subtitle: 'WO-8422 (HQ Room 4)', status: 'Active', statusBg: 'var(--info-muted)', statusColor: 'var(--info)' },
-  { time: '02:00 PM', title: 'Cable Tension PM', subtitle: 'WO-7994 (North Logistics)', status: 'Next', statusBg: 'var(--warning-muted)', statusColor: 'var(--warning)' },
-]
-
-const RECENT_ACTIVITY_STATIC = [
-  { title: 'Checked in at HQ Tower Lobby', subtitle: 'Dispatched by Samuel Dane', time: '15m ago' },
-  { title: 'WO-8100 marked as Complete', subtitle: 'Chiller Filter replacement signed off by Sarah J.', time: '2h ago' },
-  { title: 'SLA target updated for WO-8422', subtitle: 'SLA prioritized from Medium to Critical', time: '3h ago' },
-]
-
-const PREVENTIVE_MAINT_STATIC = [
-  { date: 'Tomorrow, 9:00 AM', desc: 'Hydraulic fluid replacement & valve clean - West Campus', code: 'PM-80' },
-  { date: 'Friday, 1:00 PM', desc: 'Emergency Brake Pad Wear Audit - HQ Tower Lobby', code: 'PM-82' },
-]
+type DispatchedTicket = { id: string; location: string; title: string; asset: string; slaText: string; badge: string; badgeBg: string; badgeColor: string }
+type TimelineItem = { time: string; title: string; subtitle: string; status: string; statusBg: string; statusColor: string }
+type ActivityItem = { title: string; subtitle: string; time: string }
+type PreventiveMaintenanceItem = { date: string; desc: string; code: string }
 
 function SectionCard({ title, subtitle, children, noPadding }: { title: string; subtitle: string; children: React.ReactNode; noPadding?: boolean }) {
   return (
@@ -90,6 +53,7 @@ export function TechnicianDashboard() {
             value={assignedCount}
             changeLabel="Across 2 locations"
             icon="work-orders"
+            href={workOrdersPath}
           />
           <KPICard
             title="Critical / Urgent"
@@ -97,6 +61,7 @@ export function TechnicianDashboard() {
             changeLabel="SLA expiring soon"
             icon="overdue"
             variant="danger"
+            href={workOrdersPath}
           />
           <KPICard
             title="Due Today"
@@ -104,6 +69,7 @@ export function TechnicianDashboard() {
             changeLabel="Target resolution by 5PM"
             icon="clock"
             variant="warning"
+            href={workOrdersPath}
           />
           <KPICard
             title="Completed This Week"
@@ -111,6 +77,7 @@ export function TechnicianDashboard() {
             changeLabel="SLA met 100%"
             icon="completed"
             variant="success"
+            href={workOrdersPath}
           />
         </div>
 
@@ -124,7 +91,7 @@ export function TechnicianDashboard() {
               subtitle="Direct queue with live action requirements"
             >
               <div className="space-y-4">
-                {([] as typeof DISPATCHED_TICKETS_STATIC).map((ticket) => (
+                {([] as DispatchedTicket[]).map((ticket) => (
                   <div
                     key={ticket.id}
                     className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-border"
@@ -170,7 +137,7 @@ export function TechnicianDashboard() {
               subtitle="Scheduled appointments for the next 48 hours"
             >
               <div className="space-y-3">
-                {([] as typeof PREVENTIVE_MAINT_STATIC).map((pm) => (
+                {([] as PreventiveMaintenanceItem[]).map((pm) => (
                   <div
                     key={pm.code}
                     className="flex items-center justify-between rounded-xl border border-border bg-muted p-4"
@@ -194,7 +161,7 @@ export function TechnicianDashboard() {
             {/* Today's Timeline */}
             <SectionCard title="Today's Timeline" subtitle="My hourly dispatch breakdown">
               <div className="space-y-3">
-                {([] as typeof TIMELINE_STATIC).map((item) => (
+                {([] as TimelineItem[]).map((item) => (
                   <div
                     key={item.time}
                     className="flex items-start gap-3 rounded-xl border border-border bg-muted p-3.5"
@@ -221,7 +188,7 @@ export function TechnicianDashboard() {
             {/* Recent Activity Log */}
             <SectionCard title="Recent Activity Log" subtitle="Recent sign-offs and status alerts" noPadding>
               <div className="divide-y divide-border">
-                {([] as typeof RECENT_ACTIVITY_STATIC).map((act, i) => (
+                {([] as ActivityItem[]).map((act, i) => (
                   <div key={i} className="px-5 py-3.5">
                     <div className="flex items-center justify-between">
                       <p className="text-[13px] font-semibold text-foreground">{act.title}</p>

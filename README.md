@@ -24,7 +24,7 @@ accidentally become part of a frontend commit.
 
 ---
 
-## 💻 Frontend Application (100% Production-Ready)
+## 💻 Frontend Application
 
 The frontend is an exceptionally modular, type-safe React 19 SPA optimized for high performance, visual brilliance, and granular role-based security.
 
@@ -39,7 +39,7 @@ The frontend is an exceptionally modular, type-safe React 19 SPA optimized for h
   * **Finance**: Cost analysis reports, invoice life-cycle audits, and approval-gate alerts for high-value orders.
   * **Administrators**: Set up multi-level building zones and configure multi-tiered time-based escalation rules.
 * **Aesthetic Dashboard & UI**: Features dynamic interactive trends, spend trackers, category breakdowns, and a custom circular SVG compliance donut gauge.
-* **Persisted Demo Engine**: The app can run **entirely offline / backend-free** utilizing a reactive mock store that persists state updates directly to local storage.
+* **Live application**: All authenticated workflows use the backend API and display explicit loading, empty, and unavailable states when live data is not present.
 
 ### 📐 Folder Architecture
 
@@ -60,7 +60,7 @@ frontend/src/
 │   ├── work-orders/      # Responsive grids, kanban boards, and task-completion logs
 │   └── ...               # Additional feature directories
 ├── hooks/                # Global utilities and the core role access permissions hook
-├── services/             # HTTP client and local storage persisted mock data engines
+├── services/             # Shared service adapters and billing/auth helpers
 ├── styles/               # Tailwind CSS variables and global OKLCH dark theme custom variants
 └── types/                # Unified TypeScript type declarations (common.types.ts)
 ```
@@ -84,10 +84,9 @@ Navigate to `frontend/` and copy the environment variables:
 cd frontend
 cp .env.example .env
 ```
-Inside your `.env` file, you can configure your backend bridge or keep the persisted mock server active:
+Inside your `.env` file, configure the live API:
 ```ini
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-VITE_DEMO_MODE=true  # Set to true for a fully functional, offline demo
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 #### 2. Install & Run

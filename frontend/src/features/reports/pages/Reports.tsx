@@ -112,7 +112,7 @@ function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: '
     }
     return [
       { name: 'HQ_Tower_SLA_Compliance', type: 'SLA Compliance Report', range: `${format(offset(30))} - ${format(end)}`, by: 'Samuel Dane', date: format(offset(1)) },
-      { name: 'PM_Preventive_Quarterly_Compiled', type: 'PM Compliance Report', range: `${format(offset(90))} - ${format(offset(1))}`, by: 'Dave Miller', date: format(offset(3)) },
+      { name: 'PM_Preventive_Quarterly_Schedule', type: 'PM Schedule Report', range: `${format(offset(90))} - ${format(offset(1))}`, by: 'Dave Miller', date: format(offset(3)) },
       { name: 'Full_Organization_Inventory_Valuation', type: 'Inventory Report', range: `As of ${format(end)}`, by: 'Sarah Jenkins', date: format(offset(5)) },
       { name: 'HQ_HVAC_SLA_Audit_Anomalies', type: 'SLA Compliance Report', range: `${format(offset(20))} - ${format(offset(7))}`, by: 'System (Auto)', date: format(offset(7)) },
       { name: 'West_Campus_Backlog_Analysis', type: 'Work Order Analysis', range: `${format(offset(120))} - ${format(offset(30))}`, by: 'John Doe', date: format(offset(10)) },
@@ -202,8 +202,8 @@ function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: '
             reportSlug: 'sla-compliance',
           },
           {
-            title: 'PM Compliance Report',
-            desc: 'Preventive task adherence index, missed checkup lists, and mechanical lifecycles remaining.',
+            title: 'PM Schedule Report',
+            desc: 'Preventive maintenance schedules, approvals, generated work orders, and upcoming activities.',
             actionLabel: 'Generate PM Report',
             reportSlug: 'pm-compliance',
           },
@@ -271,8 +271,8 @@ function GenerationHubView({ setActiveTab, onOpenReport }: { setActiveTab: (t: '
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => toast.info(`Previewing ${row.name} in demo mode`)}
-                    title="Open this demo report preview"
+                    onClick={() => toast.info(`Preview for ${row.name} is not available yet`)}
+                    title="Report preview unavailable"
                     className="h-7 rounded bg-info/15 px-2.5 text-[11px] font-bold text-info hover:bg-info/25"
                   >
                     Preview

@@ -6,7 +6,7 @@ export interface CreateSubscriptionPayload {
   ownerId?: string;
   plan: 'free' | 'starter' | 'professional' | 'enterprise';
   billingCycle?: 'monthly' | 'annual';
-  provider?: 'mock' | 'stripe' | 'paystack' | 'flutterwave';
+  provider?: 'stripe' | 'paystack' | 'flutterwave';
   providerSubscriptionId?: string;
   startsAt?: string;
   trialEndsAt?: string;
@@ -19,7 +19,7 @@ export interface SubscriptionResponseData {
   plan: 'free' | 'starter' | 'professional' | 'enterprise';
   billingCycle?: 'monthly' | 'annual';
   status: 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired';
-  provider?: 'mock' | 'stripe' | 'paystack' | 'flutterwave';
+  provider?: 'stripe' | 'paystack' | 'flutterwave';
   trialEndsAt?: string;
   startsAt: string;
   endsAt?: string;
@@ -46,7 +46,7 @@ export const billingService = {
       ? toSubscriptionResponse(await apiClient.get(`/billing/subscriptions/${subscriptionId}`))
       : toSubscriptionResponse(await apiClient.get('/billing/subscription')),
 
-  initiateCheckout: async (provider?: 'mock' | 'stripe' | 'paystack' | 'flutterwave') =>
+  initiateCheckout: async (provider?: 'stripe' | 'paystack' | 'flutterwave') =>
     toCheckoutResponse(await apiClient.post('/billing/subscription/checkout', { provider })),
 
   upgradePlan: async (plan: CreateSubscriptionPayload['plan'], billingCycle?: 'monthly' | 'annual', subscriptionId?: string) =>

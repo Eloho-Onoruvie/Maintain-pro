@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
-import { Filter, RotateCcw } from 'lucide-react'
+import { useEffect, useState } from "react";
+import { Filter, RotateCcw } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -17,47 +17,47 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { mockLocations } from '@/features/dashboard/services/dashboard.service'
-import type { WorkOrderPriority } from '@/types/common.types'
+} from "@/components/ui/dialog";
+import { useLocationsApi } from "@/features/locations/hooks/useLocationsApi";
+import type { WorkOrderPriority } from "@/types/common.types";
 
 const SERVICE_CATEGORIES = [
-  'Electrical',
-  'Plumbing',
-  'HVAC',
-  'Cleaning',
-  'Pest Control',
-  'Fire Safety',
-  'Elevators',
-  'Security',
-  'Gas',
-  'Sewage',
-  'General Repairs',
-]
+  "Electrical",
+  "Plumbing",
+  "HVAC",
+  "Cleaning",
+  "Pest Control",
+  "Fire Safety",
+  "Elevators",
+  "Security",
+  "Gas",
+  "Sewage",
+  "General Repairs",
+];
 
 export type ServiceRequestAdvancedFilters = {
-  priority?: WorkOrderPriority
-  category?: string
-  locationId?: string
-}
+  priority?: WorkOrderPriority;
+  category?: string;
+  locationId?: string;
+};
 
 type AdvancedDraft = {
-  priority: 'all' | WorkOrderPriority
-  category: string
-  locationId?: string
-}
+  priority: "all" | WorkOrderPriority;
+  category: string;
+  locationId?: string;
+};
 
 const emptyDraft: AdvancedDraft = {
-  priority: 'all',
-  category: 'all',
+  priority: "all",
+  category: "all",
   locationId: undefined,
-}
+};
 
 interface ServiceRequestAdvancedFiltersDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  filters: ServiceRequestAdvancedFilters
-  onApply: (patch: ServiceRequestAdvancedFilters) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  filters: ServiceRequestAdvancedFilters;
+  onApply: (patch: ServiceRequestAdvancedFilters) => void;
 }
 
 export function ServiceRequestAdvancedFiltersDialog({
@@ -66,35 +66,36 @@ export function ServiceRequestAdvancedFiltersDialog({
   filters,
   onApply,
 }: ServiceRequestAdvancedFiltersDialogProps) {
-  const [draft, setDraft] = useState<AdvancedDraft>(emptyDraft)
+  const [draft, setDraft] = useState<AdvancedDraft>(emptyDraft);
+  const locationsQuery = useLocationsApi();
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     setDraft({
-      priority: filters.priority ?? 'all',
-      category: filters.category ?? 'all',
+      priority: filters.priority ?? "all",
+      category: filters.category ?? "all",
       locationId: filters.locationId,
-    })
-  }, [open, filters])
+    });
+  }, [open, filters]);
 
   const apply = () => {
     onApply({
-      priority: draft.priority === 'all' ? undefined : draft.priority,
-      category: draft.category === 'all' ? undefined : draft.category,
+      priority: draft.priority === "all" ? undefined : draft.priority,
+      category: draft.category === "all" ? undefined : draft.category,
       locationId: draft.locationId || undefined,
-    })
-    onOpenChange(false)
-  }
+    });
+    onOpenChange(false);
+  };
 
   const reset = () => {
-    setDraft(emptyDraft)
-    onApply({})
-    onOpenChange(false)
-  }
+    setDraft(emptyDraft);
+    onApply({});
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg gap-0 overflow-hidden border-border bg-card p-0 sm:max-w-md">
+      <DialogContent className="max-h-[90vh] !max-w-lg gap-0 overflow-hidden border-border bg-card p-0 sm:!max-w-lg">
         <DialogHeader className="space-y-2 px-6 pt-6 text-left">
           <DialogTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-primary" />
@@ -111,7 +112,10 @@ export function ServiceRequestAdvancedFiltersDialog({
             <Select
               value={draft.priority}
               onValueChange={(v) =>
-                setDraft((d) => ({ ...d, priority: v as AdvancedDraft['priority'] }))
+                setDraft((d) => ({
+                  ...d,
+                  priority: v as AdvancedDraft["priority"],
+                }))
               }
             >
               <SelectTrigger>
@@ -150,9 +154,12 @@ export function ServiceRequestAdvancedFiltersDialog({
           <div className="space-y-2">
             <Label>Location</Label>
             <Select
-              value={draft.locationId ?? 'all'}
+              value={draft.locationId ?? "all"}
               onValueChange={(v) =>
-                setDraft((d) => ({ ...d, locationId: v === 'all' ? undefined : v }))
+                setDraft((d) => ({
+                  ...d,
+                  locationId: v === "all" ? undefined : v,
+                }))
               }
             >
               <SelectTrigger>
@@ -160,7 +167,7 @@ export function ServiceRequestAdvancedFiltersDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All locations</SelectItem>
-                {mockLocations.map((loc) => (
+                {(locationsQuery.data ?? []).map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
                   </SelectItem>
@@ -171,7 +178,12 @@ export function ServiceRequestAdvancedFiltersDialog({
         </div>
 
         <DialogFooter className="flex-row gap-2 border-t border-border px-6 py-4 sm:justify-end">
-          <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={reset}>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            onClick={reset}
+          >
             <RotateCcw className="mr-2 h-4 w-4" />
             Reset
           </Button>
@@ -181,5 +193,5 @@ export function ServiceRequestAdvancedFiltersDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

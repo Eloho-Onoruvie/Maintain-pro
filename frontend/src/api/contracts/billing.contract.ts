@@ -6,7 +6,7 @@ export const subscriptionResponseSchema = z.object({
   plan: z.enum(['free', 'starter', 'professional', 'enterprise']),
   billingCycle: z.enum(['monthly', 'annual']).optional(),
   status: z.enum(['trial', 'active', 'past_due', 'cancelled', 'expired']),
-  provider: z.enum(['mock', 'stripe', 'paystack', 'flutterwave']).optional(),
+  provider: z.enum(['stripe', 'paystack', 'flutterwave']).optional(),
   trialEndsAt: z.string().optional(),
   startsAt: z.string(),
   endsAt: z.string().optional(),

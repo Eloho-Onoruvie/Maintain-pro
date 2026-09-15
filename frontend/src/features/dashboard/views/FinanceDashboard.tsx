@@ -22,112 +22,6 @@ import type { WorkOrder } from "@/types/common.types";
 import { invoicesService } from "@/features/finance/services/invoices.service";
 import { HandWaveGreeting } from "@/components/ui/HandWaveGreeting";
 
-// ─── Static placeholder data matching Figma ──────────────────────────────────
-
-const PENDING_APPROVALS_STATIC = [
-  {
-    id: "1",
-    type: "Vendor Contract",
-    vendor: "Apex Elevator Co.",
-    amount: "$12,400",
-    time: "2h ago",
-  },
-  {
-    id: "2",
-    type: "Asset Purchase",
-    vendor: "Pro HVAC Solutions",
-    amount: "$4,200",
-    time: "4h ago",
-  },
-  {
-    id: "3",
-    type: "Work Order (Over $1k)",
-    vendor: "Sarah Jenkins (FM)",
-    amount: "$1,850",
-    time: "1d ago",
-  },
-  {
-    id: "4",
-    type: "Inventory Restock",
-    vendor: "John Doe (Inv)",
-    amount: "$1,100",
-    time: "1d ago",
-  },
-  {
-    id: "5",
-    type: "Emergency Plumbing",
-    vendor: "Reliable Plumbing",
-    amount: "$950",
-    time: "2d ago",
-  },
-];
-
-const SLA_VENDORS = [
-  {
-    name: "Apex Elevator Co.",
-    service: "Vertical Transport • $8,500/mo",
-    pct: 98,
-    color: "var(--success)",
-  },
-  {
-    name: "Pro HVAC Solutions",
-    service: "Climate Control Systems • $14,200/mo",
-    pct: 91,
-    color: "var(--warning)",
-  },
-  {
-    name: "Reliable Plumbing",
-    service: "Water & Waste Management • $6,100/mo",
-    pct: 86,
-    color: "var(--destructive)",
-  },
-];
-
-const QUOTATIONS_STATIC = [
-  {
-    id: "1",
-    vendor: "Pro HVAC Solutions",
-    desc: "Server Room B Diagnostic Survey",
-    amount: "$450.00",
-    status: "Awaiting Action",
-    statusColor: "var(--warning)",
-    statusBg: "var(--warning-muted)",
-  },
-  {
-    id: "2",
-    vendor: "Reliable Plumbing",
-    desc: "Toilet Stack replacement (Lobby)",
-    amount: "$280.00",
-    status: "Pre-Approved",
-    statusColor: "var(--success)",
-    statusBg: "var(--success-muted)",
-  },
-  {
-    id: "3",
-    vendor: "GateMasters Inc.",
-    desc: "Lobby Front Security Gate Repair",
-    amount: "$1,200.00",
-    status: "Under Review",
-    statusColor: "var(--muted-foreground)",
-    statusBg: "var(--accent)",
-  },
-  {
-    id: "4",
-    vendor: "SafeFire Corp",
-    desc: "Quarterly Fire System Testing Schedule",
-    amount: "$850.00",
-    status: "Pre-Approved",
-    statusColor: "var(--success)",
-    statusBg: "var(--success-muted)",
-  },
-];
-
-const BILLING_INFO = {
-  plan: "MaintainPro Enterprise",
-  licenses: "150 Active Seats",
-  nextInvoice: "Feb 15, 2026",
-};
-
 const FINANCIAL_EVENTS = [
   {
     id: "1",
@@ -162,13 +56,11 @@ function SectionCard({
   subtitle,
   children,
   noPadding,
-  demoData,
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
   noPadding?: boolean;
-  demoData?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card shadow-none">
@@ -176,11 +68,6 @@ function SectionCard({
         <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
         <div className="mt-0.5 flex items-center gap-2">
           <p className="text-[13px] text-muted-foreground">{subtitle}</p>
-          {demoData && (
-            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
-              Demo
-            </span>
-          )}
         </div>
       </div>
       <div className={noPadding ? "" : "px-5 py-4"}>{children}</div>
@@ -188,123 +75,27 @@ function SectionCard({
   );
 }
 
-function TypeBadge({ label }: { label: string }) {
+function ApprovalRows() {
   return (
-    <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium bg-primary/10 text-primary whitespace-nowrap">
-      {label}
-    </span>
+    <p className="px-5 py-4 text-sm text-muted-foreground">
+      No pending approval records are available yet.
+    </p>
   );
 }
 
-function ApprovalRows({
-  approvalsPath,
-  demoData,
-}: {
-  approvalsPath: string;
-  demoData: boolean;
-}) {
-  if (!demoData)
-    return (
-      <p className="px-5 py-4 text-sm text-muted-foreground">
-        No pending approval records are available yet.
-      </p>
-    );
+function SLAVendorRows() {
   return (
-    <div className="divide-y divide-border">
-      {PENDING_APPROVALS_STATIC.map((row) => (
-        <div key={row.id} className="flex items-center gap-3 px-5 py-3">
-          <TypeBadge label={row.type} />
-          <span className="flex-1 truncate text-[13px] text-muted-foreground">
-            ...{row.vendor}
-          </span>
-          <span className="text-[13px] font-semibold text-foreground w-20 text-right">
-            {row.amount}
-          </span>
-          <span className="w-14 text-right text-[12px] text-muted-foreground">
-            {row.time}
-          </span>
-          <Link
-            to={approvalsPath}
-            className="rounded px-3 py-1 text-[12px] font-medium text-muted-foreground hover:bg-accent transition-colors"
-          >
-            Review
-          </Link>
-          <Link
-            to={approvalsPath}
-            className="rounded bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Approve
-          </Link>
-        </div>
-      ))}
-    </div>
+    <p className="px-5 py-4 text-sm text-muted-foreground">
+      SLA performance data is not available yet.
+    </p>
   );
 }
 
-function SLAVendorRows({ demoData }: { demoData: boolean }) {
-  if (!demoData)
-    return (
-      <p className="px-5 py-4 text-sm text-muted-foreground">
-        SLA performance data is not available yet.
-      </p>
-    );
+function QuotationRows() {
   return (
-    <div className="divide-y divide-border">
-      {SLA_VENDORS.map((v) => (
-        <div key={v.name} className="px-5 py-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[13px] font-semibold text-foreground">
-                {v.name}
-              </p>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">
-                {v.service}
-              </p>
-            </div>
-            <span
-              className="rounded px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap"
-              style={{ backgroundColor: `${v.color}18`, color: v.color }}
-            >
-              {v.pct}% Compliance
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function QuotationRows({ demoData }: { demoData: boolean }) {
-  if (!demoData)
-    return (
-      <p className="px-5 py-4 text-sm text-muted-foreground">
-        No quotation records are available yet.
-      </p>
-    );
-  return (
-    <div className="divide-y divide-border">
-      {QUOTATIONS_STATIC.map((q) => (
-        <div key={q.id} className="flex items-center gap-3 px-5 py-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-foreground">
-              {q.vendor}
-            </p>
-            <p className="mt-0.5 text-[12px] text-muted-foreground truncate">
-              {q.desc}
-            </p>
-          </div>
-          <span className="text-[13px] font-semibold text-foreground w-20 text-right">
-            {q.amount}
-          </span>
-          <span
-            className="rounded px-2.5 py-0.5 text-[12px] font-medium whitespace-nowrap"
-            style={{ backgroundColor: q.statusBg, color: q.statusColor }}
-          >
-            {q.status}
-          </span>
-        </div>
-      ))}
-    </div>
+    <p className="px-5 py-4 text-sm text-muted-foreground">
+      No quotation records are available yet.
+    </p>
   );
 }
 
@@ -313,6 +104,9 @@ function QuotationRows({ demoData }: { demoData: boolean }) {
 export function FinanceDashboard() {
   const user = useAuthStore((state) => state.user);
   const approvalsPath = usePortalPath("approvals");
+  const quotationsPath = usePortalPath("vendors/quotations");
+  const contractsPath = usePortalPath("vendors/contracts");
+  const invoicesPath = usePortalPath("invoices");
   const { workOrdersInRange } = useRoleDashboardDateRange("30d");
   const invoicesQuery = useQuery({
     queryKey: ["dashboard", "invoices", user?.id],
@@ -353,21 +147,21 @@ export function FinanceDashboard() {
         />
         {/* ── KPI Row ── */}
         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <Link to={approvalsPath}>
-            <KPICard
-              title="Pending Approvals"
-              value={stats.pendingApprovals}
-              changeLabel="Awaiting signature"
-              icon="overdue"
-              variant="warning"
-            />
-          </Link>
+          <KPICard
+            title="Pending Approvals"
+            value={stats.pendingApprovals}
+            changeLabel="Awaiting signature"
+            icon="overdue"
+            variant="warning"
+            href={approvalsPath}
+          />
           {/* TODO: these financial metrics await dedicated quotation, contract, and billing data sources. */}
           <KPICard
             title="Open Quotations"
             value="—"
             changeLabel="Quotation API pending"
             icon="compliance"
+            href={quotationsPath}
           />
           <KPICard
             title="Active Contracts"
@@ -375,12 +169,14 @@ export function FinanceDashboard() {
             changeLabel="Contract API pending"
             icon="completed"
             variant="success"
+            href={contractsPath}
           />
           <KPICard
             title="Monthly Obligations"
             value="—"
             changeLabel="Billing summary API pending"
             icon="cost"
+            href={contractsPath}
           />
           <KPICard
             title="Outstanding Invoices"
@@ -388,6 +184,7 @@ export function FinanceDashboard() {
             changeLabel="Critical attention required"
             icon="overdue"
             variant="danger"
+            href={invoicesPath}
           />
         </div>
 
@@ -399,10 +196,7 @@ export function FinanceDashboard() {
               subtitle="Review and audit operational expenses before confirming authorization"
               noPadding
             >
-              <ApprovalRows
-                approvalsPath={approvalsPath}
-                demoData={false}
-              />
+              <ApprovalRows />
             </SectionCard>
           </div>
 
@@ -412,7 +206,7 @@ export function FinanceDashboard() {
               subtitle="Overview of monthly values and target compliance"
               noPadding
             >
-              <SLAVendorRows demoData={false} />
+              <SLAVendorRows />
             </SectionCard>
           </div>
         </div>
@@ -430,7 +224,7 @@ export function FinanceDashboard() {
               subtitle="Sourced vendor offers currently under pricing assessment"
               noPadding
             >
-              <QuotationRows demoData={false} />
+              <QuotationRows />
             </SectionCard>
           </div>
 

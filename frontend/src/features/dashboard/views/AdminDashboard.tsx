@@ -31,111 +31,6 @@ import { HandWaveGreeting } from "@/components/ui/HandWaveGreeting";
 import { facilitiesApi } from "@/features/facilities/api/facilities.api";
 import { useQuery } from "@tanstack/react-query";
 
-// ─── Static placeholder data matching Figma ───────────────────────────────────
-
-const VENDOR_SLA = [
-  {
-    name: "Apex Elevator Co.",
-    service: "Vertical Transport",
-    pct: 98,
-    color: "var(--success)",
-    barFill: "var(--success)",
-  },
-  {
-    name: "Pro HVAC Solutions",
-    service: "Climate Systems",
-    pct: 91,
-    color: "var(--warning)",
-    barFill: "var(--warning)",
-  },
-  {
-    name: "Reliable Plumbing",
-    service: "Water/Waste Mgmt",
-    pct: 86,
-    color: "var(--destructive)",
-    barFill: "var(--destructive)",
-  },
-];
-
-const VENDOR_DISPATCH_STATIC = [
-  {
-    id: "1",
-    vendor: "Apex Elevator Co.",
-    action: "Updated work order status to In Progress",
-    time: "3m ago",
-  },
-  {
-    id: "2",
-    vendor: "Pro HVAC Solutions",
-    action: "Submitted invoice for WO-4921",
-    time: "47m ago",
-  },
-  {
-    id: "3",
-    vendor: "Reliable Plumbing",
-    action: "Assigned tech to WO-4810",
-    time: "2h ago",
-  },
-];
-
-const PENDING_APPROVALS_STATIC = [
-  {
-    id: "1",
-    type: "Vendor Contract",
-    title: "Elevator Annual Maint. • $12,400",
-    requester: "Requested by: Sarah Jenkins (FM)",
-    time: "2h ago",
-  },
-  {
-    id: "2",
-    type: "Asset Purchase",
-    title: "Replacement Chiller Pump • $4,200",
-    requester: "Requested by: Dave Miller (FM)",
-    time: "4h ago",
-  },
-  {
-    id: "3",
-    type: "Work Order (Over $1k)",
-    title: "Main Roof Patch • $1,850",
-    requester: "Requested by: Sarah Jenkins (FM)",
-    time: "1d ago",
-  },
-  {
-    id: "4",
-    type: "Inventory Restock",
-    title: "Bulk LED Replacements • $1,100",
-    requester: "Requested by: John Doe (Inv)",
-    time: "1d ago",
-  },
-];
-
-const INVENTORY_WARNINGS = [
-  {
-    id: "1",
-    item: "Chiller Filter Cartridges",
-    detail: "In Stock: 2 (Min: 10)",
-    status: "CRITICAL LOW",
-    color: "var(--destructive)",
-    bg: "var(--destructive-muted)",
-  },
-  {
-    id: "2",
-    item: "Fluorescent Bulbs 4ft",
-    detail: "In Stock: 15 (Min: 40)",
-    status: "LOW STOCK",
-    color: "var(--warning)",
-    bg: "var(--warning-muted)",
-  },
-  {
-    id: "3",
-    item: "HVAC Belts (Size 12)",
-    detail: "In Stock: 4 (Min: 12)",
-    status: "LOW STOCK",
-    color: "var(--warning)",
-    bg: "var(--warning-muted)",
-  },
-];
-
 const RECENT_ACTIVITY_STATIC = [
   {
     id: "1",
@@ -202,13 +97,11 @@ function SectionCard({
   subtitle,
   children,
   noPadding,
-  demoData,
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
   noPadding?: boolean;
-  demoData?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-border/80 bg-card shadow-sm">
@@ -217,22 +110,9 @@ function SectionCard({
           <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
           <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>
         </div>
-        {demoData && (
-          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-400">
-            Demo
-          </span>
-        )}
       </div>
       <div className={noPadding ? "" : "px-5 py-4"}>{children}</div>
     </div>
-  );
-}
-
-function TypeBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center rounded px-2 py-0.5 text-[11px] font-medium bg-primary/10 text-primary whitespace-nowrap shrink-0">
-      {label}
-    </span>
   );
 }
 
@@ -371,102 +251,27 @@ function VendorDispatchPanel() {
 }
 
 function PendingApprovalsPanel({ approvalsPath }: { approvalsPath: string }) {
-  if (true)
-    return (
-      <SectionCard
-        title="Pending Approvals"
-        subtitle="Financial and contract permissions waiting on Admin clearance"
-      >
-        <p className="text-sm text-muted-foreground">
-          Pending approval records are not available from the dashboard API.
-        </p>
-      </SectionCard>
-    );
   return (
     <SectionCard
       title="Pending Approvals"
       subtitle="Financial and contract permissions waiting on Admin clearance"
-      noPadding
-      demoData
     >
-      <div className="divide-y divide-border">
-        {PENDING_APPROVALS_STATIC.map((row) => (
-          <div key={row.id} className="px-5 py-3">
-            <div className="flex items-start gap-3">
-              <TypeBadge label={row.type} />
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-foreground leading-snug">
-                  {row.title}
-                </p>
-                <p className="text-[12px] text-muted-foreground">
-                  {row.requester}
-                </p>
-              </div>
-              <span className="shrink-0 text-[12px] text-muted-foreground">
-                {row.time}
-              </span>
-            </div>
-            <div className="mt-2 flex justify-end gap-2">
-              <Link
-                to={`${approvalsPath}?highlight=${row.id}`}
-                className="rounded px-3 py-1 text-[12px] font-medium text-muted-foreground hover:bg-muted/60 transition-colors"
-              >
-                Review
-              </Link>
-              <Link
-                to={`${approvalsPath}/${row.id}`}
-                className="rounded bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:bg-primary-hover transition-colors"
-              >
-                Approve
-              </Link>
-            </div>
-          </div>
-        ))}
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Pending approval records are not available from the dashboard API.
+      </p>
     </SectionCard>
   );
 }
 
 function InventoryWarningsPanel() {
-  if (true)
-    return (
-      <SectionCard
-        title="Inventory Level Warnings"
-        subtitle="Replacement items below minimal safety stock threshold"
-      >
-        <p className="text-sm text-muted-foreground">
-          Inventory warnings are not available from the dashboard API.
-        </p>
-      </SectionCard>
-    );
   return (
     <SectionCard
       title="Inventory Level Warnings"
       subtitle="Replacement items below minimal safety stock threshold"
-      noPadding
-      demoData
     >
-      <div className="divide-y divide-border">
-        {INVENTORY_WARNINGS.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between gap-3 px-5 py-3"
-          >
-            <div className="min-w-0">
-              <p className="text-[13px] font-medium text-foreground">
-                {item.item}
-              </p>
-              <p className="text-[12px] text-muted-foreground">{item.detail}</p>
-            </div>
-            <span
-              className="shrink-0 rounded px-2 py-0.5 text-[11px] font-bold"
-              style={{ backgroundColor: item.bg, color: item.color }}
-            >
-              {item.status}
-            </span>
-          </div>
-        ))}
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Inventory warnings are not available from the dashboard API.
+      </p>
     </SectionCard>
   );
 }
@@ -545,6 +350,8 @@ export function AdminDashboard() {
   });
   const workOrdersPath = usePortalPath("work-orders");
   const approvalsPath = usePortalPath("approvals");
+  const pmPath = usePortalPath("preventive-maintenance");
+  const facilitiesPath = usePortalPath("facilities");
   const critical = useMemo(
     () => activeWorkOrders.filter((o) => o.priority === "critical").slice(0, 3),
     [activeWorkOrders],
@@ -630,41 +437,34 @@ export function AdminDashboard() {
         />
         {/* ── KPI Row ── */}
         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <Link
-            to={workOrdersPath}
-            className="block rounded-xl transition-shadow hover:ring-2 hover:ring-primary/25 hover:shadow-md"
-          >
-            <KPICard
-              title="Open Work Orders"
-              value={displayStats.openWorkOrders}
-              changeLabel={`${highPriorityCount} high priority`}
-              icon="work-orders"
-            />
-          </Link>
-          <Link
-            to={workOrdersPath}
-            className="block rounded-xl transition-shadow hover:ring-2 hover:ring-primary/25 hover:shadow-md"
-          >
-            <KPICard
-              title="Critical Issues"
-              value={critical.length}
-              changeLabel="Requires attention"
-              icon="overdue"
-              variant="danger"
-            />
-          </Link>
           <KPICard
-            title="SLA Compliance"
-            value={`${displayStats.pmCompliance}%`}
-            changeLabel="↑ Target > 92%"
-            icon="compliance"
-            variant="success"
+            title="Open Work Orders"
+            value={displayStats.openWorkOrders}
+            changeLabel={`${highPriorityCount} high priority`}
+            icon="work-orders"
+            href={workOrdersPath}
+          />
+          <KPICard
+            title="Critical Issues"
+            value={critical.length}
+            changeLabel="Requires attention"
+            icon="overdue"
+            variant="danger"
+            href={workOrdersPath}
+          />
+          <KPICard
+            title="PM Schedules"
+            value={stats.dueToday}
+            changeLabel="Scheduled this week"
+            icon="calendar"
+            href={pmPath}
           />
           <KPICard
             title="PM Due This Week"
             value={stats.dueToday}
             changeLabel="Preventive tasks"
             icon="calendar"
+            href={pmPath}
           />
           <KPICard
             title="Active Facilities"
@@ -677,6 +477,7 @@ export function AdminDashboard() {
                 : "Live facility count"
             }
             icon="facilities"
+            href={facilitiesPath}
           />
         </div>
 

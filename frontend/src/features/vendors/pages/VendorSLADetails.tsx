@@ -79,49 +79,6 @@ function TargetCard({
   );
 }
 
-const DEMO_WORK_ORDERS = [
-  [
-    "WO-4112",
-    "Chiller Diagnostic & Re-Gassing",
-    "Critical",
-    "12 min",
-    "3.2 hrs",
-    "Within SLA",
-  ],
-  [
-    "WO-4123",
-    "Emergency Leak in Lekki Server Room",
-    "Critical",
-    "14 min",
-    "3.8 hrs",
-    "Within SLA",
-  ],
-  [
-    "WO-4135",
-    "Compressor Vibration Diagnostic",
-    "High",
-    "75 min",
-    "8.5 hrs",
-    "Breached",
-  ],
-  [
-    "WO-4144",
-    "Thermostat Replacement & Setup",
-    "Low",
-    "2 hrs",
-    "Pending",
-    "At Risk",
-  ],
-  [
-    "WO-4158",
-    "Bi-Annual Intake Duct Cleaning",
-    "Medium",
-    "3.5 hrs",
-    "18.2 hrs",
-    "Within SLA",
-  ],
-];
-
 export function VendorSLADetails() {
   const { slaId } = useParams();
   const location = useLocation();
@@ -131,7 +88,7 @@ export function VendorSLADetails() {
   );
   const [editOpen, setEditOpen] = useState(false);
   const [nextStatus, setNextStatus] = useState("");
-  const workOrders: typeof DEMO_WORK_ORDERS = [];
+  const workOrders: string[][] = [];
   useEffect(() => {
     if (!sla && slaId)
       void apiClient

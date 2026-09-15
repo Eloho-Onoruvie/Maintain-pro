@@ -34,7 +34,6 @@ import { useOrganizationProfile } from "@/features/organization/hooks/useOrganiz
 import { uploadImage } from "@/api/uploads.api";
 import { useActionConfirm } from "@/hooks/useActionConfirm";
 import { apiClient } from "@/api/client";
-import { isDemoMode } from "@/config/runtime";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { PageError } from "@/components/feedback/PageError";
 import { InviteUserModal } from "@/features/auth/components/InviteUserModal";
@@ -847,7 +846,7 @@ export function OrganizationSettings() {
                           />
                         </div>
                         <Button
-                          disabled={!isDemoMode}
+                          disabled={false}
                           onClick={() =>
                             toast.info(
                               "Team invitations are available from the Team workspace",
@@ -872,83 +871,15 @@ export function OrganizationSettings() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border/60">
-                            {(isDemoMode
-                              ? [
-                                  {
-                                    name: "Samuel Dane",
-                                    email: "samuel@maintainpro-demo.com",
-                                    role: "Admin",
-                                    status: "ACTIVE",
-                                    date: "Feb 10, 2026",
-                                    initials: "SD",
-                                    color: "bg-orange-500",
-                                  },
-                                  {
-                                    name: "Sarah Jenkins",
-                                    email: "sarah.j@maintainpro-demo.com",
-                                    role: "Facility Manager",
-                                    status: "ACTIVE",
-                                    date: "Feb 12, 2026",
-                                    initials: "SJ",
-                                    color: "bg-blue-600",
-                                  },
-                                  {
-                                    name: "Dave Miller",
-                                    email: "d.miller@maintainpro-demo.com",
-                                    role: "Facility Manager",
-                                    status: "ACTIVE",
-                                    date: "Feb 15, 2026",
-                                    initials: "DM",
-                                    color: "bg-blue-600",
-                                  },
-                                  {
-                                    name: "John Doe",
-                                    email: "john.doe@maintainpro-demo.com",
-                                    role: "Staff",
-                                    status: "ACTIVE",
-                                    date: "Mar 01, 2026",
-                                    initials: "JD",
-                                    color: "bg-emerald-600",
-                                  },
-                                  {
-                                    name: "Jane Smith",
-                                    email: "jane.smith@maintainpro-demo.com",
-                                    role: "Technician",
-                                    status: "ACTIVE",
-                                    date: "Mar 04, 2026",
-                                    initials: "JS",
-                                    color: "bg-amber-600",
-                                  },
-                                  {
-                                    name: "Robert Chen",
-                                    email: "r.chen@maintainpro-demo.com",
-                                    role: "Finance",
-                                    status: "ACTIVE",
-                                    date: "Mar 10, 2026",
-                                    initials: "RC",
-                                    color: "bg-indigo-600",
-                                  },
-                                  {
-                                    name: "Alice Johnson",
-                                    email: "alice.j@maintainpro-demo.com",
-                                    role: "Technician",
-                                    status: "INVITED",
-                                    date: "Mar 12, 2026",
-                                    initials: "AJ",
-                                    color: "bg-amber-600",
-                                  },
-                                  {
-                                    name: "Marcus Vance",
-                                    email: "m.vance@maintainpro-demo.com",
-                                    role: "Staff",
-                                    status: "DEACTIVATED",
-                                    date: "Jan 15, 2026",
-                                    initials: "MV",
-                                    color: "bg-slate-600",
-                                  },
-                                ]
-                              : []
-                            ).map((m) => (
+                            {([] as Array<{
+                              name: string;
+                              email: string;
+                              role: string;
+                              status: string;
+                              date: string;
+                              initials: string;
+                              color: string;
+                            }>).map((m) => (
                               <tr key={m.email} className="hover:bg-muted/20">
                                 <td className="px-4 py-3.5 flex items-center gap-3">
                                   <div
@@ -1252,39 +1183,7 @@ export function OrganizationSettings() {
                 </div>
 
                 <div className="space-y-4">
-                  {((isDemoMode
-                    ? [
-                        {
-                          id: "demo-hq",
-                          name: "Main HQ",
-                          description: "MaintainPro Registered Facility",
-                          status: "active",
-                          locationCount: 12,
-                        },
-                        {
-                          id: "demo-west",
-                          name: "West Campus",
-                          description: "MaintainPro Registered Facility",
-                          status: "active",
-                          locationCount: 8,
-                        },
-                        {
-                          id: "demo-north",
-                          name: "North Logistics",
-                          description: "MaintainPro Registered Facility",
-                          status: "active",
-                          locationCount: 5,
-                        },
-                        {
-                          id: "demo-east",
-                          name: "East Warehouses",
-                          description: "MaintainPro Registered Facility",
-                          status: "inactive",
-                          locationCount: 3,
-                        },
-                      ]
-                    : facilitiesQuery.data?.data ?? []
-                  ) as SettingsFacility[]).map((facility) => (
+                  {((facilitiesQuery.data?.data ?? []) as SettingsFacility[]).map((facility) => (
                     <div
                       key={facility.name}
                       className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4"
@@ -1352,7 +1251,7 @@ export function OrganizationSettings() {
                       Loading facilities…
                     </div>
                   )}
-                  {!isDemoMode && facilitiesQuery.isError && (
+                  {facilitiesQuery.isError && (
                     <div
                       role="alert"
                       className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive"
@@ -1361,8 +1260,7 @@ export function OrganizationSettings() {
                       be loaded from the live API.
                     </div>
                   )}
-                  {!isDemoMode &&
-                    !facilitiesQuery.isLoading &&
+                  {!facilitiesQuery.isLoading &&
                     !facilitiesQuery.isError &&
                     (facilitiesQuery.data?.data ?? []).length === 0 && (
                       <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -1376,7 +1274,7 @@ export function OrganizationSettings() {
             {/* 5. BILLING TAB */}
             {activeTab === "billing" && (
               <div className="space-y-6">
-                {!isDemoMode && subscriptionQuery.isError && (
+                {subscriptionQuery.isError && (
                   <div
                     role="alert"
                     className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning"
@@ -1404,26 +1302,22 @@ export function OrganizationSettings() {
                           CURRENT PLAN
                         </p>
                         <h4 className="text-xl font-bold text-foreground">
-                          {isDemoMode
-                            ? "Professional Plan"
-                            : subscriptionQuery.data?.plan
+                          {subscriptionQuery.data?.plan
                             ? `${subscriptionQuery.data.plan} Plan`
                             : "Plan unavailable"}
                         </h4>
                       </div>
                       <StatusBadge
-                        status={isDemoMode ? "ACTIVE" : (subscriptionQuery.data?.status?.toUpperCase() ?? "UNAVAILABLE")}
+                        status={subscriptionQuery.data?.status?.toUpperCase() ?? "UNAVAILABLE"}
                       />
                     </div>
 
                     <div>
                       <span className="text-3xl font-extrabold text-foreground">
-                        {isDemoMode ? "$299.00" : "—"}
+                        —
                       </span>
                       <span className="text-[13px] text-muted-foreground">
-                        {isDemoMode
-                          ? " / month"
-                          : " billing amount unavailable"}
+                        {" billing amount unavailable"}
                       </span>
                     </div>
 
@@ -1431,17 +1325,13 @@ export function OrganizationSettings() {
                       <div>
                         <p className="text-muted-foreground">Seats Used</p>
                         <p className="font-bold text-foreground">
-                          {isDemoMode
-                            ? "25 / 50 Standard Seats"
-                            : "Unavailable"}
+                          Unavailable
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-muted-foreground">Next Renewal</p>
                         <p className="font-bold text-foreground">
-                          {isDemoMode
-                            ? "Nov 01, 2026"
-                            : subscriptionQuery.data?.updatedAt
+                          {subscriptionQuery.data?.updatedAt
                             ? new Date(
                                 subscriptionQuery.data.updatedAt,
                               ).toLocaleDateString()
@@ -1494,41 +1384,12 @@ export function OrganizationSettings() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {(isDemoMode
-                          ? [
-                              {
-                                date: "Oct 01, 2026",
-                                desc: "Professional Plan — Monthly Subscription (Seat count 25)",
-                                amount: "$299.00",
-                                status: "Paid",
-                              },
-                              {
-                                date: "Sep 01, 2026",
-                                desc: "Professional Plan — Monthly Subscription (Seat count 25)",
-                                amount: "$299.00",
-                                status: "Paid",
-                              },
-                              {
-                                date: "Aug 01, 2026",
-                                desc: "Professional Plan — Monthly Subscription (Seat count 25)",
-                                amount: "$299.00",
-                                status: "Paid",
-                              },
-                              {
-                                date: "Jul 01, 2026",
-                                desc: "Professional Plan — Monthly Subscription (Seat count 25)",
-                                amount: "$299.00",
-                                status: "Paid",
-                              },
-                              {
-                                date: "Jun 01, 2026",
-                                desc: "Professional Plan — Monthly Subscription (Seat count 25)",
-                                amount: "$299.00",
-                                status: "Paid",
-                              },
-                            ]
-                          : []
-                        ).map((inv) => (
+                        {([] as Array<{
+                          date: string;
+                          desc: string;
+                          amount: string;
+                          status: string;
+                        }>).map((inv) => (
                           <tr key={inv.date} className="hover:bg-muted/20">
                             <td className="px-4 py-3.5 text-muted-foreground font-semibold">
                               {inv.date}
@@ -1558,17 +1419,15 @@ export function OrganizationSettings() {
                             </td>
                           </tr>
                         ))}
-                        {!isDemoMode && (
-                          <tr>
-                            <td
-                              colSpan={5}
-                              className="p-8 text-center text-sm text-muted-foreground"
-                            >
-                              Subscription invoice history is not available from
-                              the live billing API.
-                            </td>
-                          </tr>
-                        )}
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="p-8 text-center text-sm text-muted-foreground"
+                          >
+                            Subscription invoice history is not available from
+                            the live billing API.
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>

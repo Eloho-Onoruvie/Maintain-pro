@@ -42,7 +42,7 @@ export function Locations() {
   useEffect(() => { setPage(1) }, [search, facilityFilter, zoneFilter, statusFilter])
 
   const apiLocations = locationsQuery.data || []
-  const facilities = facilitiesQuery.data?.data ?? []
+  const facilities = facilitiesQuery.data || []
   const displayedLocations = apiLocations.map((l: ApiLocation) => ({
         id: l.id,
         name: l.name,

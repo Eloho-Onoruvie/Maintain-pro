@@ -793,7 +793,7 @@ export function OrganizationSettings() {
                     onRetry={() => void loadMembers()}
                   />
                   {/*
-                Legacy demo-only members table retained temporarily for reference; both modes now use LiveMembersPanel.
+                Legacy members table retained temporarily for reference; the live members panel is the active view.
                 */}
                   <div className="hidden">
                     {/* Stats row */}

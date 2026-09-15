@@ -268,7 +268,7 @@ export function VendorQuotations() {
           </div>
         </div>
 
-        {/* Comparison details are demo-only until the live quotation API exposes bid comparisons. */}
+        {/* Comparison details remain unavailable until the live quotation API exposes bid comparisons. */}
         {true ? (
           <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             Bid comparison details will appear here when the live quotation

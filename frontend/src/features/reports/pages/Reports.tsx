@@ -567,12 +567,12 @@ function InventoryReportView() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <h2 className="font-semibold text-foreground">Stock health</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Demo inventory grouped by replenishment state.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Inventory grouped by replenishment state.</p>
           <div className="mt-4 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={stockLevels}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="value" fill="var(--primary)" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></div>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <h2 className="font-semibold text-foreground">Items by category</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Current demo inventory distribution across categories.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Current inventory distribution across categories.</p>
           <div className="mt-4 h-56">{categoryLevels.length === 0 ? <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">No category data available.</div> : <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={categoryLevels} dataKey="value" nameKey="name" innerRadius={52} outerRadius={82}>{categoryLevels.map((entry, index) => <Cell key={entry.name} fill={['var(--primary)', 'var(--info)', 'var(--warning)', 'var(--success)', 'var(--destructive)'][index % 5]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>}</div>
         </div>
       </div>
